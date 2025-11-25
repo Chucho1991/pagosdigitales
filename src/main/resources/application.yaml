@@ -1,3 +1,43 @@
+server:
+  port: 8080
+
 spring:
   application:
     name: pagosDigitales
+  datasource:
+    url: jdbc:oracle:thin:@localhost:1521/XEPDB1
+    username: GPF
+    password: GPF123
+    driver-class-name: oracle.jdbc.OracleDriver
+
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: none
+
+camel:
+  springboot:
+    main-run-controller: true
+
+getbanks:
+  providers:
+    paysafe:
+      enabled: true
+      type: rest
+      method: GET
+      url: https://sandbox-mws.safetypay.com/mpi/api/v1/banks
+      query:
+        country_code: ${country_code}
+        channel: 1
+        request_datetime: ${now}
+        limit: 100
+      headers:
+        X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
+        X-Version: 20200803
+
+providers-pay:
+  codes:
+    paysafe: 235689
+
+providers:
+  dynamic-routes-enabled: true
