@@ -61,6 +61,6 @@ public class BanksController {
         );
 
         // Convertir respuesta
-        return BanksMap.mapPaysafeResponse(req, rawResp);
+        return BanksMap.mapPaysafeResponse(req, rawResp, proveedor);
     }
 }
