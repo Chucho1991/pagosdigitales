@@ -34,10 +34,24 @@ getbanks:
       headers:
         X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
         X-Version: 20200803
+    pichincha:
+      enabled: true
+      type: rest
+      method: GET
+      url: https://sandbox-mws.safetypay.com/mpi/api/v1/banks
+      query:
+        country_code: ${country_code}
+        channel: 1
+        request_datetime: ${now}
+        limit: 100
+      headers:
+        Xi-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
+        X-Version: 20200803
 
 providers-pay:
   codes:
     paysafe: 235689
+    pichincha: 456123
 
 providers:
   dynamic-routes-enabled: true

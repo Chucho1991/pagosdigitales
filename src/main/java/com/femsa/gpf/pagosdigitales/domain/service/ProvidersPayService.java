@@ -16,12 +16,25 @@ public class ProvidersPayService {
     }
 
     public String getProviderNameByCode(Integer code) {
-        
-        // Convertimos el entero a String porque el YAML siempre queda como String
+
         return providersPayProperties.getCodes().entrySet().stream()
                 .filter(entry -> entry.getValue().equals(code))
                 .map(Map.Entry::getKey)
                 .findFirst()
                 .orElse("without-provider");
     }
+
+    public Integer getProviderCodeByName(String name) {
+
+        return providersPayProperties.getCodes().entrySet().stream()
+                .filter(entry -> entry.getKey().equals(name))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(0);
+    }
+
+    public Map<String, Integer> getAllProviders() {
+        return Map.copyOf(providersPayProperties.getCodes());
+    }
+
 }

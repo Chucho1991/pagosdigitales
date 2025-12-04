@@ -14,12 +14,4 @@ public class ProvidersPayProperties {
 
     private Map<String, Integer> codes;
 
-    public Map<String, Integer> getCodes() {
-        return codes;
-    }
-
-    public void setCodes(Map<String, Integer> codes) {
-        this.codes = codes;
-    }
-
 }
