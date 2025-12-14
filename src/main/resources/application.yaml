@@ -45,7 +45,7 @@ getbanks:
         request_datetime: ${now}
         limit: 100
       headers:
-        Xi-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
+        X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
         X-Version: 20200803
   mapping:
     default:
@@ -94,26 +94,26 @@ getbanks:
         amount_limits: amount_limits
     pichincha:
       response:
-        requestId: data.header.id
-        responseDatetime: data.header.datetime
-        banks: data.banks
+        requestId: request_id
+        responseDatetime: response_datetime
+        banks: banks
       bank:
-        bank_id: identifiers.id
-        bank_name: names.official
-        bank_commercial_name: names.commercial
-        bank_country_code: country
-        bank_type: classification.type
-        show_standalone: flags.standalone
-        channel: channel.info
-        channel_tag: channel.tag
-        status: status.code
-        access_type: access.type
-        language_code: locale
-        working_hours: schedule
+        bank_id: bank_id
+        bank_name: bank_name
+        bank_commercial_name: bank_commercial_name
+        bank_country_code: bank_country_code
+        bank_type: bank_type
+        show_standalone: show_standalone
+        channel: channel
+        channel_tag: channel_tag
+        status: status
+        access_type: access_type
+        language_code: language_code
+        working_hours: working_hours
         disclaimer: disclaimer
-        default_currency_code: currency.default
-        locations_url: locations.url
-        amount_limits: limits
+        default_currency_code: default_currency_code
+        locations_url: locations_url
+        amount_limits: amount_limits
 
 providers-pay:
   codes:
