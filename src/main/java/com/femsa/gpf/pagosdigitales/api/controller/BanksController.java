@@ -29,11 +29,14 @@ public class BanksController {
     private final ProducerTemplate camel;
     private final GetBanksProperties getBanksprops;
     private final ProvidersPayService providersPayService;
+    private final BanksMap banksMap;
 
-    public BanksController(ProducerTemplate camel, GetBanksProperties getBanksprops, ProvidersPayService providersPayService) {
+    public BanksController(ProducerTemplate camel, GetBanksProperties getBanksprops, ProvidersPayService providersPayService,
+            BanksMap banksMap) {
         this.camel = camel;
         this.getBanksprops = getBanksprops;
         this.providersPayService = providersPayService;
+        this.banksMap = banksMap;
     }
 
     @PostMapping("/banks")
@@ -67,7 +70,7 @@ public class BanksController {
             );
 
             // Convertir respuesta
-            return BanksMap.mapBanksByProviderResponse(req, rawResp, proveedor);
+            return banksMap.mapBanksByProviderResponse(req, rawResp, proveedor);
 
         } else {
             log.info("No se proporcionó un ID de proveedor");
@@ -122,7 +125,7 @@ public class BanksController {
             }
 
             // Convertir respuesta
-            return BanksMap.mapAllBanksResponse(req, listProvidersData);
+            return banksMap.mapAllBanksResponse(req, listProvidersData);
         }
     }
 }

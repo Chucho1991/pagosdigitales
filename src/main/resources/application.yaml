@@ -45,8 +45,75 @@ getbanks:
         request_datetime: ${now}
         limit: 100
       headers:
-        Xi-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
+        X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
         X-Version: 20200803
+  mapping:
+    default:
+      response:
+        requestId: request_id
+        responseDatetime: response_datetime
+        banks: banks
+      bank:
+        bank_id: bank_id
+        bank_name: bank_name
+        bank_commercial_name: bank_commercial_name
+        bank_country_code: bank_country_code
+        bank_type: bank_type
+        show_standalone: show_standalone
+        channel: channel
+        channel_tag: channel_tag
+        status: status
+        access_type: access_type
+        language_code: language_code
+        working_hours: working_hours
+        disclaimer: disclaimer
+        default_currency_code: default_currency_code
+        locations_url: locations_url
+        amount_limits: amount_limits
+    paysafe:
+      response:
+        requestId: request_id
+        responseDatetime: response_datetime
+        banks: banks
+      bank:
+        bank_id: bank_id
+        bank_name: bank_name
+        bank_commercial_name: bank_commercial_name
+        bank_country_code: bank_country_code
+        bank_type: bank_type
+        show_standalone: show_standalone
+        channel: channel
+        channel_tag: channel_tag
+        status: status
+        access_type: access_type
+        language_code: language_code
+        working_hours: working_hours
+        disclaimer: disclaimer
+        default_currency_code: default_currency_code
+        locations_url: locations_url
+        amount_limits: amount_limits
+    pichincha:
+      response:
+        requestId: request_id
+        responseDatetime: response_datetime
+        banks: banks
+      bank:
+        bank_id: bank_id
+        bank_name: bank_name
+        bank_commercial_name: bank_commercial_name
+        bank_country_code: bank_country_code
+        bank_type: bank_type
+        show_standalone: show_standalone
+        channel: channel
+        channel_tag: channel_tag
+        status: status
+        access_type: access_type
+        language_code: language_code
+        working_hours: working_hours
+        disclaimer: disclaimer
+        default_currency_code: default_currency_code
+        locations_url: locations_url
+        amount_limits: amount_limits
 
 providers-pay:
   codes:
