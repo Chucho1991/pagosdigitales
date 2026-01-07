@@ -12,12 +12,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.api.dto.BanksRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.BanksResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.ProviderItem;
 import com.femsa.gpf.pagosdigitales.application.mapper.BanksMap;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.GetBanksProperties;
+import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -30,17 +32,20 @@ public class BanksController {
     private final GetBanksProperties getBanksprops;
     private final ProvidersPayService providersPayService;
     private final BanksMap banksMap;
+    private final ObjectMapper objectMapper;
 
     public BanksController(ProducerTemplate camel, GetBanksProperties getBanksprops, ProvidersPayService providersPayService,
-            BanksMap banksMap) {
+            BanksMap banksMap, ObjectMapper objectMapper) {
         this.camel = camel;
         this.getBanksprops = getBanksprops;
         this.providersPayService = providersPayService;
         this.banksMap = banksMap;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping("/banks")
     public BanksResponse getBanks(@RequestBody BanksRequest req) {
+        log.info("Request recibido banks: {}", req);
 
         if (req.getPayment_provider_code() != null) {
 
@@ -69,8 +74,13 @@ public class BanksController {
                     camelHeaders
             );
 
+            log.info("Response recibido de proveedor {}: {}", proveedor,
+                    AppUtils.formatPayload(rawResp, objectMapper));
+
             // Convertir respuesta
-            return banksMap.mapBanksByProviderResponse(req, rawResp, proveedor);
+            BanksResponse response = banksMap.mapBanksByProviderResponse(req, rawResp, proveedor);
+            log.info("Response enviado al cliente banks: {}", response);
+            return response;
 
         } else {
             log.info("No se proporcionó un ID de proveedor");
@@ -109,6 +119,9 @@ public class BanksController {
                                     camelHeaders
                             );
 
+                            log.info("Response recibido de proveedor {}: {}", proveedor,
+                                    AppUtils.formatPayload(rawResp, objectMapper));
+
                             // Agregar providerItem solo si hubo respuesta
                             ProviderItem providerItem = new ProviderItem();
                             providerItem.setPayment_provider(entryProveedor);
@@ -125,7 +138,10 @@ public class BanksController {
             }
 
             // Convertir respuesta
-            return banksMap.mapAllBanksResponse(req, listProvidersData);
+            BanksResponse response = banksMap.mapAllBanksResponse(req, listProvidersData);
+            log.info("Response enviado al cliente banks: {}", response);
+            return response;
         }
     }
+
 }

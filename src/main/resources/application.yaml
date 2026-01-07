@@ -19,6 +19,109 @@ camel:
   springboot:
     main-run-controller: true
 
+direct-online-payment-requests:
+  providers:
+    paysafe:
+      enabled: true
+      type: rest
+      method: POST
+      url: https://sandbox-mws.safetypay.com/mpi/api/v1/direct-online-payment-requests
+      headers:
+        X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
+        X-Version: 20200803
+        Content-Type: application/json
+      defaults:
+        payment_ok_url: https://www.safetypay.com/success.com
+        payment_error_url: https://www.safetypay.com/error.com
+        application_id: "7"
+  mapping:
+    default:
+      request:
+        sales_amount.value: sales_amount.value
+        sales_amount.currency_code: sales_amount.currency_code
+        sales_amount: sales_amount
+        country_code: country_code
+        bank_id: bank_id
+        merchant_set_pay_amount: merchant_set_pay_amount
+        expiration_time_minutes: expiration_time_minutes
+        language_code: language_code
+        custom_merchant_name: custom_merchant_name
+        merchant_sales_id: merchant_sales_id
+        requested_payment_type: requested_payment_type
+        transaction_email: transaction_email
+        send_email_shopper: send_email_shopper
+      response:
+        responseDatetime: response_datetime
+        operationId: operation_id
+        bankRedirectUrl: bank_redirect_url
+        paymentExpirationDatetime: payment_expiration_datetime
+        paymentExpirationDatetimeUtc: payment_expiration_datetime_utc
+        transactionId: transaction_id
+        payableAmounts: payable_amounts
+        paymentLocations: payment_locations
+        payableAmountsItem:
+          amount.value: amount.value
+          amount.currency_code: amount.currency_code
+          additional_info: additional_info
+        paymentLocationsItem:
+          location_id: location_id
+          location_name: location_name
+          bank_subsidiary_code: bank_subsidiary_code
+          payment_instructions: payment_instructions
+          howto_pay_steps: howto_pay_steps
+          status: status
+        paymentInstructionsItem:
+          name: name
+          value: value
+          display_label: display_label
+        howtoPayStepsItem:
+          step_number: step_number
+          step_instruction: step_instruction
+    paysafe:
+      request:
+        merchant_set_pay_amount_data.merchant_currency_code: sales_amount.currency_code
+        merchant_set_pay_amount_data.country_code: country_code
+        sales_amount.value: sales_amount.value
+        sales_amount.currency_code: sales_amount.currency_code
+        sales_amount: sales_amount
+        country_code: country_code
+        bank_id: bank_id
+        merchant_set_pay_amount: merchant_set_pay_amount
+        expiration_time_minutes: expiration_time_minutes
+        language_code: language_code
+        custom_merchant_name: custom_merchant_name
+        merchant_sales_id: merchant_sales_id
+        requested_payment_type: requested_payment_type
+        transaction_email: transaction_email
+        send_email_shopper: send_email_shopper
+      response:
+        responseDatetime: response_datetime
+        operationId: operation_id
+        bankRedirectUrl: bank_redirect_url
+        paymentExpirationDatetime: payment_expiration_datetime
+        paymentExpirationDatetimeUtc: payment_expiration_datetime_utc
+        transactionId: transaction_id
+        payableAmounts: payable_amounts
+        paymentLocations: payment_locations
+        payableAmountsItem:
+          amount.value: amount.value
+          amount.currency_code: amount.currency_code
+          additional_info: additional_info
+        paymentLocationsItem:
+          location_id: location_id
+          location_name: location_name
+          bank_subsidiary_code: bank_subsidiary_code
+          payment_instructions: payment_instructions
+          howto_pay_steps: howto_pay_steps
+          status: status
+        paymentInstructionsItem:
+          name: name
+          value: value
+          display_label: display_label
+        howtoPayStepsItem:
+          step_number: step_number
+          step_instruction: step_instruction
+
 getbanks:
   providers:
     paysafe:

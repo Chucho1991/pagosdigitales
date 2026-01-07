@@ -5,12 +5,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.extern.log4j.Log4j2;
+
+@Log4j2
 @RestController
 @RequestMapping("/api/v1/pagos")
 public class PagosDigitalesController {
 
     @GetMapping("/test")
     public ResponseEntity<String> test() {
-        return ResponseEntity.ok("Pagos Digitales API OK - Spring Boot 4");
+        log.info("Request recibido pagos/test");
+        String response = "Pagos Digitales API OK - Spring Boot 4";
+        log.info("Response enviado al cliente pagos/test: {}", response);
+        return ResponseEntity.ok(response);
     }
 }
