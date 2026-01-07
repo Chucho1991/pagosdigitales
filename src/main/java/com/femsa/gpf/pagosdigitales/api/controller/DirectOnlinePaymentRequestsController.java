@@ -18,6 +18,9 @@ import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 
 import lombok.extern.log4j.Log4j2;
 
+/**
+ * Controlador REST para solicitudes de pago en linea directo.
+ */
 @Log4j2
 @RestController
 @RequestMapping("/api/v1")
@@ -29,6 +32,15 @@ public class DirectOnlinePaymentRequestsController {
     private final DirectOnlinePaymentMap directOnlinePaymentMap;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Crea el controlador de pagos en linea con sus dependencias.
+     *
+     * @param camel motor de envio a rutas Camel
+     * @param props configuracion de proveedores de pago en linea
+     * @param providersPayService servicio de proveedores habilitados
+     * @param directOnlinePaymentMap mapeador de solicitudes y respuestas
+     * @param objectMapper serializador de payloads
+     */
     public DirectOnlinePaymentRequestsController(ProducerTemplate camel,
             DirectOnlinePaymentProperties props,
             ProvidersPayService providersPayService,
@@ -41,6 +53,13 @@ public class DirectOnlinePaymentRequestsController {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Envia una solicitud de pago en linea al proveedor configurado.
+     *
+     * @param req solicitud de pago en linea
+     * @return respuesta normalizada del proveedor
+     * @throws IllegalArgumentException cuando no se define el proveedor
+     */
     @PostMapping("/direct-online-payment-requests")
     public DirectOnlinePaymentResponse directOnlinePaymentRequests(@RequestBody DirectOnlinePaymentRequest req) {
         log.info("Request recibido direct-online-payment-requests: {}", req);

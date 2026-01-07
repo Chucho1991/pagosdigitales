@@ -7,12 +7,12 @@ import org.springframework.stereotype.Component;
 
 import lombok.Data;
 
-@Data
-@Component
-@ConfigurationProperties(prefix = "providers-pay")
 /**
  * Propiedades para mapear codigos de proveedores de pago.
  */
+@Data
+@Component
+@ConfigurationProperties(prefix = "providers-pay")
 public class ProvidersPayProperties {
 
     /**

@@ -7,12 +7,12 @@ import org.springframework.stereotype.Component;
 
 import lombok.Data;
 
-@Data
-@Component
-@ConfigurationProperties(prefix = "getbanks")
 /**
  * Propiedades de configuracion para el endpoint de bancos.
  */
+@Data
+@Component
+@ConfigurationProperties(prefix = "getbanks")
 public class GetBanksProperties {
 
     /**
@@ -20,10 +20,10 @@ public class GetBanksProperties {
      */
     private Map<String, ProviderConfig> providers;
 
-    @Data
     /**
      * Configuracion de un proveedor para la consulta de bancos.
      */
+    @Data
     public static class ProviderConfig {
         /** Indica si el proveedor esta habilitado. */
         private boolean enabled;

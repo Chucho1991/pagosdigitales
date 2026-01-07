@@ -4,6 +4,10 @@ import java.util.List;
 
 import lombok.Data;
 
+/**
+ * DTO de respuesta para consulta de bancos.
+ */
+
 @Data
 public class BanksResponse {
 

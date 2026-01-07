@@ -7,11 +7,19 @@ import org.springframework.web.bind.annotation.RestController;
 
 import lombok.extern.log4j.Log4j2;
 
+/**
+ * Controlador de endpoints basicos de la API.
+ */
 @Log4j2
 @RestController
 @RequestMapping("/api/v1/pagos")
 public class PagosDigitalesController {
 
+    /**
+     * Verifica el estado de la API.
+     *
+     * @return respuesta de estado en texto plano
+     */
     @GetMapping("/test")
     public ResponseEntity<String> test() {
         log.info("Request recibido pagos/test");

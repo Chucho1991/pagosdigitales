@@ -7,6 +7,9 @@ import org.springframework.stereotype.Component;
 
 import lombok.Data;
 
+/**
+ * Propiedades de configuracion para pagos en linea directos.
+ */
 @Data
 @Component
 @ConfigurationProperties(prefix = "direct-online-payment-requests")
@@ -14,6 +17,9 @@ public class DirectOnlinePaymentProperties {
 
     private Map<String, ProviderConfig> providers;
 
+    /**
+     * Configuracion especifica de un proveedor.
+     */
     @Data
     public static class ProviderConfig {
         private boolean enabled;
@@ -24,6 +30,9 @@ public class DirectOnlinePaymentProperties {
         private Defaults defaults = new Defaults();
     }
 
+    /**
+     * Valores por defecto para solicitudes de pago.
+     */
     @Data
     public static class Defaults {
         private String payment_ok_url;
@@ -33,6 +42,9 @@ public class DirectOnlinePaymentProperties {
         private Shopper shopper = new Shopper();
     }
 
+    /**
+     * Informacion del comprador por defecto.
+     */
     @Data
     public static class Shopper {
         private Phone phone = new Phone();
@@ -43,6 +55,9 @@ public class DirectOnlinePaymentProperties {
         private String tax_id;
     }
 
+    /**
+     * Informacion de contacto del comprador.
+     */
     @Data
     public static class Phone {
         private String phone_type;

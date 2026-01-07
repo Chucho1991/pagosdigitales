@@ -4,6 +4,10 @@ import java.util.Map;
 
 import lombok.Data;
 
+/**
+ * DTO auxiliar para agrupar respuesta cruda por proveedor.
+ */
+
 @Data
 public class ProviderItem {
 

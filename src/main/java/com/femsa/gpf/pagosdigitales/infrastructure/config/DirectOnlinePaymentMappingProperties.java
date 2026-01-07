@@ -8,6 +8,9 @@ import org.springframework.stereotype.Component;
 
 import lombok.Data;
 
+/**
+ * Configuracion de mapeo para pagos en linea directos.
+ */
 @Data
 @Component
 @ConfigurationProperties(prefix = "direct-online-payment-requests")
@@ -15,16 +18,28 @@ public class DirectOnlinePaymentMappingProperties {
 
     private Map<String, ProviderMapping> mapping = new HashMap<>();
 
+    /**
+     * Obtiene el mapeo asociado a un proveedor o el valor por defecto.
+     *
+     * @param provider nombre del proveedor
+     * @return mapeo para el proveedor indicado
+     */
     public ProviderMapping resolve(String provider) {
         return mapping.getOrDefault(provider, mapping.getOrDefault("default", new ProviderMapping()));
     }
 
+    /**
+     * Mapeo de request y response para un proveedor.
+     */
     @Data
     public static class ProviderMapping {
         private ResponseMapping response = new ResponseMapping();
         private Map<String, String> request = new HashMap<>();
     }
 
+    /**
+     * Mapeo de campos de respuesta del proveedor.
+     */
     @Data
     public static class ResponseMapping {
         private String responseDatetime = "response_datetime";

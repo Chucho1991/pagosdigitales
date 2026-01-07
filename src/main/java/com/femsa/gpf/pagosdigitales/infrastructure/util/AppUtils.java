@@ -13,6 +13,13 @@ public final class AppUtils {
     private AppUtils() {
     }
 
+    /**
+     * Convierte un payload a texto legible para logging.
+     *
+     * @param payload objeto a serializar
+     * @param objectMapper serializador JSON
+     * @return representacion en texto del payload
+     */
     public static String formatPayload(Object payload, ObjectMapper objectMapper) {
         if (payload == null) {
             return "null";

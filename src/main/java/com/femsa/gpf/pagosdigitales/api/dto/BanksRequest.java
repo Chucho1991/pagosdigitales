@@ -2,6 +2,10 @@ package com.femsa.gpf.pagosdigitales.api.dto;
 
 import lombok.Data;
 
+/**
+ * DTO de solicitud para consulta de bancos.
+ */
+
 @Data
 public class BanksRequest {
 

@@ -4,6 +4,10 @@ import java.math.BigDecimal;
 
 import lombok.Data;
 
+/**
+ * DTO de solicitud para pagos en linea directos.
+ */
+
 @Data
 public class DirectOnlinePaymentRequest {
 
@@ -24,6 +28,9 @@ public class DirectOnlinePaymentRequest {
     private String transaction_email;
     private Boolean send_email_shopper;
 
+    /**
+     * DTO con el monto de venta y la moneda.
+     */
     @Data
     public static class SalesAmount {
         private BigDecimal value;
