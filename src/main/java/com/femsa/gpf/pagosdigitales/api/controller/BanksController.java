@@ -23,6 +23,9 @@ import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 
 import lombok.extern.log4j.Log4j2;
 
+/**
+ * Controlador REST para la consulta de bancos.
+ */
 @Log4j2
 @RestController
 @RequestMapping("/api/v1")
@@ -34,6 +37,15 @@ public class BanksController {
     private final BanksMap banksMap;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Crea el controlador de bancos con sus dependencias.
+     *
+     * @param camel motor de envio a rutas Camel
+     * @param getBanksprops configuracion de proveedores para bancos
+     * @param providersPayService servicio de proveedores habilitados
+     * @param banksMap mapeador de respuestas de bancos
+     * @param objectMapper serializador de payloads
+     */
     public BanksController(ProducerTemplate camel, GetBanksProperties getBanksprops, ProvidersPayService providersPayService,
             BanksMap banksMap, ObjectMapper objectMapper) {
         this.camel = camel;
@@ -43,6 +55,13 @@ public class BanksController {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Consulta bancos por proveedor o para todos los proveedores configurados.
+     *
+     * @param req solicitud de bancos
+     * @return respuesta con los bancos disponibles
+     * @throws IllegalArgumentException cuando el proveedor solicitado no esta configurado
+     */
     @PostMapping("/banks")
     public BanksResponse getBanks(@RequestBody BanksRequest req) {
         log.info("Request recibido banks: {}", req);

@@ -6,17 +6,29 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentProperties;
 
+/**
+ * Ruta Camel dinamica para pagos en linea directos.
+ */
 @Component
 public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
 
     private final DirectOnlinePaymentProperties props;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Crea la ruta con configuracion y serializador.
+     *
+     * @param props propiedades de proveedores de pago
+     * @param objectMapper serializador de payloads
+     */
     public DynamicDirectOnlinePaymentRoute(DirectOnlinePaymentProperties props, ObjectMapper objectMapper) {
         this.props = props;
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Configura la ruta dinamica para llamadas a proveedores.
+     */
     @Override
     public void configure() {
         from("direct:direct-online-payment-requests")

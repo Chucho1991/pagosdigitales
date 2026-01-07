@@ -5,6 +5,10 @@ import java.util.Map;
 
 import lombok.Data;
 
+/**
+ * DTO de respuesta para pagos en linea directos.
+ */
+
 @Data
 public class DirectOnlinePaymentResponse {
 

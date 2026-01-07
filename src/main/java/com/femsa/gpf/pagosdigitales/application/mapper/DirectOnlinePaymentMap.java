@@ -16,6 +16,9 @@ import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentMap
 import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentMappingProperties.ResponseMapping;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentProperties;
 
+/**
+ * Mapper para solicitudes y respuestas de pago en linea.
+ */
 @Component
 public class DirectOnlinePaymentMap {
 
@@ -27,6 +30,13 @@ public class DirectOnlinePaymentMap {
     private final DirectOnlinePaymentProperties properties;
     private final DirectOnlinePaymentMappingProperties mappingProperties;
 
+    /**
+     * Crea el mapper con dependencias de mapeo y configuracion.
+     *
+     * @param mapper serializador de JSON
+     * @param properties configuracion de proveedores
+     * @param mappingProperties configuracion de mapeo
+     */
     public DirectOnlinePaymentMap(ObjectMapper mapper,
             DirectOnlinePaymentProperties properties,
             DirectOnlinePaymentMappingProperties mappingProperties) {
@@ -35,6 +45,13 @@ public class DirectOnlinePaymentMap {
         this.mappingProperties = mappingProperties;
     }
 
+    /**
+     * Construye el request para el proveedor usando los mapeos configurados.
+     *
+     * @param req solicitud de pago entrante
+     * @param providerName nombre del proveedor
+     * @return cuerpo de la solicitud para el proveedor
+     */
     public Map<String, Object> mapProviderRequest(DirectOnlinePaymentRequest req, String providerName) {
         Map<String, Object> body = new LinkedHashMap<>();
         Map<String, Object> reqMap = mapper.convertValue(req, MAP_TYPE);
@@ -73,6 +90,14 @@ public class DirectOnlinePaymentMap {
         return body;
     }
 
+    /**
+     * Normaliza la respuesta del proveedor al DTO interno.
+     *
+     * @param req solicitud original
+     * @param raw respuesta cruda del proveedor
+     * @param providerName nombre del proveedor
+     * @return respuesta de pago en linea normalizada
+     */
     public DirectOnlinePaymentResponse mapProviderResponse(DirectOnlinePaymentRequest req, Object raw, String providerName) {
         Map<String, Object> map = toMap(raw);
         ResponseMapping responseMapping = mappingProperties.resolve(providerName).getResponse();

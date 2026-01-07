@@ -18,6 +18,9 @@ import com.femsa.gpf.pagosdigitales.infrastructure.config.BankMappingProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.BankMappingProperties.ProviderMapping;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.BankMappingProperties.ResponseMapping;
 
+/**
+ * Mapper para normalizar respuestas de bancos por proveedor.
+ */
 @Component
 public class BanksMap {
 
@@ -27,10 +30,23 @@ public class BanksMap {
     private final ObjectMapper mapper = new ObjectMapper();
     private final BankMappingProperties bankMappingProperties;
 
+    /**
+     * Crea el mapper con la configuracion de mapeo.
+     *
+     * @param bankMappingProperties propiedades de mapeo de bancos
+     */
     public BanksMap(BankMappingProperties bankMappingProperties) {
         this.bankMappingProperties = bankMappingProperties;
     }
 
+    /**
+     * Convierte la respuesta de un proveedor al formato interno.
+     *
+     * @param req solicitud original
+     * @param raw respuesta cruda del proveedor
+     * @param providerName nombre del proveedor
+     * @return respuesta de bancos normalizada
+     */
     public BanksResponse mapBanksByProviderResponse(BanksRequest req, Object raw, String providerName) {
 
         Map<String, Object> map = toMap(raw);
@@ -57,6 +73,13 @@ public class BanksMap {
         return resp;
     }
 
+    /**
+     * Convierte multiples respuestas de proveedores en una respuesta unificada.
+     *
+     * @param req solicitud original
+     * @param listaProviderItems lista de proveedores con sus respuestas
+     * @return respuesta consolidada de bancos
+     */
     public BanksResponse mapAllBanksResponse(BanksRequest req, List<ProviderItem> listaProviderItems) {
 
         BanksResponse resp = new BanksResponse();

@@ -5,15 +5,26 @@ import org.springframework.stereotype.Component;
 
 import com.femsa.gpf.pagosdigitales.infrastructure.config.GetBanksProperties;
 
+/**
+ * Ruta Camel dinamica para consultar bancos por proveedor.
+ */
 @Component
 public class DynamicBankRoute extends RouteBuilder {
 
     private final GetBanksProperties props;
 
+    /**
+     * Crea la ruta con las propiedades de proveedores de bancos.
+     *
+     * @param props configuracion de proveedores
+     */
     public DynamicBankRoute(GetBanksProperties props) {
         this.props = props;
     }
 
+    /**
+     * Configura la ruta dinamica para la consulta de bancos.
+     */
     @Override
     public void configure() {
 
