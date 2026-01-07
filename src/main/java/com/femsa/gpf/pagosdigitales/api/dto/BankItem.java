@@ -5,6 +5,9 @@ import java.util.Map;
 
 import lombok.Data;
 
+/**
+ * DTO con información de un banco.
+ */
 @Data
 public class BankItem {
     private String bank_id;

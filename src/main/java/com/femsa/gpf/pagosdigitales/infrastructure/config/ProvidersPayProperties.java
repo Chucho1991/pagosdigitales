@@ -7,6 +7,9 @@ import org.springframework.stereotype.Component;
 
 import lombok.Data;
 
+/**
+ * Propiedades de configuración para proveedores de pago.
+ */
 @Data
 @Component
 @ConfigurationProperties(prefix = "providers-pay")

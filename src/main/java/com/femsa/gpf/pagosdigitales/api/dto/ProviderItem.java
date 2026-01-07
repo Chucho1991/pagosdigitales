@@ -4,6 +4,9 @@ import java.util.Map;
 
 import lombok.Data;
 
+/**
+ * DTO con el resultado por proveedor.
+ */
 @Data
 public class ProviderItem {
 

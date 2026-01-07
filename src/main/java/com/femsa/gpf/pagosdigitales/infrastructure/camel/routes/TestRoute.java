@@ -3,9 +3,15 @@ package com.femsa.gpf.pagosdigitales.infrastructure.camel.routes;
 import org.apache.camel.builder.RouteBuilder;
 import org.springframework.stereotype.Component;
 
+/**
+ * Ruta de prueba para validar el entorno Camel.
+ */
 @Component
 public class TestRoute extends RouteBuilder {
 
+    /**
+     * Configura la ruta Camel de prueba.
+     */
     @Override
     public void configure() {
 
@@ -16,4 +22,3 @@ public class TestRoute extends RouteBuilder {
                 .log("✔️ [Camel] Finalizó ruta de prueba.");
     }
 }
-

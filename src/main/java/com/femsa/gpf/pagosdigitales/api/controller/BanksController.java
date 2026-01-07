@@ -21,6 +21,9 @@ import com.femsa.gpf.pagosdigitales.infrastructure.config.GetBanksProperties;
 
 import lombok.extern.log4j.Log4j2;
 
+/**
+ * Controlador para consultar bancos por proveedor o en conjunto.
+ */
 @Log4j2
 @RestController
 @RequestMapping("/api/v1")
@@ -31,14 +34,29 @@ public class BanksController {
     private final ProvidersPayService providersPayService;
     private final BanksMap banksMap;
 
-    public BanksController(ProducerTemplate camel, GetBanksProperties getBanksprops, ProvidersPayService providersPayService,
-            BanksMap banksMap) {
+    /**
+     * Crea el controlador con las dependencias requeridas.
+     *
+     * @param camel               productor de Camel para enrutar la petición.
+     * @param getBanksprops       configuración de proveedores para consulta de bancos.
+     * @param providersPayService servicio de proveedores de pago.
+     * @param banksMap            mapeador de respuestas de bancos.
+     */
+    public BanksController(ProducerTemplate camel, GetBanksProperties getBanksprops,
+            ProvidersPayService providersPayService, BanksMap banksMap) {
         this.camel = camel;
         this.getBanksprops = getBanksprops;
         this.providersPayService = providersPayService;
         this.banksMap = banksMap;
     }
 
+    /**
+     * Obtiene bancos de un proveedor específico o de todos los proveedores.
+     *
+     * @param req solicitud con filtros de consulta.
+     * @return respuesta con los bancos encontrados.
+     * @throws IllegalArgumentException cuando el proveedor no está configurado.
+     */
     @PostMapping("/banks")
     public BanksResponse getBanks(@RequestBody BanksRequest req) {
 

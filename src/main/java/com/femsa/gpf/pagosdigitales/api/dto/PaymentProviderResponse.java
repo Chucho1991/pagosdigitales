@@ -4,6 +4,9 @@ import java.util.List;
 
 import lombok.Data;
 
+/**
+ * DTO con la respuesta de un proveedor de pago.
+ */
 @Data
 public class PaymentProviderResponse {
     private String payment_provider_name;
