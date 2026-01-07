@@ -122,6 +122,33 @@ direct-online-payment-requests:
           step_number: step_number
           step_instruction: step_instruction
 
+merchant-events:
+  providers:
+    paysafe:
+      enabled: true
+      type: rest
+      method: POST
+      url: https://sandbox-mws.safetypay.com/mpi/api/v1/payments/notifications/merchant-events
+      headers:
+        X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
+        X-Version: 20200803
+        Content-Type: application/json
+  mapping:
+    default:
+      request:
+        merchant_events: merchant_events
+        request_datetime: request_datetime
+      response:
+        requestId: request_id
+        responseDatetime: response_datetime
+    paysafe:
+      request:
+        merchant_events: merchant_events
+        request_datetime: request_datetime
+      response:
+        requestId: request_id
+        responseDatetime: response_datetime
+
 getbanks:
   providers:
     paysafe:
