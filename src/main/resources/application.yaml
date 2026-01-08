@@ -9,6 +9,12 @@ spring:
     username: GPF
     password: GPF123
     driver-class-name: oracle.jdbc.OracleDriver
+#PROVISIONAL DEV
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
 
   jpa:
     show-sql: false
@@ -148,6 +154,32 @@ merchant-events:
       response:
         requestId: request_id
         responseDatetime: response_datetime
+
+payments:
+  providers:
+    paysafe:
+      enabled: true
+      type: rest
+      method: GET
+      url: https://sandbox-mws.safetypay.com/mpi/api/v1/payments/
+      query:
+        operation_id: ${operation_id}
+        request_datetime: ${request_datetime}
+        limit: 100
+      headers:
+        X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
+        X-Version: 20200803
+  mapping:
+    default:
+      response:
+        requestId: request_id
+        responseDatetime: response_datetime
+        paymentOperations: payment_operations
+    paysafe:
+      response:
+        requestId: request_id
+        responseDatetime: response_datetime
+        paymentOperations: payment_operations
 
 getbanks:
   providers:
