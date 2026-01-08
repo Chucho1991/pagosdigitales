@@ -284,3 +284,13 @@ providers-pay:
 
 providers:
   dynamic-routes-enabled: true
+
+safetypay:
+  confirmation:
+    enabled: true
+    providers:
+      paysafe:
+        apiKey: c14e0ba4e1845e09ba08a4be0fba95e5
+        secret: a8fed296d6a4e4d877c1abbe8de938a2
+        signatureMode: SHA256
+        allowedIps: []
