@@ -45,6 +45,7 @@ public class SafetypayConfirmationService {
      * @param notificationStore store de idempotencia
      * @param orderService servicio de ordenes
      * @param objectMapper serializador JSON
+     * @param providersPayService servicio de proveedores de pago
      */
     public SafetypayConfirmationService(SafetypayConfirmationProperties properties,
             SignatureService signatureService,

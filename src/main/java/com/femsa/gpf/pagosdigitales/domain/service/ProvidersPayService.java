@@ -1,6 +1,7 @@
 package com.femsa.gpf.pagosdigitales.domain.service;
 
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 
@@ -30,9 +31,8 @@ public class ProvidersPayService {
      * @return nombre del proveedor o "without-provider" si no existe
      */
     public String getProviderNameByCode(Integer code) {
-
         return providersPayProperties.getCodes().entrySet().stream()
-                .filter(entry -> entry.getValue().equals(code))
+                .filter(entry -> Objects.equals(entry.getValue(), code))
                 .map(Map.Entry::getKey)
                 .findFirst()
                 .orElse("without-provider");
@@ -45,9 +45,8 @@ public class ProvidersPayService {
      * @return codigo del proveedor o 0 si no existe
      */
     public Integer getProviderCodeByName(String name) {
-
         return providersPayProperties.getCodes().entrySet().stream()
-                .filter(entry -> entry.getKey().equals(name))
+                .filter(entry -> Objects.equals(entry.getKey(), name))
                 .map(Map.Entry::getValue)
                 .findFirst()
                 .orElse(0);
