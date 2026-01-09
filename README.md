@@ -4,7 +4,7 @@
 
 ```yaml
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 spring:
   application:
@@ -35,6 +35,26 @@ providers:
 Notas:
 - Ajusta `spring.datasource.*` segun el entorno.
 - `providers-pay.codes` define los codigos de proveedores usados en los endpoints genericos.
+
+## Despliegue con Docker (puerto 8787)
+
+1. Construye la imagen:
+
+```bash
+docker build -t pagosdigitales:local .
+```
+
+2. Ejecuta el contenedor en el puerto 8787:
+
+```bash
+docker run --rm -p 8787:8787 pagosdigitales:local
+```
+
+3. Ajusta el puerto si lo necesitas:
+
+```bash
+docker run --rm -e SERVER_PORT=8787 -p 8787:8787 pagosdigitales:local
+```
 
 ## Endpoint
 
