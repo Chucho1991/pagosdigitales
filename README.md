@@ -429,3 +429,10 @@ getbanks:
         X-Api-Key: ${API_KEY}
         X-Version: 20200803
 ```
+
+## Swagger / OpenAPI
+
+Despues de levantar el servicio, puedes acceder a:
+
+- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
