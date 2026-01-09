@@ -1,0 +1,129 @@
+{
+  "info": {
+    "name": "PagosDigitales API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Colección de endpoints PagosDigitales."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/pagos/test",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "pagos", "test"]
+        }
+      }
+    },
+    {
+      "name": "Banks",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"chain\": 1,\n  \"store\": 148,\n  \"store_name\": \"FYBECA AMAZONAS\",\n  \"pos\": 90,\n  \"payment_provider_code\": 235689,\n  \"country_code\": \"EC\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/banks",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "banks"]
+        }
+      }
+    },
+    {
+      "name": "Direct Online Payment Requests",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"chain\": 1,\n  \"store\": 148,\n  \"store_name\": \"FYBECA AMAZONAS\",\n  \"pos\": 90,\n  \"payment_provider_code\": 235689,\n  \"sales_amount\": { \"value\": 50.00, \"currency_code\": \"USD\" },\n  \"country_code\": \"EC\",\n  \"bank_id\": \"0123\",\n  \"merchant_set_pay_amount\": true,\n  \"expiration_time_minutes\": 30,\n  \"language_code\": \"ES\",\n  \"custom_merchant_name\": \"TIENDA\",\n  \"merchant_sales_id\": \"Prueba1\",\n  \"requested_payment_type\": \"paycash\",\n  \"transaction_email\": \"cliente@correo.com\",\n  \"send_email_shopper\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/direct-online-payment-requests",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "direct-online-payment-requests"]
+        }
+      }
+    },
+    {
+      "name": "Payments",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"chain\": 1,\n  \"store\": 148,\n  \"store_name\": \"FYBECA AMAZONAS\",\n  \"pos\": 90,\n  \"payment_provider_code\": 235689,\n  \"operation_id\": \"0125239606973873\",\n  \"request_datetime\": \"2025-08-27T23:22:14\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/payments",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "payments"]
+        }
+      }
+    },
+    {
+      "name": "Merchant Events",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"chain\": 1,\n  \"store\": 148,\n  \"store_name\": \"FYBECA AMAZONAS\",\n  \"pos\": 90,\n  \"payment_provider_code\": 235689,\n  \"merchant_events\": [\n    { \"event_type\": \"payment_completed\", \"event_datetime\": \"2025-08-27T23:30:00\" }\n  ],\n  \"request_datetime\": \"2025-08-27T23:30:00\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/payments/notifications/merchant-events",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "payments", "notifications", "merchant-events"]
+        }
+      }
+    },
+    {
+      "name": "SafetyPay Confirmation",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "ApiKey", "value": "MI_API_KEY" },
+            { "key": "payment_provider_code", "value": "235689" },
+            { "key": "RequestDateTime", "value": "2020-10-20T12:27:27" },
+            { "key": "MerchantSalesID", "value": "Prueba1" },
+            { "key": "ReferenceNo", "value": "Ref1" },
+            { "key": "CreationDateTime", "value": "2020-10-20T12:27:27" },
+            { "key": "Amount", "value": "50.00" },
+            { "key": "CurrencyID", "value": "USD" },
+            { "key": "PaymentReferenceNo", "value": "606973" },
+            { "key": "Status", "value": "102" },
+            { "key": "Signature", "value": "FIRMA_CALCULADA" }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/safetypay/confirmation",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "safetypay", "confirmation"]
+        }
+      }
+    }
+  ]
+}
