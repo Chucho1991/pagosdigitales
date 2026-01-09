@@ -1,0 +1,246 @@
+openapi: 3.0.3
+info:
+  title: PagosDigitales API
+  version: 0.0.1
+  description: API unificada para Pagos Digitales con rutas dinámicas y SafetyPay Confirmation.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/banks:
+    post:
+      summary: Consulta bancos por proveedor o todos los proveedores configurados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BanksRequest'
+      responses:
+        '200':
+          description: Respuesta de bancos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BanksResponse'
+  /api/v1/payments:
+    get:
+      summary: Consulta pagos por operación.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentsRequest'
+      responses:
+        '200':
+          description: Respuesta de pagos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentsResponse'
+  /api/v1/direct-online-payment-requests:
+    post:
+      summary: Solicita un pago en línea directo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DirectOnlinePaymentRequest'
+      responses:
+        '200':
+          description: Respuesta de pago en línea.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DirectOnlinePaymentResponse'
+  /api/v1/payments/notifications/merchant-events:
+    post:
+      summary: Envía notificaciones de eventos del comercio al proveedor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MerchantEventsRequest'
+      responses:
+        '200':
+          description: Respuesta de merchant events.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchantEventsResponse'
+  /api/v1/safetypay/confirmation:
+    post:
+      summary: Webhook de confirmaciones SafetyPay.
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SafetypayConfirmationRequest'
+      responses:
+        '200':
+          description: CSV firmado.
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/v1/pagos/test:
+    get:
+      summary: Health check de la API.
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  schemas:
+    BanksRequest:
+      type: object
+      properties:
+        chain:
+          type: integer
+        store:
+          type: integer
+        store_name:
+          type: string
+        pos:
+          type: integer
+        payment_provider_code:
+          type: integer
+        channel_POS:
+          type: string
+        country_code:
+          type: string
+      required:
+        - chain
+        - store
+        - store_name
+        - pos
+        - country_code
+    PaymentsRequest:
+      type: object
+      properties:
+        chain:
+          type: integer
+        store:
+          type: integer
+        store_name:
+          type: string
+        pos:
+          type: integer
+        payment_provider_code:
+          type: integer
+        operation_id:
+          type: string
+        request_datetime:
+          type: string
+      required:
+        - payment_provider_code
+        - operation_id
+    DirectOnlinePaymentRequest:
+      type: object
+      properties:
+        chain:
+          type: integer
+        store:
+          type: integer
+        store_name:
+          type: string
+        pos:
+          type: integer
+        payment_provider_code:
+          type: integer
+        sales_amount:
+          type: object
+          properties:
+            value:
+              type: number
+            currency_code:
+              type: string
+        country_code:
+          type: string
+        bank_id:
+          type: string
+        merchant_set_pay_amount:
+          type: boolean
+        expiration_time_minutes:
+          type: integer
+        language_code:
+          type: string
+        custom_merchant_name:
+          type: string
+        merchant_sales_id:
+          type: string
+        requested_payment_type:
+          type: string
+        transaction_email:
+          type: string
+        send_email_shopper:
+          type: boolean
+      required:
+        - payment_provider_code
+        - sales_amount
+        - country_code
+    MerchantEventsRequest:
+      type: object
+      properties:
+        chain:
+          type: integer
+        store:
+          type: integer
+        store_name:
+          type: string
+        pos:
+          type: integer
+        payment_provider_code:
+          type: integer
+        merchant_events:
+          type: array
+          items:
+            type: object
+        request_datetime:
+          type: string
+      required:
+        - payment_provider_code
+        - merchant_events
+    SafetypayConfirmationRequest:
+      type: object
+      properties:
+        payment_provider_code:
+          type: integer
+        ApiKey:
+          type: string
+        RequestDateTime:
+          type: string
+        MerchantSalesID:
+          type: string
+        ReferenceNo:
+          type: string
+        CreationDateTime:
+          type: string
+        Amount:
+          type: string
+        CurrencyID:
+          type: string
+        PaymentReferenceNo:
+          type: string
+        Status:
+          type: string
+        Signature:
+          type: string
+    BanksResponse:
+      type: object
+      description: Respuesta normalizada de bancos.
+    PaymentsResponse:
+      type: object
+      description: Respuesta normalizada de pagos.
+    DirectOnlinePaymentResponse:
+      type: object
+      description: Respuesta normalizada de pagos en línea.
+    MerchantEventsResponse:
+      type: object
+      description: Respuesta normalizada de merchant events.

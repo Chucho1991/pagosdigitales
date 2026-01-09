@@ -1,0 +1,276 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+endobj
+5 0 obj
+<< /Length 2730 >>
+stream
+BT
+/F1 12 Tf
+14 TL
+72 720 Td
+(Manual técnico — PagosDigitales) Tj
+T*
+() Tj
+T*
+(1. Propósito) Tj
+T*
+() Tj
+T*
+(Este manual técnico describe la operación interna del servicio PagosDigitales, su) Tj
+T*
+(arquitectura, configuración, integración con proveedores y guías de despliegue y) Tj
+T*
+(operación.) Tj
+T*
+() Tj
+T*
+(2. Alcance • Aplicación Spring Boot 3.x con Apache Camel. • API REST para pagos, bancos y) Tj
+T*
+(notificaciones. • Confirmaciones SafetyPay con firma SHA-256. • Configuración por) Tj
+T*
+(proveedor en application.yaml.) Tj
+T*
+() Tj
+T*
+(3. Arquitectura) Tj
+T*
+() Tj
+T*
+(Estilo: monolito en capas \(API, Application, Domain, Infrastructure\) con integración) Tj
+T*
+(dinámica por proveedor.) Tj
+T*
+() Tj
+T*
+(Componentes clave: • Controllers: expone endpoints REST. • Mappers: transforman) Tj
+T*
+(requests/responses hacia el formato de cada proveedor. • Servicios de dominio: firma y) Tj
+T*
+(resolución de proveedor. • Camel Routes: enrutan solicitudes hacia proveedores externos.) Tj
+T*
+() Tj
+T*
+(4. Estructura de paquetes • com.femsa.gpf.pagosdigitales.api: controladores y DTOs. •) Tj
+T*
+(com.femsa.gpf.pagosdigitales.application: orquestación y mapeos. •) Tj
+T*
+(com.femsa.gpf.pagosdigitales.domain: lógica de negocio. •) Tj
+T*
+(com.femsa.gpf.pagosdigitales.infrastructure: rutas Camel y configuración.) Tj
+T*
+() Tj
+T*
+(5. Endpoints Método | Ruta | Descripción | Content-Type | Respuesta --- | --- | --- | ---) Tj
+T*
+(| --- POST | /api/v1/banks | Consulta bancos por proveedor o todos | JSON | JSON GET |) Tj
+T*
+(/api/v1/payments | Consulta pagos por operationid | JSON \(body\) | JSON POST |) Tj
+T*
+(/api/v1/direct-online-payment-requests | Solicitud de pago en línea | JSON | JSON POST |) Tj
+T*
+(/api/v1/payments/notifications/merchant-events | Notificaciones de eventos del comercio |) Tj
+T*
+(JSON | JSON POST | /api/v1/safetypay/confirmation | Webhook SafetyPay \(CSV firmado\) |) Tj
+T*
+(application/x-www-form-urlencoded | text/plain GET | /api/v1/pagos/test | Health check | —) Tj
+T*
+(| text/plain 6. Flujo de integración) Tj
+T*
+() Tj
+T*
+(6.1 Pagos en línea 1. Controller valida proveedor y solicitud. 2. Mapper crea payload del) Tj
+T*
+(proveedor según mapping. 3. Camel Route arma URL y headers dinámicamente. 4. Respuesta) Tj
+T*
+(normalizada hacia DTO interno.) Tj
+T*
+() Tj
+T*
+(6.2 Consulta de pagos 1. Controller valida paymentprovidercode y operationid. 2. Camel) Tj
+T*
+(Route agrega parámetros de consulta. 3. Respuesta normalizada a DTO interno.) Tj
+T*
+() Tj
+T*
+(6.3 Consulta de bancos 1. Controller consulta proveedor específico o todos. 2. Camel Route) Tj
+T*
+(construye URL con parámetros. 3. Respuesta normalizada por mapping.) Tj
+T*
+() Tj
+T*
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+endobj
+7 0 obj
+<< /Length 2220 >>
+stream
+BT
+/F1 12 Tf
+14 TL
+72 720 Td
+(6.4 Merchant Events 1. Controller valida proveedor. 2. Mapper transforma payload. 3. Camel) Tj
+T*
+(Route envía notificación.) Tj
+T*
+() Tj
+T*
+(6.5 SafetyPay Confirmation 1. Controller mapea form-urlencoded a DTO. 2. Service valida) Tj
+T*
+(API Key, firma e IP permitida. 3. Aplica idempotencia y registra notificación. 4. Responde) Tj
+T*
+(CSV firmado.) Tj
+T*
+() Tj
+T*
+(7. Configuración) Tj
+T*
+() Tj
+T*
+(Ubicación: src/main/resources/application.yaml) Tj
+T*
+() Tj
+T*
+(7.1 Base • server.port • spring.datasource.* • spring.jpa.*) Tj
+T*
+() Tj
+T*
+(7.2 Proveedores por endpoint • direct-online-payment-requests.providers.* •) Tj
+T*
+(merchant-events.providers.* • payments.providers.* • getbanks.providers.*) Tj
+T*
+() Tj
+T*
+(7.3 Mappings • direct-online-payment-requests.mapping.* • merchant-events.mapping.* •) Tj
+T*
+(payments.mapping.* • getbanks.mapping.*) Tj
+T*
+() Tj
+T*
+(7.4 Códigos y errores • providers-pay.codes • error-mapping.providers.*) Tj
+T*
+() Tj
+T*
+(7.5 SafetyPay • safetypay.confirmation.enabled • safetypay.confirmation.providers.*) Tj
+T*
+() Tj
+T*
+(8. Seguridad • Validación de firma SHA-256 y API Key en SafetyPay. • Lista opcional de IPs) Tj
+T*
+(permitidas para confirmaciones. • Headers X-Api-Key y X-Version por proveedor configurados) Tj
+T*
+(en YAML.) Tj
+T*
+() Tj
+T*
+(9. Despliegue) Tj
+T*
+() Tj
+T*
+(9.1 Requisitos • Java 17 • Maven • Oracle JDBC accesible) Tj
+T*
+() Tj
+T*
+(9.2 Build bash mvn clean package) Tj
+T*
+() Tj
+T*
+(9.3 Docker \(referencial\) dockerfile FROM eclipse-temurin:17-jre WORKDIR /app COPY) Tj
+T*
+(target/pagosdigitales-0.0.1-SNAPSHOT.jar app.jar EXPOSE 8080 ENTRYPOINT ["java", "-jar",) Tj
+T*
+("app.jar"]) Tj
+T*
+() Tj
+T*
+(10. Operación y monitoreo • Revisar logs de Camel para trazabilidad de requests/response.) Tj
+T*
+(• Validar métricas de latencia por endpoint. • Ajustar timeouts por proveedor según SLA.) Tj
+T*
+() Tj
+T*
+(11. Ejemplos de uso) Tj
+T*
+() Tj
+T*
+(11.1 SafetyPay Confirmation bash curl -X POST) Tj
+T*
+(http://localhost:8080/api/v1/safetypay/confirmation \\ -H "Content-Type:) Tj
+T*
+(application/x-www-form-urlencoded" \\ --data-urlencode "ApiKey=MIAPIKEY" \\ --data-urlencode) Tj
+T*
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >>
+endobj
+9 0 obj
+<< /Length 1191 >>
+stream
+BT
+/F1 12 Tf
+14 TL
+72 720 Td
+("paymentprovidercode=235689" \\ --data-urlencode "RequestDateTime=2020-10-20T12:27:27" \\) Tj
+T*
+(--data-urlencode "MerchantSalesID=Prueba1" \\ --data-urlencode "ReferenceNo=Ref1" \\) Tj
+T*
+(--data-urlencode "CreationDateTime=2020-10-20T12:27:27" \\ --data-urlencode "Amount=50.00") Tj
+T*
+(\\ --data-urlencode "CurrencyID=USD" \\ --data-urlencode "PaymentReferenceNo=606973" \\) Tj
+T*
+(--data-urlencode "Status=102" \\ --data-urlencode "Signature=FIRMACALCULADA") Tj
+T*
+() Tj
+T*
+(11.2 Direct Online Payment Requests bash curl -X POST) Tj
+T*
+(http://localhost:8080/api/v1/direct-online-payment-requests \\ -H "Content-Type:) Tj
+T*
+(application/json" \\ -d '{ "chain": 1, "store": 148, "storename": "FYBECA AMAZONAS", "pos":) Tj
+T*
+(90, "paymentprovidercode": 235689, "salesamount": { "value": 50.00, "currencycode": "USD") Tj
+T*
+(}, "countrycode": "EC", "bankid": "0123", "merchantsetpayamount": true,) Tj
+T*
+("expirationtimeminutes": 30, "languagecode": "ES", "custommerchantname": "TIENDA",) Tj
+T*
+("merchantsalesid": "Prueba1", "requestedpaymenttype": "paycash", "transactionemail":) Tj
+T*
+("cliente@correo.com", "sendemailshopper": true }') Tj
+T*
+() Tj
+T*
+ET
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000000 00000 n 
+0000000049 00000 n 
+0000000118 00000 n 
+0000000188 00000 n 
+0000000314 00000 n 
+0000003042 00000 n 
+0000003168 00000 n 
+0000005382 00000 n 
+0000005508 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+6751
+%%EOF

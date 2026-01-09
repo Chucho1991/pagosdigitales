@@ -1,5 +1,15 @@
 # Pagos Digitales - SafetyPay Confirmation
 
+## Documentación técnica
+
+- Arquitectura y operación: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- Manual técnico: [`docs/MANUAL_TECNICO.md`](docs/MANUAL_TECNICO.md)
+- Manual técnico (PDF): [`docs/MANUAL_TECNICO.pdf`](docs/MANUAL_TECNICO.pdf)
+- Manual de usuario: [`docs/MANUAL_USUARIO.md`](docs/MANUAL_USUARIO.md)
+- Manual de usuario (PDF): [`docs/MANUAL_USUARIO.pdf`](docs/MANUAL_USUARIO.pdf)
+- ADR de arquitectura: [`docs/adr/0001-architecture.md`](docs/adr/0001-architecture.md)
+- Especificación OpenAPI: [`docs/openapi.yaml`](docs/openapi.yaml)
+
 ## Configuracion global del proyecto (application.yaml)
 
 ```yaml
