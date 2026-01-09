@@ -51,6 +51,61 @@ Notas:
 - `GET /api/v1/payments`: consulta de pagos por `operation_id`.
 - `POST /api/v1/banks`: consulta de bancos por proveedor o todos.
 
+## SLA/SLO/SLI
+
+- Disponibilidad objetivo: 99.9%.
+- Latencia p95 por endpoint: <= 300 ms.
+- Tasa de errores p99: <= 0.5%.
+- Ventanas de mantenimiento y contacto NOC: definir por entorno.
+- Politica de reintentos: exponencial (100ms, 500ms, 2s; max 3).
+- Timeout maximo por request: 2s.
+
+## Estructura de errores (excepto SafetyPay)
+
+Los endpoints devuelven el siguiente formato cuando el proveedor responde con error
+o cuando se detecta un error de validacion interno:
+
+```json
+{
+  "chain": 1,
+  "store": 148,
+  "store_name": "FYBECA AMAZONAS",
+  "pos": 90,
+  "payment_provider_code": 456123,
+  "error": {
+    "http_code": 400,
+    "code": "INVALID_REQUEST",
+    "category": "INVALID_REQUEST_ERROR",
+    "message": "Request is not well-formed, schema is incorrect, or is missing a required parameter.",
+    "information_link": null,
+    "inner_details": [
+      {
+        "inner_code": null,
+        "field": "country_code",
+        "field_value": "ECUa",
+        "field_message": "Country code is invalid. It should be 3 characters long."
+      }
+    ]
+  }
+}
+```
+
+## Configuracion de mapeo de errores por proveedor
+
+Si un proveedor devuelve el objeto de error en otra ruta, se puede configurar
+el path con `error-mapping.providers.<proveedor>.error`:
+
+```yaml
+error-mapping:
+  providers:
+    default:
+      error: error
+    paysafe:
+      error: error
+    pichincha:
+      error: error
+```
+
 ## Parametros de entrada (form-urlencoded)
 
 - ApiKey

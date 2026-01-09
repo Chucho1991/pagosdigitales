@@ -294,3 +294,12 @@ safetypay:
         secret: a8fed296d6a4e4d877c1abbe8de938a2
         signatureMode: SHA256
         allowedIps: []
+
+error-mapping:
+  providers:
+    default:
+      error: error
+    paysafe:
+      error: error
+    pichincha:
+      error: error

@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.apache.camel.CamelExecutionException;
 import org.apache.camel.ProducerTemplate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,10 +16,13 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.api.dto.BanksRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.BanksResponse;
+import com.femsa.gpf.pagosdigitales.api.dto.ErrorInfo;
 import com.femsa.gpf.pagosdigitales.api.dto.ProviderItem;
 import com.femsa.gpf.pagosdigitales.application.mapper.BanksMap;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
+import com.femsa.gpf.pagosdigitales.infrastructure.config.ErrorMappingProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.GetBanksProperties;
+import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 
 import lombok.extern.log4j.Log4j2;
@@ -36,6 +40,7 @@ public class BanksController {
     private final ProvidersPayService providersPayService;
     private final BanksMap banksMap;
     private final ObjectMapper objectMapper;
+    private final ErrorMappingProperties errorMappingProperties;
 
     /**
      * Crea el controlador de bancos con sus dependencias.
@@ -45,121 +50,141 @@ public class BanksController {
      * @param providersPayService servicio de proveedores habilitados
      * @param banksMap mapeador de respuestas de bancos
      * @param objectMapper serializador de payloads
+     * @param errorMappingProperties configuracion de mapeo de errores
      */
-    public BanksController(ProducerTemplate camel, GetBanksProperties getBanksprops, ProvidersPayService providersPayService,
-            BanksMap banksMap, ObjectMapper objectMapper) {
+    public BanksController(ProducerTemplate camel, GetBanksProperties getBanksprops,
+            ProvidersPayService providersPayService, BanksMap banksMap, ObjectMapper objectMapper,
+            ErrorMappingProperties errorMappingProperties) {
         this.camel = camel;
         this.getBanksprops = getBanksprops;
         this.providersPayService = providersPayService;
         this.banksMap = banksMap;
         this.objectMapper = objectMapper;
+        this.errorMappingProperties = errorMappingProperties;
     }
 
     /**
      * Consulta bancos por proveedor o para todos los proveedores configurados.
      *
      * @param req solicitud de bancos
-     * @return respuesta con los bancos disponibles
+     * @return respuesta con los bancos disponibles o estructura de error
      * @throws IllegalArgumentException cuando el proveedor solicitado no esta configurado
      */
     @PostMapping("/banks")
-    public BanksResponse getBanks(@RequestBody BanksRequest req) {
+    public ResponseEntity<?> getBanks(@RequestBody BanksRequest req) {
         log.info("Request recibido banks: {}", req);
 
-        if (req.getPayment_provider_code() != null) {
+        try {
+            if (req.getPayment_provider_code() != null) {
 
-            log.info("ID Proveedor: " + req.getPayment_provider_code());
+                log.info("ID Proveedor: " + req.getPayment_provider_code());
 
-            String proveedor = providersPayService.getProviderNameByCode(req.getPayment_provider_code());
+                String proveedor = providersPayService.getProviderNameByCode(req.getPayment_provider_code());
 
-            log.info("Nombre Proveedor: " + proveedor);
+                log.info("Nombre Proveedor: " + proveedor);
 
-            if (proveedor.equals("without-provider") || getBanksprops.getProviders().get(proveedor) == null) {
-                throw new IllegalArgumentException("Proveedor no configurado");
-            }
+                if (proveedor.equals("without-provider") || getBanksprops.getProviders().get(proveedor) == null) {
+                    throw new IllegalArgumentException("Proveedor no configurado");
+                }
 
-            // Llamar a Camel dinámicamente
-            Map<String, Object> camelHeaders = Map.of(
-                    "country_code", req.getCountry_code(),
-                    "now", LocalDateTime.now().toString(),
-                    "getbanks", proveedor
-            );
+                Map<String, Object> camelHeaders = Map.of(
+                        "country_code", req.getCountry_code(),
+                        "now", LocalDateTime.now().toString(),
+                        "getbanks", proveedor
+                );
 
-            log.info(camelHeaders);
+                log.info(camelHeaders);
 
-            Object rawResp = camel.requestBodyAndHeaders(
-                    "direct:getbanks",
-                    null,
-                    camelHeaders
-            );
+                Object rawResp = camel.requestBodyAndHeaders(
+                        "direct:getbanks",
+                        null,
+                        camelHeaders
+                );
 
-            log.info("Response recibido de proveedor {}: {}", proveedor,
-                    AppUtils.formatPayload(rawResp, objectMapper));
+                log.info("Response recibido de proveedor {}: {}", proveedor,
+                        AppUtils.formatPayload(rawResp, objectMapper));
 
-            // Convertir respuesta
-            BanksResponse response = banksMap.mapBanksByProviderResponse(req, rawResp, proveedor);
-            log.info("Response enviado al cliente banks: {}", response);
-            return response;
+                String errorPath = errorMappingProperties.resolve(proveedor).getError();
+                ErrorInfo providerError = ApiErrorUtils.extractProviderError(rawResp, objectMapper, errorPath);
+                if (providerError != null) {
+                    int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
+                    return ResponseEntity.status(httpCode)
+                            .body(ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
+                                    req.getPos(), req.getPayment_provider_code(), providerError));
+                }
 
-        } else {
-            log.info("No se proporcionó un ID de proveedor");
+                BanksResponse response = banksMap.mapBanksByProviderResponse(req, rawResp, proveedor);
+                log.info("Response enviado al cliente banks: {}", response);
+                return ResponseEntity.ok(response);
 
-            Map<String, Integer> listProveedores = providersPayService.getAllProviders();
-            List<ProviderItem> listProvidersData = new ArrayList<>();
+            } else {
+                log.info("No se proporciono un ID de proveedor");
 
-            if (listProveedores == null || listProveedores.isEmpty()) {
-                throw new IllegalArgumentException("Proveedores no configurados");
-            }
+                Map<String, Integer> listProveedores = providersPayService.getAllProviders();
+                List<ProviderItem> listProvidersData = new ArrayList<>();
 
-            if (!listProveedores.isEmpty()) {
+                if (listProveedores == null || listProveedores.isEmpty()) {
+                    throw new IllegalArgumentException("Proveedores no configurados");
+                }
 
-                for (Map.Entry<String, Integer> entryProveedor : listProveedores.entrySet()) {
+                if (!listProveedores.isEmpty()) {
 
-                    String proveedor = entryProveedor.getKey();
-                    Integer codProveedor = entryProveedor.getValue();
+                    for (Map.Entry<String, Integer> entryProveedor : listProveedores.entrySet()) {
 
-                    if (getBanksprops.getProviders().get(proveedor) == null) {
-                        log.warn("Proveedor no configurado: " + proveedor);
-                    } else {
+                        String proveedor = entryProveedor.getKey();
+                        Integer codProveedor = entryProveedor.getValue();
 
-                        log.info("Proveedor configurado: {} → Código: {}", proveedor, codProveedor);
+                        if (getBanksprops.getProviders().get(proveedor) == null) {
+                            log.warn("Proveedor no configurado: " + proveedor);
+                        } else {
 
-                        try {
-                            // Llamar Camel dinámicamente
-                            Map<String, Object> camelHeaders = Map.of(
-                                    "country_code", req.getCountry_code(),
-                                    "now", LocalDateTime.now().toString(),
-                                    "getbanks", proveedor
-                            );
+                            log.info("Proveedor configurado: {} - Codigo: {}", proveedor, codProveedor);
 
-                            Object rawResp = camel.requestBodyAndHeaders(
-                                    "direct:getbanks",
-                                    null,
-                                    camelHeaders
-                            );
+                            try {
+                                Map<String, Object> camelHeaders = Map.of(
+                                        "country_code", req.getCountry_code(),
+                                        "now", LocalDateTime.now().toString(),
+                                        "getbanks", proveedor
+                                );
 
-                            log.info("Response recibido de proveedor {}: {}", proveedor,
-                                    AppUtils.formatPayload(rawResp, objectMapper));
+                                Object rawResp = camel.requestBodyAndHeaders(
+                                        "direct:getbanks",
+                                        null,
+                                        camelHeaders
+                                );
 
-                            // Agregar providerItem solo si hubo respuesta
-                            ProviderItem providerItem = new ProviderItem();
-                            providerItem.setPayment_provider(entryProveedor);
-                            providerItem.setData(rawResp);
+                                log.info("Response recibido de proveedor {}: {}", proveedor,
+                                        AppUtils.formatPayload(rawResp, objectMapper));
 
-                            listProvidersData.add(providerItem);
+                                ProviderItem providerItem = new ProviderItem();
+                                providerItem.setPayment_provider(entryProveedor);
+                                providerItem.setData(rawResp);
 
-                        } catch (CamelExecutionException e) {
-                            log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
-                                    proveedor, codProveedor, e.getMessage());
+                                listProvidersData.add(providerItem);
+
+                            } catch (CamelExecutionException e) {
+                                log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
+                                        proveedor, codProveedor, e.getMessage());
+                            }
                         }
                     }
                 }
-            }
 
-            // Convertir respuesta
-            BanksResponse response = banksMap.mapAllBanksResponse(req, listProvidersData);
-            log.info("Response enviado al cliente banks: {}", response);
-            return response;
+                BanksResponse response = banksMap.mapAllBanksResponse(req, listProvidersData);
+                log.info("Response enviado al cliente banks: {}", response);
+                return ResponseEntity.ok(response);
+            }
+        } catch (IllegalArgumentException e) {
+            ErrorInfo error = ApiErrorUtils.invalidRequest(e.getMessage(), null, null, null);
+            return ResponseEntity.status(400)
+                    .body(ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
+                            req.getPos(), req.getPayment_provider_code(), error));
+        } catch (Exception e) {
+            log.error("Error procesando banks", e);
+            ErrorInfo error = ApiErrorUtils.genericError(500, "Internal error");
+            return ResponseEntity.status(500)
+                    .body(ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
+                            req.getPos(), req.getPayment_provider_code(), error));
         }
     }
 
