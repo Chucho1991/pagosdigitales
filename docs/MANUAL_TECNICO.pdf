@@ -3,274 +3,562 @@
 << /Type /Catalog /Pages 2 0 R >>
 endobj
 2 0 obj
-<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 >>
+<< /Type /Pages /Kids [6 0 R 8 0 R 10 0 R 12 0 R] /Count 4 >>
 endobj
 3 0 obj
 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
 endobj
 4 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
 endobj
 5 0 obj
-<< /Length 2730 >>
-stream
-BT
-/F1 12 Tf
-14 TL
-72 720 Td
-(Manual técnico — PagosDigitales) Tj
-T*
-() Tj
-T*
-(1. Propósito) Tj
-T*
-() Tj
-T*
-(Este manual técnico describe la operación interna del servicio PagosDigitales, su) Tj
-T*
-(arquitectura, configuración, integración con proveedores y guías de despliegue y) Tj
-T*
-(operación.) Tj
-T*
-() Tj
-T*
-(2. Alcance • Aplicación Spring Boot 3.x con Apache Camel. • API REST para pagos, bancos y) Tj
-T*
-(notificaciones. • Confirmaciones SafetyPay con firma SHA-256. • Configuración por) Tj
-T*
-(proveedor en application.yaml.) Tj
-T*
-() Tj
-T*
-(3. Arquitectura) Tj
-T*
-() Tj
-T*
-(Estilo: monolito en capas \(API, Application, Domain, Infrastructure\) con integración) Tj
-T*
-(dinámica por proveedor.) Tj
-T*
-() Tj
-T*
-(Componentes clave: • Controllers: expone endpoints REST. • Mappers: transforman) Tj
-T*
-(requests/responses hacia el formato de cada proveedor. • Servicios de dominio: firma y) Tj
-T*
-(resolución de proveedor. • Camel Routes: enrutan solicitudes hacia proveedores externos.) Tj
-T*
-() Tj
-T*
-(4. Estructura de paquetes • com.femsa.gpf.pagosdigitales.api: controladores y DTOs. •) Tj
-T*
-(com.femsa.gpf.pagosdigitales.application: orquestación y mapeos. •) Tj
-T*
-(com.femsa.gpf.pagosdigitales.domain: lógica de negocio. •) Tj
-T*
-(com.femsa.gpf.pagosdigitales.infrastructure: rutas Camel y configuración.) Tj
-T*
-() Tj
-T*
-(5. Endpoints Método | Ruta | Descripción | Content-Type | Respuesta --- | --- | --- | ---) Tj
-T*
-(| --- POST | /api/v1/banks | Consulta bancos por proveedor o todos | JSON | JSON GET |) Tj
-T*
-(/api/v1/payments | Consulta pagos por operationid | JSON \(body\) | JSON POST |) Tj
-T*
-(/api/v1/direct-online-payment-requests | Solicitud de pago en línea | JSON | JSON POST |) Tj
-T*
-(/api/v1/payments/notifications/merchant-events | Notificaciones de eventos del comercio |) Tj
-T*
-(JSON | JSON POST | /api/v1/safetypay/confirmation | Webhook SafetyPay \(CSV firmado\) |) Tj
-T*
-(application/x-www-form-urlencoded | text/plain GET | /api/v1/pagos/test | Health check | —) Tj
-T*
-(| text/plain 6. Flujo de integración) Tj
-T*
-() Tj
-T*
-(6.1 Pagos en línea 1. Controller valida proveedor y solicitud. 2. Mapper crea payload del) Tj
-T*
-(proveedor según mapping. 3. Camel Route arma URL y headers dinámicamente. 4. Respuesta) Tj
-T*
-(normalizada hacia DTO interno.) Tj
-T*
-() Tj
-T*
-(6.2 Consulta de pagos 1. Controller valida paymentprovidercode y operationid. 2. Camel) Tj
-T*
-(Route agrega parámetros de consulta. 3. Respuesta normalizada a DTO interno.) Tj
-T*
-() Tj
-T*
-(6.3 Consulta de bancos 1. Controller consulta proveedor específico o todos. 2. Camel Route) Tj
-T*
-(construye URL con parámetros. 3. Respuesta normalizada por mapping.) Tj
-T*
-() Tj
-T*
-ET
-endstream
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
 endobj
 6 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 7 0 R >>
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 7 0 R >>
 endobj
 7 0 obj
-<< /Length 2220 >>
+<< /Length 3306 >>
 stream
 BT
-/F1 12 Tf
-14 TL
-72 720 Td
-(6.4 Merchant Events 1. Controller valida proveedor. 2. Mapper transforma payload. 3. Camel) Tj
-T*
-(Route envía notificación.) Tj
-T*
+56 736 Td
+/F2 22 Tf
+1 0 0 1 56 736 Tm
+(Manual técnico — PagosDigitales) Tj
+/F1 10 Tf
+1 0 0 1 56 710 Tm
 () Tj
-T*
-(6.5 SafetyPay Confirmation 1. Controller mapea form-urlencoded a DTO. 2. Service valida) Tj
-T*
-(API Key, firma e IP permitida. 3. Aplica idempotencia y registra notificación. 4. Responde) Tj
-T*
-(CSV firmado.) Tj
-T*
+1 0 0 1 56 702 Tm
 () Tj
-T*
-(7. Configuración) Tj
-T*
+/F2 16 Tf
+1 0 0 1 56 694 Tm
+(1. Propósito) Tj
+/F1 10 Tf
+1 0 0 1 56 674 Tm
 () Tj
-T*
-(Ubicación: src/main/resources/application.yaml) Tj
-T*
+1 0 0 1 56 668 Tm
 () Tj
-T*
-(7.1 Base • server.port • spring.datasource.* • spring.jpa.*) Tj
-T*
+/F1 11 Tf
+1 0 0 1 56 660 Tm
+(Este manual técnico describe la operación interna del servicio PagosDigitales, su arquitectura,) Tj
+1 0 0 1 56 645 Tm
+(configuración, integración con proveedores y guías de despliegue y operación.) Tj
+/F1 10 Tf
+1 0 0 1 56 630 Tm
 () Tj
-T*
-(7.2 Proveedores por endpoint • direct-online-payment-requests.providers.* •) Tj
-T*
-(merchant-events.providers.* • payments.providers.* • getbanks.providers.*) Tj
-T*
+/F2 16 Tf
+1 0 0 1 56 622 Tm
+(2. Alcance) Tj
+/F1 10 Tf
+1 0 0 1 56 602 Tm
 () Tj
-T*
-(7.3 Mappings • direct-online-payment-requests.mapping.* • merchant-events.mapping.* •) Tj
-T*
-(payments.mapping.* • getbanks.mapping.*) Tj
-T*
+1 0 0 1 56 596 Tm
 () Tj
-T*
-(7.4 Códigos y errores • providers-pay.codes • error-mapping.providers.*) Tj
-T*
+/F1 11 Tf
+1 0 0 1 56 588 Tm
+(• Aplicación Spring Boot 3.x con Apache Camel.) Tj
+1 0 0 1 56 573 Tm
+(• API REST para pagos, bancos y notificaciones.) Tj
+1 0 0 1 56 558 Tm
+(• Confirmaciones SafetyPay con firma SHA-256.) Tj
+1 0 0 1 56 543 Tm
+(• Configuración por proveedor en `application.yaml`.) Tj
+/F1 10 Tf
+1 0 0 1 56 528 Tm
 () Tj
-T*
-(7.5 SafetyPay • safetypay.confirmation.enabled • safetypay.confirmation.providers.*) Tj
-T*
+/F2 16 Tf
+1 0 0 1 56 520 Tm
+(3. Arquitectura) Tj
+/F1 10 Tf
+1 0 0 1 56 500 Tm
 () Tj
-T*
-(8. Seguridad • Validación de firma SHA-256 y API Key en SafetyPay. • Lista opcional de IPs) Tj
-T*
-(permitidas para confirmaciones. • Headers X-Api-Key y X-Version por proveedor configurados) Tj
-T*
-(en YAML.) Tj
-T*
+1 0 0 1 56 494 Tm
 () Tj
-T*
-(9. Despliegue) Tj
-T*
+/F1 11 Tf
+1 0 0 1 56 486 Tm
+(**Estilo:** monolito en capas \(API, Application, Domain, Infrastructure\) con integración) Tj
+1 0 0 1 56 471 Tm
+(dinámica por proveedor.) Tj
+/F1 10 Tf
+1 0 0 1 56 456 Tm
 () Tj
-T*
-(9.1 Requisitos • Java 17 • Maven • Oracle JDBC accesible) Tj
-T*
+/F1 11 Tf
+1 0 0 1 56 448 Tm
+(**Componentes clave:**) Tj
+1 0 0 1 56 433 Tm
+(• **Controllers:** expone endpoints REST.) Tj
+1 0 0 1 56 418 Tm
+(• **Mappers:** transforman requests/responses hacia el formato de cada proveedor.) Tj
+1 0 0 1 56 403 Tm
+(• **Servicios de dominio:** firma y resolución de proveedor.) Tj
+1 0 0 1 56 388 Tm
+(• **Camel Routes:** enrutan solicitudes hacia proveedores externos.) Tj
+/F1 10 Tf
+1 0 0 1 56 373 Tm
 () Tj
-T*
-(9.2 Build bash mvn clean package) Tj
-T*
+/F2 16 Tf
+1 0 0 1 56 365 Tm
+(4. Estructura de paquetes) Tj
+/F1 10 Tf
+1 0 0 1 56 345 Tm
 () Tj
-T*
-(9.3 Docker \(referencial\) dockerfile FROM eclipse-temurin:17-jre WORKDIR /app COPY) Tj
-T*
-(target/pagosdigitales-0.0.1-SNAPSHOT.jar app.jar EXPOSE 8080 ENTRYPOINT ["java", "-jar",) Tj
-T*
-("app.jar"]) Tj
-T*
+1 0 0 1 56 339 Tm
 () Tj
-T*
-(10. Operación y monitoreo • Revisar logs de Camel para trazabilidad de requests/response.) Tj
-T*
-(• Validar métricas de latencia por endpoint. • Ajustar timeouts por proveedor según SLA.) Tj
-T*
+/F1 11 Tf
+1 0 0 1 56 331 Tm
+(• `com.femsa.gpf.pagosdigitales.api`: controladores y DTOs.) Tj
+1 0 0 1 56 316 Tm
+(• `com.femsa.gpf.pagosdigitales.application`: orquestación y mapeos.) Tj
+1 0 0 1 56 301 Tm
+(• `com.femsa.gpf.pagosdigitales.domain`: lógica de negocio.) Tj
+1 0 0 1 56 286 Tm
+(• `com.femsa.gpf.pagosdigitales.infrastructure`: rutas Camel y configuración.) Tj
+/F1 10 Tf
+1 0 0 1 56 271 Tm
 () Tj
-T*
-(11. Ejemplos de uso) Tj
-T*
+/F2 16 Tf
+1 0 0 1 56 263 Tm
+(5. Endpoints) Tj
+/F1 10 Tf
+1 0 0 1 56 243 Tm
 () Tj
-T*
-(11.1 SafetyPay Confirmation bash curl -X POST) Tj
-T*
-(http://localhost:8080/api/v1/safetypay/confirmation \\ -H "Content-Type:) Tj
-T*
-(application/x-www-form-urlencoded" \\ --data-urlencode "ApiKey=MIAPIKEY" \\ --data-urlencode) Tj
-T*
+1 0 0 1 56 237 Tm
+() Tj
+1 0 0 1 56 229 Tm
+(Método | Ruta | Descripción | Content-Type | Respuesta) Tj
+1 0 0 1 56 215 Tm
+(POST | `/api/v1/banks` | Consulta bancos por proveedor o todos | JSON | JSON) Tj
+1 0 0 1 56 201 Tm
+(GET | `/api/v1/payments` | Consulta pagos por `operation_id` | JSON \(body\) | JSON) Tj
+1 0 0 1 56 187 Tm
+(POST | `/api/v1/direct-online-payment-requests` | Solicitud de pago en línea | JSON | JSON) Tj
+1 0 0 1 56 173 Tm
+(POST | `/api/v1/payments/notifications/merchant-events` | Notificaciones de eventos del) Tj
+1 0 0 1 56 159 Tm
+(comercio | JSON | JSON) Tj
+1 0 0 1 56 145 Tm
+(POST | `/api/v1/safetypay/confirmation` | Webhook SafetyPay \(CSV firmado\) |) Tj
+1 0 0 1 56 131 Tm
+(`application/x-www-form-urlencoded` | `text/plain`) Tj
+1 0 0 1 56 117 Tm
+(GET | `/api/v1/pagos/test` | Health check | — | text/plain) Tj
+1 0 0 1 56 103 Tm
+() Tj
+/F2 16 Tf
+1 0 0 1 56 95 Tm
+(6. Flujo de integración) Tj
+/F1 10 Tf
+1 0 0 1 56 75 Tm
+() Tj
+1 0 0 1 56 69 Tm
+() Tj
 ET
 endstream
 endobj
 8 0 obj
-<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 9 0 R >>
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 9 0 R >>
 endobj
 9 0 obj
-<< /Length 1191 >>
+<< /Length 2701 >>
 stream
 BT
-/F1 12 Tf
-14 TL
-72 720 Td
-("paymentprovidercode=235689" \\ --data-urlencode "RequestDateTime=2020-10-20T12:27:27" \\) Tj
-T*
-(--data-urlencode "MerchantSalesID=Prueba1" \\ --data-urlencode "ReferenceNo=Ref1" \\) Tj
-T*
-(--data-urlencode "CreationDateTime=2020-10-20T12:27:27" \\ --data-urlencode "Amount=50.00") Tj
-T*
-(\\ --data-urlencode "CurrencyID=USD" \\ --data-urlencode "PaymentReferenceNo=606973" \\) Tj
-T*
-(--data-urlencode "Status=102" \\ --data-urlencode "Signature=FIRMACALCULADA") Tj
-T*
+56 736 Td
+/F2 13 Tf
+1 0 0 1 56 736 Tm
+(6.1 Pagos en línea) Tj
+/F1 11 Tf
+1 0 0 1 56 718 Tm
+(1. Controller valida proveedor y solicitud.) Tj
+1 0 0 1 56 703 Tm
+(2. Mapper crea payload del proveedor según mapping.) Tj
+1 0 0 1 56 688 Tm
+(3. Camel Route arma URL y headers dinámicamente.) Tj
+1 0 0 1 56 673 Tm
+(4. Respuesta normalizada hacia DTO interno.) Tj
+/F1 10 Tf
+1 0 0 1 56 658 Tm
 () Tj
-T*
-(11.2 Direct Online Payment Requests bash curl -X POST) Tj
-T*
-(http://localhost:8080/api/v1/direct-online-payment-requests \\ -H "Content-Type:) Tj
-T*
-(application/json" \\ -d '{ "chain": 1, "store": 148, "storename": "FYBECA AMAZONAS", "pos":) Tj
-T*
-(90, "paymentprovidercode": 235689, "salesamount": { "value": 50.00, "currencycode": "USD") Tj
-T*
-(}, "countrycode": "EC", "bankid": "0123", "merchantsetpayamount": true,) Tj
-T*
-("expirationtimeminutes": 30, "languagecode": "ES", "custommerchantname": "TIENDA",) Tj
-T*
-("merchantsalesid": "Prueba1", "requestedpaymenttype": "paycash", "transactionemail":) Tj
-T*
-("cliente@correo.com", "sendemailshopper": true }') Tj
-T*
+/F2 13 Tf
+1 0 0 1 56 650 Tm
+(6.2 Consulta de pagos) Tj
+/F1 11 Tf
+1 0 0 1 56 632 Tm
+(1. Controller valida `payment_provider_code` y `operation_id`.) Tj
+1 0 0 1 56 617 Tm
+(2. Camel Route agrega parámetros de consulta.) Tj
+1 0 0 1 56 602 Tm
+(3. Respuesta normalizada a DTO interno.) Tj
+/F1 10 Tf
+1 0 0 1 56 587 Tm
 () Tj
-T*
+/F2 13 Tf
+1 0 0 1 56 579 Tm
+(6.3 Consulta de bancos) Tj
+/F1 11 Tf
+1 0 0 1 56 561 Tm
+(1. Controller consulta proveedor específico o todos.) Tj
+1 0 0 1 56 546 Tm
+(2. Camel Route construye URL con parámetros.) Tj
+1 0 0 1 56 531 Tm
+(3. Respuesta normalizada por mapping.) Tj
+/F1 10 Tf
+1 0 0 1 56 516 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 508 Tm
+(6.4 Merchant Events) Tj
+/F1 11 Tf
+1 0 0 1 56 490 Tm
+(1. Controller valida proveedor.) Tj
+1 0 0 1 56 475 Tm
+(2. Mapper transforma payload.) Tj
+1 0 0 1 56 460 Tm
+(3. Camel Route envía notificación.) Tj
+/F1 10 Tf
+1 0 0 1 56 445 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 437 Tm
+(6.5 SafetyPay Confirmation) Tj
+/F1 11 Tf
+1 0 0 1 56 419 Tm
+(1. Controller mapea form-urlencoded a DTO.) Tj
+1 0 0 1 56 404 Tm
+(2. Service valida API Key, firma e IP permitida.) Tj
+1 0 0 1 56 389 Tm
+(3. Aplica idempotencia y registra notificación.) Tj
+1 0 0 1 56 374 Tm
+(4. Responde CSV firmado.) Tj
+/F1 10 Tf
+1 0 0 1 56 359 Tm
+() Tj
+/F2 16 Tf
+1 0 0 1 56 351 Tm
+(7. Configuración) Tj
+/F1 10 Tf
+1 0 0 1 56 331 Tm
+() Tj
+1 0 0 1 56 325 Tm
+() Tj
+/F1 11 Tf
+1 0 0 1 56 317 Tm
+(Ubicación: `src/main/resources/application.yaml`) Tj
+/F1 10 Tf
+1 0 0 1 56 302 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 294 Tm
+(7.1 Base) Tj
+/F1 11 Tf
+1 0 0 1 56 276 Tm
+(• `server.port`) Tj
+1 0 0 1 56 261 Tm
+(• `spring.datasource.*`) Tj
+1 0 0 1 56 246 Tm
+(• `spring.jpa.*`) Tj
+/F1 10 Tf
+1 0 0 1 56 231 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 223 Tm
+(7.2 Proveedores por endpoint) Tj
+/F1 11 Tf
+1 0 0 1 56 205 Tm
+(• `direct-online-payment-requests.providers.*`) Tj
+1 0 0 1 56 190 Tm
+(• `merchant-events.providers.*`) Tj
+1 0 0 1 56 175 Tm
+(• `payments.providers.*`) Tj
+1 0 0 1 56 160 Tm
+(• `getbanks.providers.*`) Tj
+/F1 10 Tf
+1 0 0 1 56 145 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 137 Tm
+(7.3 Mappings) Tj
+/F1 11 Tf
+1 0 0 1 56 119 Tm
+(• `direct-online-payment-requests.mapping.*`) Tj
+1 0 0 1 56 104 Tm
+(• `merchant-events.mapping.*`) Tj
+1 0 0 1 56 89 Tm
+(• `payments.mapping.*`) Tj
+1 0 0 1 56 74 Tm
+(• `getbanks.mapping.*`) Tj
+ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 11 0 R >>
+endobj
+11 0 obj
+<< /Length 2981 >>
+stream
+BT
+56 736 Td
+/F1 10 Tf
+1 0 0 1 56 736 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 728 Tm
+(7.4 Códigos y errores) Tj
+/F1 11 Tf
+1 0 0 1 56 710 Tm
+(• `providers-pay.codes`) Tj
+1 0 0 1 56 695 Tm
+(• `error-mapping.providers.*`) Tj
+/F1 10 Tf
+1 0 0 1 56 680 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 672 Tm
+(7.5 SafetyPay) Tj
+/F1 11 Tf
+1 0 0 1 56 654 Tm
+(• `safetypay.confirmation.enabled`) Tj
+1 0 0 1 56 639 Tm
+(• `safetypay.confirmation.providers.*`) Tj
+/F1 10 Tf
+1 0 0 1 56 624 Tm
+() Tj
+/F2 16 Tf
+1 0 0 1 56 616 Tm
+(8. Seguridad) Tj
+/F1 10 Tf
+1 0 0 1 56 596 Tm
+() Tj
+1 0 0 1 56 590 Tm
+() Tj
+/F1 11 Tf
+1 0 0 1 56 582 Tm
+(• Validación de firma SHA-256 y API Key en SafetyPay.) Tj
+1 0 0 1 56 567 Tm
+(• Lista opcional de IPs permitidas para confirmaciones.) Tj
+1 0 0 1 56 552 Tm
+(• Headers `X-Api-Key` y `X-Version` por proveedor configurados en YAML.) Tj
+/F1 10 Tf
+1 0 0 1 56 537 Tm
+() Tj
+/F2 16 Tf
+1 0 0 1 56 529 Tm
+(9. Despliegue) Tj
+/F1 10 Tf
+1 0 0 1 56 509 Tm
+() Tj
+1 0 0 1 56 503 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 495 Tm
+(9.1 Requisitos) Tj
+/F1 11 Tf
+1 0 0 1 56 477 Tm
+(• Java 17) Tj
+1 0 0 1 56 462 Tm
+(• Maven) Tj
+1 0 0 1 56 447 Tm
+(• Oracle JDBC accesible) Tj
+/F1 10 Tf
+1 0 0 1 56 432 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 424 Tm
+(9.2 Build) Tj
+/F3 9 Tf
+1 0 0 1 56 406 Tm
+(mvn clean package) Tj
+/F1 10 Tf
+1 0 0 1 56 394 Tm
+() Tj
+1 0 0 1 56 388 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 380 Tm
+(9.3 Docker \(referencial\)) Tj
+/F3 9 Tf
+1 0 0 1 56 362 Tm
+(FROM eclipse-temurin:17-jre) Tj
+1 0 0 1 56 350 Tm
+(WORKDIR /app) Tj
+1 0 0 1 56 338 Tm
+(COPY target/pagosdigitales-0.0.1-SNAPSHOT.jar app.jar) Tj
+1 0 0 1 56 326 Tm
+(EXPOSE 8080) Tj
+1 0 0 1 56 314 Tm
+(ENTRYPOINT ["java", "-jar", "app.jar"]) Tj
+/F1 10 Tf
+1 0 0 1 56 302 Tm
+() Tj
+1 0 0 1 56 296 Tm
+() Tj
+/F2 16 Tf
+1 0 0 1 56 288 Tm
+(10. Operación y monitoreo) Tj
+/F1 10 Tf
+1 0 0 1 56 268 Tm
+() Tj
+1 0 0 1 56 262 Tm
+() Tj
+/F1 11 Tf
+1 0 0 1 56 254 Tm
+(• Revisar logs de Camel para trazabilidad de requests/response.) Tj
+1 0 0 1 56 239 Tm
+(• Validar métricas de latencia por endpoint.) Tj
+1 0 0 1 56 224 Tm
+(• Ajustar timeouts por proveedor según SLA.) Tj
+/F1 10 Tf
+1 0 0 1 56 209 Tm
+() Tj
+/F2 16 Tf
+1 0 0 1 56 201 Tm
+(11. Directorio de términos) Tj
+/F1 10 Tf
+1 0 0 1 56 181 Tm
+() Tj
+1 0 0 1 56 175 Tm
+() Tj
+/F1 11 Tf
+1 0 0 1 56 167 Tm
+(• **API**: Interfaz de programación que expone los endpoints del servicio.) Tj
+1 0 0 1 56 152 Tm
+(• **Camel Route**: Ruta de Apache Camel que orquesta llamadas a proveedores externos.) Tj
+1 0 0 1 56 137 Tm
+(• **DTO**: Objeto de transferencia de datos usado en requests/responses.) Tj
+1 0 0 1 56 122 Tm
+(• **Idempotencia**: Capacidad de procesar la misma notificación sin duplicar efectos.) Tj
+1 0 0 1 56 107 Tm
+(• **Provider**: Proveedor externo de pagos configurado en `application.yaml`.) Tj
+1 0 0 1 56 92 Tm
+(• **SafetyPay Confirmation**: Webhook firmado que confirma el estado de un pago.) Tj
+1 0 0 1 56 77 Tm
+(• **Signature**: Firma criptográfica SHA-256 usada para validar autenticidad.) Tj
+ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 13 0 R >>
+endobj
+13 0 obj
+<< /Length 2386 >>
+stream
+BT
+56 736 Td
+/F1 10 Tf
+1 0 0 1 56 736 Tm
+() Tj
+/F2 16 Tf
+1 0 0 1 56 728 Tm
+(12. Ejemplos de uso) Tj
+/F1 10 Tf
+1 0 0 1 56 708 Tm
+() Tj
+1 0 0 1 56 702 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 694 Tm
+(11.1 SafetyPay Confirmation) Tj
+/F3 9 Tf
+1 0 0 1 56 676 Tm
+(curl -X POST http://localhost:8080/api/v1/safetypay/confirmation \\) Tj
+1 0 0 1 56 664 Tm
+(-H "Content-Type: application/x-www-form-urlencoded" \\) Tj
+1 0 0 1 56 652 Tm
+(--data-urlencode "ApiKey=MI_API_KEY" \\) Tj
+1 0 0 1 56 640 Tm
+(--data-urlencode "payment_provider_code=235689" \\) Tj
+1 0 0 1 56 628 Tm
+(--data-urlencode "RequestDateTime=2020-10-20T12:27:27" \\) Tj
+1 0 0 1 56 616 Tm
+(--data-urlencode "MerchantSalesID=Prueba1" \\) Tj
+1 0 0 1 56 604 Tm
+(--data-urlencode "ReferenceNo=Ref1" \\) Tj
+1 0 0 1 56 592 Tm
+(--data-urlencode "CreationDateTime=2020-10-20T12:27:27" \\) Tj
+1 0 0 1 56 580 Tm
+(--data-urlencode "Amount=50.00" \\) Tj
+1 0 0 1 56 568 Tm
+(--data-urlencode "CurrencyID=USD" \\) Tj
+1 0 0 1 56 556 Tm
+(--data-urlencode "PaymentReferenceNo=606973" \\) Tj
+1 0 0 1 56 544 Tm
+(--data-urlencode "Status=102" \\) Tj
+1 0 0 1 56 532 Tm
+(--data-urlencode "Signature=FIRMA_CALCULADA") Tj
+/F1 10 Tf
+1 0 0 1 56 520 Tm
+() Tj
+1 0 0 1 56 514 Tm
+() Tj
+/F2 13 Tf
+1 0 0 1 56 506 Tm
+(11.2 Direct Online Payment Requests) Tj
+/F3 9 Tf
+1 0 0 1 56 488 Tm
+(curl -X POST http://localhost:8080/api/v1/direct-online-payment-requests \\) Tj
+1 0 0 1 56 476 Tm
+(-H "Content-Type: application/json" \\) Tj
+1 0 0 1 56 464 Tm
+(-d '{) Tj
+1 0 0 1 56 452 Tm
+("chain": 1,) Tj
+1 0 0 1 56 440 Tm
+("store": 148,) Tj
+1 0 0 1 56 428 Tm
+("store_name": "FYBECA AMAZONAS",) Tj
+1 0 0 1 56 416 Tm
+("pos": 90,) Tj
+1 0 0 1 56 404 Tm
+("payment_provider_code": 235689,) Tj
+1 0 0 1 56 392 Tm
+("sales_amount": { "value": 50.00, "currency_code": "USD" },) Tj
+1 0 0 1 56 380 Tm
+("country_code": "EC",) Tj
+1 0 0 1 56 368 Tm
+("bank_id": "0123",) Tj
+1 0 0 1 56 356 Tm
+("merchant_set_pay_amount": true,) Tj
+1 0 0 1 56 344 Tm
+("expiration_time_minutes": 30,) Tj
+1 0 0 1 56 332 Tm
+("language_code": "ES",) Tj
+1 0 0 1 56 320 Tm
+("custom_merchant_name": "TIENDA",) Tj
+1 0 0 1 56 308 Tm
+("merchant_sales_id": "Prueba1",) Tj
+1 0 0 1 56 296 Tm
+("requested_payment_type": "paycash",) Tj
+1 0 0 1 56 284 Tm
+("transaction_email": "cliente@correo.com",) Tj
+1 0 0 1 56 272 Tm
+("send_email_shopper": true) Tj
+1 0 0 1 56 260 Tm
+(}') Tj
+/F1 10 Tf
+1 0 0 1 56 248 Tm
+() Tj
+1 0 0 1 56 242 Tm
+() Tj
 ET
 endstream
 endobj
 xref
-0 10
+0 14
 0000000000 65535 f 
 0000000000 00000 n 
 0000000049 00000 n 
-0000000118 00000 n 
-0000000188 00000 n 
-0000000314 00000 n 
-0000003042 00000 n 
-0000003168 00000 n 
-0000005382 00000 n 
-0000005508 00000 n 
+0000000126 00000 n 
+0000000196 00000 n 
+0000000271 00000 n 
+0000000339 00000 n 
+0000000485 00000 n 
+0000003795 00000 n 
+0000003941 00000 n 
+0000006661 00000 n 
+0000006809 00000 n 
+0000009794 00000 n 
+0000009942 00000 n 
 trailer
-<< /Size 10 /Root 1 0 R >>
+<< /Size 14 /Root 1 0 R >>
 startxref
-6751
+12381
 %%EOF

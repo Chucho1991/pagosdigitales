@@ -130,7 +130,17 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 - Validar métricas de latencia por endpoint.
 - Ajustar timeouts por proveedor según SLA.
 
-## 11. Ejemplos de uso
+## 11. Directorio de términos
+
+- **API**: Interfaz de programación que expone los endpoints del servicio.
+- **Camel Route**: Ruta de Apache Camel que orquesta llamadas a proveedores externos.
+- **DTO**: Objeto de transferencia de datos usado en requests/responses.
+- **Idempotencia**: Capacidad de procesar la misma notificación sin duplicar efectos.
+- **Provider**: Proveedor externo de pagos configurado en `application.yaml`.
+- **SafetyPay Confirmation**: Webhook firmado que confirma el estado de un pago.
+- **Signature**: Firma criptográfica SHA-256 usada para validar autenticidad.
+
+## 12. Ejemplos de uso
 
 ### 11.1 SafetyPay Confirmation
 ```bash

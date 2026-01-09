@@ -131,7 +131,16 @@ Los endpoints (excepto SafetyPay) devuelven un objeto de error con código HTTP 
 - Usar `request_datetime` en formato ISO cuando sea requerido.
 - Mantener sincronizadas las credenciales de proveedor.
 
-## 8. Soporte
+## 8. Directorio de términos
+
+- **API**: Interfaz de programación que expone los endpoints del servicio.
+- **CSV**: Formato de texto separado por comas usado en respuestas SafetyPay.
+- **Endpoint**: Ruta de la API que recibe solicitudes.
+- **Merchant Events**: Notificaciones de eventos enviadas por el comercio.
+- **Provider**: Proveedor externo de pagos configurado.
+- **Webhook**: Llamada entrante desde un sistema externo a la API.
+
+## 9. Soporte
 
 Para incidencias, incluya:
 - Endpoint invocado
