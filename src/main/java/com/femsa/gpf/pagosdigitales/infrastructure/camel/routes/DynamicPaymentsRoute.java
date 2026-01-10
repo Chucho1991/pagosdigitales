@@ -68,6 +68,9 @@ public class DynamicPaymentsRoute extends RouteBuilder {
 
                     exchange.setProperty("url", url.toString());
                     exchange.setProperty("httpMethod", cfg.getMethod());
+                    exchange.setProperty("endpointSuffix", url.indexOf("?") >= 0
+                            ? "&throwExceptionOnFailure=false"
+                            : "?throwExceptionOnFailure=false");
 
                     if (cfg.getHeaders() != null) {
                         cfg.getHeaders().forEach((headerName, headerValue) -> {
@@ -79,6 +82,6 @@ public class DynamicPaymentsRoute extends RouteBuilder {
                     log.info("Headers enviados: {}", cfg.getHeaders());
                 })
                 .setHeader("CamelHttpMethod", exchangeProperty("httpMethod"))
-                .toD("${exchangeProperty.url}");
+                .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}");
     }
 }

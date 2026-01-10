@@ -52,16 +52,17 @@ Notas:
 docker build -t pagosdigitales:local .
 ```
 
-2. Ejecuta el contenedor en el puerto 8787:
+
+2. Ejecuta el contenedor en el puerto 8787 con nombre fijo:
 
 ```bash
-docker run --rm -p 8787:8787 pagosdigitales:local
+docker run --rm --name pagosdigitales -p 8787:8787 pagosdigitales:local
 ```
 
 3. Ajusta el puerto si lo necesitas:
 
 ```bash
-docker run --rm -e SERVER_PORT=8787 -p 8787:8787 pagosdigitales:local
+docker run --rm --name pagosdigitales -e SERVER_PORT=8787 -p 8787:8787 pagosdigitales:local
 ```
 
 ## Endpoint

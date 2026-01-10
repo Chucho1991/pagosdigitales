@@ -77,7 +77,10 @@ public class DynamicBankRoute extends RouteBuilder {
                     exchange.setProperty("url", url.toString());
 
                     // Método HTTP
-                    exchange.setProperty("method", cfg.getMethod());
+                    exchange.setProperty("httpMethod", cfg.getMethod());
+                    exchange.setProperty("endpointSuffix", url.indexOf("?") >= 0
+                            ? "&throwExceptionOnFailure=false"
+                            : "?throwExceptionOnFailure=false");
 
                     // INCLUIR HEADERS X-API-KEY Y X-VERSION DESDE YAML
                     if (cfg.getHeaders() != null) {
@@ -92,6 +95,6 @@ public class DynamicBankRoute extends RouteBuilder {
                 })
                 // Llamada dinámica REST
                 .setHeader("CamelHttpMethod", exchangeProperty("httpMethod"))
-                .toD("${exchangeProperty.url}");
+                .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}");
     }
 }

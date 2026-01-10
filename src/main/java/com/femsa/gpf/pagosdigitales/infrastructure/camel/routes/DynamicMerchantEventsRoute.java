@@ -15,11 +15,20 @@ public class DynamicMerchantEventsRoute extends RouteBuilder {
     private final MerchantEventsProperties props;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Crea la ruta con la configuracion y el serializador.
+     *
+     * @param props propiedades de eventos del comercio
+     * @param objectMapper serializador de payloads
+     */
     public DynamicMerchantEventsRoute(MerchantEventsProperties props, ObjectMapper objectMapper) {
         this.props = props;
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Configura la ruta dinamica para eventos de comercio.
+     */
     @Override
     public void configure() {
         from("direct:merchant-events")
@@ -32,8 +41,12 @@ public class DynamicMerchantEventsRoute extends RouteBuilder {
                         throw new IllegalArgumentException("Proveedor no habilitado: " + proveedor);
                     }
 
-                    exchange.setProperty("url", cfg.getUrl());
+                    String url = cfg.getUrl();
+                    exchange.setProperty("url", url);
                     exchange.setProperty("httpMethod", cfg.getMethod());
+                    exchange.setProperty("endpointSuffix", url.contains("?")
+                            ? "&throwExceptionOnFailure=false"
+                            : "?throwExceptionOnFailure=false");
 
                     if (cfg.getHeaders() != null) {
                         cfg.getHeaders().forEach((headerName, headerValue) -> {
@@ -47,6 +60,6 @@ public class DynamicMerchantEventsRoute extends RouteBuilder {
                     }
                 })
                 .setHeader("CamelHttpMethod", exchangeProperty("httpMethod"))
-                .toD("${exchangeProperty.url}");
+                .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}");
     }
 }
