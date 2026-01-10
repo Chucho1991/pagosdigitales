@@ -41,8 +41,12 @@ public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
                         throw new IllegalArgumentException("Proveedor no habilitado: " + proveedor);
                     }
 
-                    exchange.setProperty("url", cfg.getUrl());
+                    String url = cfg.getUrl();
+                    exchange.setProperty("url", url);
                     exchange.setProperty("httpMethod", cfg.getMethod());
+                    exchange.setProperty("endpointSuffix", url.contains("?")
+                            ? "&throwExceptionOnFailure=false"
+                            : "?throwExceptionOnFailure=false");
 
                     if (cfg.getHeaders() != null) {
                         cfg.getHeaders().forEach((headerName, headerValue) -> {
@@ -58,6 +62,6 @@ public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
                     log.info("Request enviado a endpoint externo {}: {}", cfg.getUrl(), exchange.getIn().getBody());
                 })
                 .setHeader("CamelHttpMethod", exchangeProperty("httpMethod"))
-                .toD("${exchangeProperty.url}");
+                .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}");
     }
 }
