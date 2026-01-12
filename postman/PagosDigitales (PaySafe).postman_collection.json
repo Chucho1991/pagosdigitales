@@ -218,6 +218,28 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/pagos/test",
+					"protocol": "{{PROTOCOLO}}",
+					"host": [
+						"{{IP}}"
+					],
+					"port": "{{PUERTO}}",
+					"path": [
+						"api",
+						"v1",
+						"pagos",
+						"test"
+					]
+				}
+			},
+			"response": []
 		}
 	]
 }
