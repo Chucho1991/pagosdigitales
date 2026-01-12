@@ -1,0 +1,223 @@
+{
+	"info": {
+		"_postman_id": "a960748d-eb56-40d3-8016-96a151d18b1c",
+		"name": "PagosDigitales (PaySafe)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "13440532",
+		"_collection_link": "https://lunar-trinity-625726.postman.co/workspace/My-Workspace~457bdb62-88d4-40e0-8876-25d91b8c8e32/collection/13440532-a960748d-eb56-40d3-8016-96a151d18b1c?action=share&source=collection_link&creator=13440532"
+	},
+	"item": [
+		{
+			"name": "Banks_get",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"chain\": 1,\r\n    \"store\": 148,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 90,\r\n    \"payment_provider_code\": 235689,\r\n    \"channel_POS\": \"POS\",\r\n    \"country_code\": \"ECU\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/banks",
+					"protocol": "{{PROTOCOLO}}",
+					"host": [
+						"{{IP}}"
+					],
+					"port": "{{PUERTO}}",
+					"path": [
+						"api",
+						"v1",
+						"banks"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Direct-online-payment-requests",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"chain\": 1,\r\n    \"store\": 148,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 90,\r\n    \"payment_provider_code\": 235689,\r\n    \"sales_amount\": {\r\n        \"value\": 50,\r\n        \"currency_code\": \"USD\"\r\n    },\r\n    \"country_code\": \"ECU\",\r\n    \"bank_id\": \"1069\",\r\n    \"expiration_time_minutes\": 120,\r\n    \"merchant_set_pay_amount\": false,\r\n    \"language_code\": \"ES\",\r\n    \"custom_merchant_name\": \"Test\",\r\n    \"merchant_sales_id\": \"Test\",\r\n    \"requested_payment_type\": \"1\",\r\n    \"transaction_email\": \"test@test.com\",\r\n    \"send_email_shopper\": true\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/direct-online-payment-requests",
+					"protocol": "{{PROTOCOLO}}",
+					"host": [
+						"{{IP}}"
+					],
+					"port": "{{PUERTO}}",
+					"path": [
+						"api",
+						"v1",
+						"direct-online-payment-requests"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PaymentsNotificationsMerchantEvents",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"chain\": 1,\r\n    \"store\": 148,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 90,\r\n    \"payment_provider_code\": 235689,\r\n    \"merchant_events\": [\r\n        {\r\n            \"event_code\": \"merchant.received.transaction.notification\",\r\n            \"creation_datetime\": \"2026-01-07T19:23:36.258\",\r\n            \"operation_id\": \"0126008779576676\",\r\n            \"merchant_sales_id\": \"abc123456\",\r\n            \"operation_status\": \"100\"\r\n        }\r\n    ],\r\n    \"request_datetime\": \"2026-01-07T19:23:36.258\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/payments/notifications/merchant-events",
+					"protocol": "{{PROTOCOLO}}",
+					"host": [
+						"{{IP}}"
+					],
+					"port": "{{PUERTO}}",
+					"path": [
+						"api",
+						"v1",
+						"payments",
+						"notifications",
+						"merchant-events"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "PaymentsById_GET",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"chain\": 1,\r\n    \"store\": 148,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 90,\r\n    \"payment_provider_code\": 235689,\r\n    \"operation_id\": \"0126008779576676\",\r\n    \"request_datetime\": \"2026-01-08T16:25:55.357\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/payments",
+					"protocol": "{{PROTOCOLO}}",
+					"host": [
+						"{{IP}}"
+					],
+					"port": "{{PUERTO}}",
+					"path": [
+						"api",
+						"v1",
+						"payments"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Confirmacion",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/x-www-form-urlencoded"
+					}
+				],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "payment_provider_code",
+							"value": "235689",
+							"type": "text"
+						},
+						{
+							"key": "ApiKey",
+							"value": "c14e0ba4e1845e09ba08a4be0fba95e5",
+							"type": "text"
+						},
+						{
+							"key": "RequestDateTime",
+							"value": "2020-10-20T12:27:27",
+							"type": "text"
+						},
+						{
+							"key": "MerchantSalesID",
+							"value": "Prueba1",
+							"type": "text"
+						},
+						{
+							"key": "ReferenceNo",
+							"value": "Ref1",
+							"type": "text"
+						},
+						{
+							"key": "CreationDateTime",
+							"value": "2020-10-20T12:27:27",
+							"type": "text"
+						},
+						{
+							"key": "Amount",
+							"value": "50.00",
+							"type": "text"
+						},
+						{
+							"key": "CurrencyID",
+							"value": "USD",
+							"type": "text"
+						},
+						{
+							"key": "PaymentReferenceNo",
+							"value": "606973",
+							"type": "text"
+						},
+						{
+							"key": "Status",
+							"value": "102",
+							"type": "text"
+						},
+						{
+							"key": "Signature",
+							"value": "B74BB4E28B78534993F9254B9D1D7A1D7F8B844214AC85423854877EF152D5BC",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "http://localhost:8080/api/v1/safetypay/confirmation",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"v1",
+						"safetypay",
+						"confirmation"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
