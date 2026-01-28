@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -81,18 +82,18 @@ class SafetypayConfirmationControllerTest {
     }
 
     private Map<String, String> baseForm() {
-        return Map.of(
-                "payment_provider_code", "235689",
-                "ApiKey", "test-api-key",
-                "RequestDateTime", "2020-10-20T12:27:27",
-                "MerchantSalesID", "Prueba1",
-                "ReferenceNo", "Ref1",
-                "CreationDateTime", "2020-10-20T12:27:27",
-                "Amount", "50.00",
-                "CurrencyID", "USD",
-                "PaymentReferenceNo", "606973",
-                "Status", "102"
-        );
+        Map<String, String> form = new HashMap<>();
+        form.put("payment_provider_code", "235689");
+        form.put("ApiKey", "test-api-key");
+        form.put("RequestDateTime", "2020-10-20T12:27:27");
+        form.put("MerchantSalesID", "Prueba1");
+        form.put("ReferenceNo", "Ref1");
+        form.put("CreationDateTime", "2020-10-20T12:27:27");
+        form.put("Amount", "50.00");
+        form.put("CurrencyID", "USD");
+        form.put("PaymentReferenceNo", "606973");
+        form.put("Status", "102");
+        return form;
     }
 
     private String sign(Map<String, String> form) {
