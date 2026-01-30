@@ -2,13 +2,15 @@ server:
   port: ${SERVER_PORT:8080}
 
 spring:
+  config:
+    import: "optional:file:.env[.properties]"
   application:
     name: pagosDigitales
   datasource:
-    url: jdbc:oracle:thin:@localhost:1521/XEPDB1
-    username: GPF
-    password: GPF123
-    driver-class-name: oracle.jdbc.OracleDriver
+    url: ${DB_URL:jdbc:oracle:thin:@localhost:1521/XEPDB1}
+    username: ${DB_USERNAME:GPF}
+    password: ${DB_PASSWORD:GPF123}
+    driver-class-name: ${DB_DRIVER:oracle.jdbc.OracleDriver}
 #PROVISIONAL DEV
   devtools:
     restart:
@@ -30,16 +32,16 @@ direct-online-payment-requests:
     paysafe:
       enabled: true
       type: rest
-      method: POST
-      url: https://sandbox-mws.safetypay.com/mpi/api/v1/direct-online-payment-requests
+      method: ${DOPR_PAYSAFE_METHOD:POST}
+      url: ${DOPR_PAYSAFE_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/direct-online-payment-requests}
       headers:
-        X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
-        X-Version: 20200803
-        Content-Type: application/json
+        X-Api-Key: ${DOPR_PAYSAFE_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
+        X-Version: ${DOPR_PAYSAFE_X_VERSION:20200803}
+        Content-Type: ${DOPR_PAYSAFE_CONTENT_TYPE:application/json}
       defaults:
-        payment_ok_url: https://www.safetypay.com/success.com
-        payment_error_url: https://www.safetypay.com/error.com
-        application_id: "7"
+        payment_ok_url: ${DOPR_PAYSAFE_PAYMENT_OK_URL:https://www.safetypay.com/success.com}
+        payment_error_url: ${DOPR_PAYSAFE_PAYMENT_ERROR_URL:https://www.safetypay.com/error.com}
+        application_id: ${DOPR_PAYSAFE_APPLICATION_ID:"7"}
   mapping:
     default:
       request:
@@ -133,12 +135,12 @@ merchant-events:
     paysafe:
       enabled: true
       type: rest
-      method: POST
-      url: https://sandbox-mws.safetypay.com/mpi/api/v1/payments/notifications/merchant-events
+      method: ${ME_PAYSAFE_METHOD:POST}
+      url: ${ME_PAYSAFE_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/payments/notifications/merchant-events}
       headers:
-        X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
-        X-Version: 20200803
-        Content-Type: application/json
+        X-Api-Key: ${ME_PAYSAFE_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
+        X-Version: ${ME_PAYSAFE_X_VERSION:20200803}
+        Content-Type: ${ME_PAYSAFE_CONTENT_TYPE:application/json}
   mapping:
     default:
       request:
@@ -160,15 +162,15 @@ payments:
     paysafe:
       enabled: true
       type: rest
-      method: GET
-      url: https://sandbox-mws.safetypay.com/mpi/api/v1/payments/
+      method: ${PAYMENTS_PAYSAFE_METHOD:GET}
+      url: ${PAYMENTS_PAYSAFE_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/payments/}
       query:
         operation_id: ${operation_id}
         request_datetime: ${request_datetime}
-        limit: 100
+        limit: ${PAYMENTS_LIMIT:100}
       headers:
-        X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
-        X-Version: 20200803
+        X-Api-Key: ${PAYMENTS_PAYSAFE_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
+        X-Version: ${PAYMENTS_PAYSAFE_X_VERSION:20200803}
   mapping:
     default:
       response:
@@ -186,29 +188,29 @@ getbanks:
     paysafe:
       enabled: true
       type: rest
-      method: GET
-      url: https://sandbox-mws.safetypay.com/mpi/api/v1/banks
+      method: ${GETBANKS_PAYSAFE_METHOD:GET}
+      url: ${GETBANKS_PAYSAFE_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/banks}
       query:
         country_code: ${country_code}
-        channel: 1
+        channel: ${GETBANKS_PAYSAFE_CHANNEL:1}
         request_datetime: ${now}
-        limit: 100
+        limit: ${GETBANKS_PAYSAFE_LIMIT:100}
       headers:
-        X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
-        X-Version: 20200803
+        X-Api-Key: ${GETBANKS_PAYSAFE_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
+        X-Version: ${GETBANKS_PAYSAFE_X_VERSION:20200803}
     pichincha:
       enabled: true
       type: rest
-      method: GET
-      url: https://sandbox-mws.safetypay.com/mpi/api/v1/banks
+      method: ${GETBANKS_PICHINCHA_METHOD:GET}
+      url: ${GETBANKS_PICHINCHA_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/banks}
       query:
         country_code: ${country_code}
-        channel: 1
+        channel: ${GETBANKS_PICHINCHA_CHANNEL:1}
         request_datetime: ${now}
-        limit: 100
+        limit: ${GETBANKS_PICHINCHA_LIMIT:100}
       headers:
-        X-Api-Key: c14e0ba4e1845e09ba08a4be0fba95e5
-        X-Version: 20200803
+        X-Api-Key: ${GETBANKS_PICHINCHA_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
+        X-Version: ${GETBANKS_PICHINCHA_X_VERSION:20200803}
   mapping:
     default:
       response:
@@ -279,8 +281,8 @@ getbanks:
 
 providers-pay:
   codes:
-    paysafe: 235689
-    pichincha: 456123
+    paysafe: ${PROVIDERS_PAYSAFE_CODE:235689}
+    pichincha: ${PROVIDERS_PICHINCHA_CODE:456123}
 
 providers:
   dynamic-routes-enabled: true
@@ -290,9 +292,9 @@ safetypay:
     enabled: true
     providers:
       paysafe:
-        apiKey: c14e0ba4e1845e09ba08a4be0fba95e5
-        secret: a8fed296d6a4e4d877c1abbe8de938a2
-        signatureMode: SHA256
+        apiKey: ${SAFETYPAY_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
+        secret: ${SAFETYPAY_SECRET:a8fed296d6a4e4d877c1abbe8de938a2}
+        signatureMode: ${SAFETYPAY_SIGNATURE_MODE:SHA256}
         allowedIps: []
 
 error-mapping:
