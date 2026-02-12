@@ -44,7 +44,7 @@ Notas:
 - Ajusta `spring.datasource.*` segun el entorno.
 - `providers-pay.codes` define los codigos de proveedores usados en los endpoints genericos.
 
-## Despliegue con Docker (puerto 8787)
+## Despliegue con Docker (puerto 8080)
 
 1. Construye la imagen:
 
@@ -53,16 +53,16 @@ docker build -t pagosdigitales:local .
 ```
 
 
-2. Ejecuta el contenedor en el puerto 8787 con nombre fijo:
+2. Ejecuta el contenedor en el puerto 8080 con nombre fijo:
 
 ```bash
-docker run --rm --name pagosdigitales -p 8787:8787 pagosdigitales:local
+docker run --rm --name pagosdigitales -e SERVER_PORT=8080 -p 8080:8080 pagosdigitales:local
 ```
 
-3. Ajusta el puerto si lo necesitas:
+3. Mantener despliegue fijo en 8080:
 
 ```bash
-docker run --rm --name pagosdigitales -e SERVER_PORT=8787 -p 8787:8787 pagosdigitales:local
+docker run --rm --name pagosdigitales -e SERVER_PORT=8080 -p 8080:8080 pagosdigitales:local
 ```
 
 ## Endpoint

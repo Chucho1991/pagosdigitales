@@ -41,7 +41,7 @@ direct-online-payment-requests:
       defaults:
         payment_ok_url: ${DOPR_PAYSAFE_PAYMENT_OK_URL:https://www.safetypay.com/success.com}
         payment_error_url: ${DOPR_PAYSAFE_PAYMENT_ERROR_URL:https://www.safetypay.com/error.com}
-        application_id: ${DOPR_PAYSAFE_APPLICATION_ID:"7"}
+        application_id: ${DOPR_PAYSAFE_APPLICATION_ID:7}
   mapping:
     default:
       request:
