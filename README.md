@@ -77,7 +77,7 @@ docker run --rm --name pagosdigitales -e SERVER_PORT=8080 -p 8080:8080 pagosdigi
 - `POST /api/v1/safetypay/confirmation`: webhook de confirmaciones SafetyPay (form-urlencoded, respuesta CSV firmada).
 - `POST /api/v1/direct-online-payment-requests`: crea pagos en linea con proveedor.
 - `POST /api/v1/payments/notifications/merchant-events`: notificaciones de eventos del comercio hacia proveedor.
-- `GET /api/v1/payments`: consulta de pagos por `operation_id`.
+- `POST /api/v1/payments`: consulta de pagos por `operation_id`.
 - `POST /api/v1/banks`: consulta de bancos por proveedor o todos.
 
 Nota de contrato:
@@ -384,7 +384,7 @@ merchant-events:
 
 ## Endpoint: Payments
 
-- Metodo: GET
+- Metodo: POST
 - Ruta: `/api/v1/payments`
 - Content-Type: `application/json`
 - Respuesta: `application/json`
@@ -402,7 +402,7 @@ merchant-events:
 ## Ejemplo de request
 
 ```bash
-curl -X GET http://localhost:8080/api/v1/payments \
+curl -X POST http://localhost:8080/api/v1/payments \
   -H "Content-Type: application/json" \
   -d '{
     "chain": 1,

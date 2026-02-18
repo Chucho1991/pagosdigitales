@@ -1,14 +1,14 @@
-# Manual de usuario — PagosDigitales
+﻿# Manual de usuario â€” PagosDigitales
 
 ## 1. Objetivo
 
-Este manual guía a usuarios funcionales y técnicos en el uso de la API de PagosDigitales, incluyendo endpoints disponibles, formatos de solicitud, respuestas y recomendaciones de operación.
+Este manual guÃ­a a usuarios funcionales y tÃ©cnicos en el uso de la API de PagosDigitales, incluyendo endpoints disponibles, formatos de solicitud, respuestas y recomendaciones de operaciÃ³n.
 
 ## 2. Requisitos previos
 
 - Acceso a la API (URL base y credenciales de proveedor).
-- Código de proveedor (`payment_provider_code`).
-- Conocer el formato de los payloads JSON o form-urlencoded según el endpoint.
+- CÃ³digo de proveedor (`payment_provider_code`).
+- Conocer el formato de los payloads JSON o form-urlencoded segÃºn el endpoint.
 
 ## 3. URL base
 
@@ -18,16 +18,16 @@ http://<host>:8080
 
 ## 4. Endpoints disponibles
 
-| Método | Ruta | Descripción | Content-Type | Respuesta |
+| MÃ©todo | Ruta | DescripciÃ³n | Content-Type | Respuesta |
 |---|---|---|---|---|
 | POST | `/api/v1/banks` | Consulta bancos por proveedor o todos | JSON | JSON |
-| GET | `/api/v1/payments` | Consulta pagos por `operation_id` | JSON (body) | JSON |
-| POST | `/api/v1/direct-online-payment-requests` | Solicitud de pago en línea | JSON | JSON |
+| POST | `/api/v1/payments` | Consulta pagos por `operation_id` | JSON (body) | JSON |
+| POST | `/api/v1/direct-online-payment-requests` | Solicitud de pago en lÃ­nea | JSON | JSON |
 | POST | `/api/v1/payments/notifications/merchant-events` | Notificaciones de eventos del comercio | JSON | JSON |
 | POST | `/api/v1/safetypay/confirmation` | Webhook SafetyPay (CSV firmado) | `application/x-www-form-urlencoded` | `text/plain` |
-| GET | `/api/v1/pagos/test` | Health check | — | text/plain |
+| GET | `/api/v1/pagos/test` | Health check | â€” | text/plain |
 
-## 5. Guías de uso
+## 5. GuÃ­as de uso
 
 ### 5.1 Health check
 ```bash
@@ -48,7 +48,7 @@ curl -X POST http://localhost:8080/api/v1/banks \
   }'
 ```
 
-### 5.3 Solicitar pago en línea
+### 5.3 Solicitar pago en lÃ­nea
 ```bash
 curl -X POST http://localhost:8080/api/v1/direct-online-payment-requests \
   -H "Content-Type: application/json" \
@@ -74,7 +74,7 @@ curl -X POST http://localhost:8080/api/v1/direct-online-payment-requests \
 
 ### 5.4 Consultar pagos
 ```bash
-curl -X GET http://localhost:8080/api/v1/payments \
+curl -X POST http://localhost:8080/api/v1/payments \
   -H "Content-Type: application/json" \
   -d '{
     "chain": 1,
@@ -123,17 +123,17 @@ curl -X POST http://localhost:8080/api/v1/safetypay/confirmation \
 
 ## 6. Respuestas de error
 
-Los endpoints (excepto SafetyPay) devuelven un objeto de error con código HTTP y detalles de validación. Revise el campo `error` en la respuesta.
+Los endpoints (excepto SafetyPay) devuelven un objeto de error con cÃ³digo HTTP y detalles de validaciÃ³n. Revise el campo `error` en la respuesta.
 
-## 7. Buenas prácticas
+## 7. Buenas prÃ¡cticas
 
 - Enviar `payment_provider_code` siempre que aplique.
 - Usar `request_datetime` en formato ISO cuando sea requerido.
 - Mantener sincronizadas las credenciales de proveedor.
 
-## 8. Directorio de términos
+## 8. Directorio de tÃ©rminos
 
-- **API**: Interfaz de programación que expone los endpoints del servicio.
+- **API**: Interfaz de programaciÃ³n que expone los endpoints del servicio.
 - **CSV**: Formato de texto separado por comas usado en respuestas SafetyPay.
 - **Endpoint**: Ruta de la API que recibe solicitudes.
 - **Merchant Events**: Notificaciones de eventos enviadas por el comercio.
@@ -146,5 +146,6 @@ Para incidencias, incluya:
 - Endpoint invocado
 - Payload enviado
 - Hora y zona horaria
-- Código de proveedor
+- CÃ³digo de proveedor
 - Respuesta completa
+

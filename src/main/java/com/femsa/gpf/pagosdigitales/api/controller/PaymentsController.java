@@ -7,7 +7,7 @@ import java.util.Map;
 import org.apache.camel.ProducerTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -81,7 +81,7 @@ public class PaymentsController {
      * @return respuesta con las operaciones de pago o estructura de error
      * @throws IllegalArgumentException cuando falta informacion requerida
      */
-    @GetMapping(value = "/payments", consumes = MediaType.APPLICATION_JSON_VALUE,
+    @PostMapping(value = "/payments", consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPayments(@RequestBody PaymentsRequest req) {
         log.info("Request recibido payments: {}", req);
@@ -174,7 +174,7 @@ public class PaymentsController {
                 .cadena(req.getChain())
                 .pos(req.getPos())
                 .url("/api/v1/payments")
-                .metodo("GET")
+                .metodo("POST")
                 .cpVar1("payments")
                 .cpVar2(message)
                 .cpNumber1(status)
