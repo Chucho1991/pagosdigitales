@@ -14,6 +14,7 @@ import com.femsa.gpf.pagosdigitales.api.dto.SafetypayConfirmationResponse;
 import com.femsa.gpf.pagosdigitales.application.service.SafetypayConfirmationService;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.PaymentRegistryService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
 
 import lombok.extern.log4j.Log4j2;
@@ -28,17 +29,21 @@ public class SafetypayConfirmationController {
 
     private final SafetypayConfirmationService confirmationService;
     private final IntegrationLogService integrationLogService;
+    private final PaymentRegistryService paymentRegistryService;
 
     /**
      * Crea el controller con sus dependencias.
      *
      * @param confirmationService servicio de confirmaciones
      * @param integrationLogService servicio de auditoria de logs
+     * @param paymentRegistryService servicio de registro de pagos
      */
     public SafetypayConfirmationController(SafetypayConfirmationService confirmationService,
-            IntegrationLogService integrationLogService) {
+            IntegrationLogService integrationLogService,
+            PaymentRegistryService paymentRegistryService) {
         this.confirmationService = confirmationService;
         this.integrationLogService = integrationLogService;
+        this.paymentRegistryService = paymentRegistryService;
     }
 
     /**
@@ -89,10 +94,18 @@ public class SafetypayConfirmationController {
         req.setPaymentReferenceNo(paymentReferenceNo);
         req.setStatus(status);
         req.setSignature(signature);
+        boolean updatedPaymentRegistry = paymentRegistryService.updateFromSafetypayConfirmation(req);
+        if (!updatedPaymentRegistry) {
+            SafetypayConfirmationResponse response = confirmationService.errorResponse(req, 3);
+            paymentRegistryService.updateConfirmationErrorInfo(req, response.getErrorNumber());
+            logInternal(req, response.toCsvLine(), "REGISTRO_NO_ENCONTRADO", 200);
+            return ResponseEntity.ok(response.toCsvLine());
+        }
 
         try {
             SafetypayConfirmationResponse response = confirmationService.handleConfirmation(req,
                     httpRequest.getRemoteAddr());
+            paymentRegistryService.updateConfirmationErrorInfo(req, response.getErrorNumber());
             log.info("Confirmation procesada. MerchantSalesID={} ErrorNumber={}",
                     merchantSalesId, response.getErrorNumber());
             logInternal(req, response.toCsvLine(), "OK", 200);
@@ -100,6 +113,7 @@ public class SafetypayConfirmationController {
         } catch (Exception e) {
             log.error("Error procesando confirmation. MerchantSalesID={}", merchantSalesId, e);
             SafetypayConfirmationResponse response = confirmationService.errorResponse(req, 3);
+            paymentRegistryService.updateConfirmationErrorInfo(req, response.getErrorNumber());
             logInternal(req, response.toCsvLine(), "ERROR_CONFIRMATION", 200);
             return ResponseEntity.ok(response.toCsvLine());
         }

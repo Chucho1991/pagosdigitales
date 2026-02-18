@@ -76,7 +76,7 @@ docker run --rm --name pagosdigitales -e SERVER_PORT=8080 -p 8080:8080 pagosdigi
 
 - `POST /api/v1/safetypay/confirmation`: webhook de confirmaciones SafetyPay (form-urlencoded, respuesta CSV firmada).
 - `POST /api/v1/direct-online-payment-requests`: crea pagos en linea con proveedor.
-- `POST /api/v1/payments/notifications/merchant-events`: notificaciones de eventos del comercio hacia proveedor.
+- `POST /api/v1/payments/notifications/merchant-events`: notificaciones de eventos del comercio con respuesta generica local (sin consumo externo).
 - `POST /api/v1/payments`: consulta de pagos por `operation_id`.
 - `POST /api/v1/banks`: consulta de bancos por proveedor o todos.
 
@@ -100,6 +100,54 @@ Campos principales poblados por flujo:
 - `mensaje`: resultado del flujo (`OK`, `ERROR_PROVEEDOR`, `ERROR_TECNICO`, etc.).
 - `origen`: `WS_INTERNO` para API y nombre de proveedor para consumo externo.
 - `codigo_prov_pago`, `url`, `metodo`, `cadena`, `farmacia`, `pos`, `folio`: contexto operativo del consumo.
+
+## Registro de pagos en IN_REGISTRO_PAGOS
+
+Se incorporo persistencia de datos operativos en `TUKUNAFUNC.IN_REGISTRO_PAGOS`:
+
+1. Endpoint `POST /api/v1/payments/notifications/merchant-events`:
+- Inserta un registro por cada item de `merchant_events`.
+- Mapeo:
+`CADENA <- chain`,
+`FARMACIA <- store`,
+`NOMBRE_FARMACIA <- store_name`,
+`POS <- pos`,
+`CANAL <- channel_POS`,
+`FECHA_REGISTRO <- merchant_events[].creation_datetime`,
+`FOLIO <- merchant_events[].merchant_sales_id`,
+`ID_OPERACION_EXTERNO <- merchant_events[].operation_id`,
+`ID_INTERNO_VENTA <- merchant_events[].merchant_sales_id`.
+
+En `merchant-events`, `CP_VAR1` y `CP_NUMBER1` se registran en `NULL`.
+Los valores de esos campos se manejan unicamente en el flujo de `confirmation`.
+
+Regla de validacion para `merchant-events`:
+- Antes de registrar, se valida que la combinacion `ID_INTERNO_VENTA-farmacia` (`merchant_sales_id` + `store`) no exista previamente en `IN_REGISTRO_PAGOS`.
+- Antes de registrar, se valida que `operation_id` no exista previamente en `IN_REGISTRO_PAGOS` (unicidad global).
+- Si existe conflicto, el endpoint responde error `400` y no registra el evento como exitoso.
+- Si el endpoint retorna cualquier error (`400/500`), no se inserta registro en `IN_REGISTRO_PAGOS`.
+
+2. Endpoint `POST /api/v1/safetypay/confirmation`:
+- Busca por:
+`ID_INTERNO_VENTA = MerchantSalesID`,
+`CODIGO_PROV_PAGO = payment_provider_code`,
+`ID_OPERACION_EXTERNO = ReferenceNo`.
+- Actualiza:
+`FECHA_AUTORIZACION_PROV <- RequestDateTime`,
+`NO_REFERENCIA <- ReferenceNo`,
+`NO_REFERENCIA_PAGO <- PaymentReferenceNo`,
+`MONTO <- Amount`,
+`MONEDA <- CurrencyID`,
+`COD_ESTADO_PAGO <- Status`,
+`FIRMA <- Signature`,
+`CP_NUMBER1 <- ErrorNumber`,
+`CP_VAR1 <- descripcion de ErrorNumber`.
+
+Valores de `ErrorNumber` en `confirmation`:
+- `0`: `No error`
+- `1`: `API Key not recognized`
+- `2`: `Signature not valid`
+- `3`: `Other errors`
 
 ## SLA/SLO/SLI
 

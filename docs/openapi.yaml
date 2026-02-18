@@ -56,7 +56,7 @@ paths:
                 $ref: '#/components/schemas/DirectOnlinePaymentResponse'
   /api/v1/payments/notifications/merchant-events:
     post:
-      summary: EnvÃ­a notificaciones de eventos del comercio al proveedor.
+      summary: Recibe notificaciones de eventos del comercio y responde localmente.
       requestBody:
         required: true
         content:
