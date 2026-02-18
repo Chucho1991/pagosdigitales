@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.camel.CamelExecutionException;
 import org.apache.camel.ProducerTemplate;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.femsa.gpf.pagosdigitales.api.dto.BankItem;
 import com.femsa.gpf.pagosdigitales.api.dto.BanksRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.BanksResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.ErrorInfo;
@@ -25,6 +28,7 @@ import com.femsa.gpf.pagosdigitales.infrastructure.config.ErrorMappingProperties
 import com.femsa.gpf.pagosdigitales.infrastructure.config.GetBanksProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.BanksCatalogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
@@ -46,6 +50,7 @@ public class BanksController {
     private final ObjectMapper objectMapper;
     private final ErrorMappingProperties errorMappingProperties;
     private final IntegrationLogService integrationLogService;
+    private final BanksCatalogService banksCatalogService;
 
     /**
      * Crea el controlador de bancos con sus dependencias.
@@ -57,10 +62,12 @@ public class BanksController {
      * @param objectMapper serializador de payloads
      * @param errorMappingProperties configuracion de mapeo de errores
      * @param integrationLogService servicio de auditoria de logs
+     * @param banksCatalogService servicio de catalogo de bancos por cadena
      */
     public BanksController(ProducerTemplate camel, GetBanksProperties getBanksprops,
             ProvidersPayService providersPayService, BanksMap banksMap, ObjectMapper objectMapper,
-            ErrorMappingProperties errorMappingProperties, IntegrationLogService integrationLogService) {
+            ErrorMappingProperties errorMappingProperties, IntegrationLogService integrationLogService,
+            BanksCatalogService banksCatalogService) {
         this.camel = camel;
         this.getBanksprops = getBanksprops;
         this.providersPayService = providersPayService;
@@ -68,6 +75,7 @@ public class BanksController {
         this.objectMapper = objectMapper;
         this.errorMappingProperties = errorMappingProperties;
         this.integrationLogService = integrationLogService;
+        this.banksCatalogService = banksCatalogService;
     }
 
     /**
@@ -129,6 +137,7 @@ public class BanksController {
                 }
 
                 BanksResponse response = banksMap.mapBanksByProviderResponse(req, rawResp, proveedor);
+                applyBanksFilter(response, req.getChain());
                 log.info("Response enviado al cliente banks: {}", response);
                 logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK");
                 logInternal(req, response, 200, "OK");
@@ -188,6 +197,7 @@ public class BanksController {
                 }
 
                 BanksResponse response = banksMap.mapAllBanksResponse(req, listProvidersData);
+                applyBanksFilter(response, req.getChain());
                 log.info("Response enviado al cliente banks: {}", response);
                 logInternal(req, response, 200, "OK_MULTI_PROVIDER");
                 return ResponseEntity.ok(response);
@@ -259,5 +269,23 @@ public class BanksController {
                 .cpVar3(providerName)
                 .cpNumber1(status)
                 .build());
+    }
+
+    private void applyBanksFilter(BanksResponse response, Integer chain) {
+        if (response == null || response.getPayment_providers() == null) {
+            return;
+        }
+        response.getPayment_providers().forEach(provider -> {
+            Integer providerCode = provider.getPayment_provider_code();
+            Set<String> allowedBankCodes = banksCatalogService.findAllowedBankCodes(providerCode, chain);
+            if (provider.getBanks() == null || provider.getBanks().isEmpty()) {
+                return;
+            }
+            List<BankItem> filtered = provider.getBanks().stream()
+                    .filter(bank -> bank != null && bank.getBank_id() != null)
+                    .filter(bank -> allowedBankCodes.contains(bank.getBank_id().trim()))
+                    .collect(Collectors.toList());
+            provider.setBanks(filtered);
+        });
     }
 }

@@ -9,7 +9,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
+import jakarta.annotation.PostConstruct;
+
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import lombok.extern.log4j.Log4j2;
@@ -27,6 +30,8 @@ public class ProvidersPayService {
 
     private final String dbUrl;
     private final Properties connectionProperties;
+    private volatile Map<String, Integer> providersByName = Map.of();
+    private volatile Map<Integer, String> providersByCode = Map.of();
 
     /**
      * Crea el servicio con configuracion de conexion.
@@ -43,6 +48,31 @@ public class ProvidersPayService {
     }
 
     /**
+     * Inicializa la cache de proveedores al arranque.
+     */
+    @PostConstruct
+    public void initCache() {
+        refreshCache();
+    }
+
+    /**
+     * Refresca la cache de proveedores cada 6 horas.
+     */
+    @Scheduled(cron = "0 0 */6 * * *")
+    public void refreshCache() {
+        try {
+            Map<String, Integer> refreshedByName = loadActiveProvidersFromDb();
+            Map<Integer, String> refreshedByCode = new LinkedHashMap<>();
+            refreshedByName.forEach((name, code) -> refreshedByCode.put(code, name));
+            this.providersByName = Map.copyOf(refreshedByName);
+            this.providersByCode = Map.copyOf(refreshedByCode);
+            log.info("Cache de proveedores actualizada. Total activos: {}", refreshedByName.size());
+        } catch (Exception e) {
+            log.error("No fue posible refrescar cache AD_BILLETERAS_DIGITALES. Se conserva cache anterior.", e);
+        }
+    }
+
+    /**
      * Busca el nombre del proveedor por su codigo.
      *
      * @param code codigo del proveedor
@@ -52,11 +82,7 @@ public class ProvidersPayService {
         if (code == null) {
             return "without-provider";
         }
-        return loadActiveProviders().entrySet().stream()
-                .filter(entry -> code.equals(entry.getValue()))
-                .map(Map.Entry::getKey)
-                .findFirst()
-                .orElse("without-provider");
+        return providersByCode.getOrDefault(code, "without-provider");
     }
 
     /**
@@ -70,11 +96,7 @@ public class ProvidersPayService {
             return 0;
         }
         String normalized = normalizeProviderKey(name);
-        return loadActiveProviders().entrySet().stream()
-                .filter(entry -> normalized.equals(entry.getKey()))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse(0);
+        return providersByName.getOrDefault(normalized, 0);
     }
 
     /**
@@ -83,10 +105,10 @@ public class ProvidersPayService {
      * @return mapa de proveedor a codigo
      */
     public Map<String, Integer> getAllProviders() {
-        return Map.copyOf(loadActiveProviders());
+        return providersByName;
     }
 
-    private Map<String, Integer> loadActiveProviders() {
+    private Map<String, Integer> loadActiveProvidersFromDb() throws Exception {
         Map<String, Integer> providers = new LinkedHashMap<>();
         try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
                 PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_WALLETS);
@@ -98,11 +120,7 @@ public class ProvidersPayService {
                     providers.put(providerName, providerCode);
                 }
             }
-            log.debug("Proveedores activos cargados desde AD_BILLETERAS_DIGITALES: {}", providers);
             return providers;
-        } catch (Exception e) {
-            log.error("No fue posible cargar AD_BILLETERAS_DIGITALES para resolver proveedores", e);
-            return Map.of();
         }
     }
 

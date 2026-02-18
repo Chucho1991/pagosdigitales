@@ -14,6 +14,11 @@
 server:
   port: ${SERVER_PORT:8080}
 
+cod_GEO_FYB: ${COD_CADENA_GEO_FYB:60}
+cod_GEO_SANA: ${COD_CADENA_GEO_SANA:70}
+cod_GEO_OKI: ${COD_CADENA_GEO_OKI:90}
+cod_GEO_FR: ${COD_CADENA_GEO_FR:70}
+
 spring:
   application:
     name: pagosDigitales
@@ -38,6 +43,9 @@ providers:
 Notas:
 - Ajusta `spring.datasource.*` segun el entorno.
 - Los proveedores de pago se leen desde `TUKUNAFUNC.AD_BILLETERAS_DIGITALES` (`CODIGO`, `NOMBRE_BILLETERA_DIGITAL`, `ACTIVA='S'`).
+- La consulta de bancos usa codigos de cadena parametrizables: `cod_GEO_FYB`, `cod_GEO_SANA`, `cod_GEO_OKI`, `cod_GEO_FR`.
+- Las tablas `AD_BILLETERAS_DIGITALES` y `AD_TIPO_PAGO` se cargan en cache en memoria.
+- El refresco de cache se ejecuta al arranque y luego cada 6 horas (`00:00`, `06:00`, `12:00`, `18:00` del servidor).
 
 ## Despliegue con Docker (puerto 8080)
 
@@ -523,6 +531,15 @@ payments:
 - payment_provider_code (opcional)
 - channel_POS
 - country_code
+
+Reglas de filtrado backend:
+- Se consume el servicio externo y luego se filtran bancos con `TUKUNAFUNC.AD_TIPO_PAGO`.
+- Solo se incluyen bancos con `ACTIVO = 'S'`.
+- Se valida `CODIGO_BILLETERA_DIGITAL = payment_provider_code`.
+- Segun `chain`, se exige `S` en `CADENA_FYB`, `CADENA_SANA`, `CADENA_OKI` o `CADENA_FR`.
+- El mapeo de `chain` a GEO se configura con:
+`cod_GEO_FYB`, `cod_GEO_SANA`, `cod_GEO_OKI`, `cod_GEO_FR`.
+- El catalogo `AD_TIPO_PAGO` usado para filtrar bancos se consulta desde cache en memoria (no por request).
 
 ## Ejemplo de request
 

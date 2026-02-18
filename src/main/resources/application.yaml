@@ -1,6 +1,11 @@
 server:
   port: ${SERVER_PORT:8080}
 
+cod_GEO_FYB: ${COD_CADENA_GEO_FYB:60}
+cod_GEO_SANA: ${COD_CADENA_GEO_SANA:70}
+cod_GEO_OKI: ${COD_CADENA_GEO_OKI:90}
+cod_GEO_FR: ${COD_CADENA_GEO_FR:70}
+
 spring:
   config:
     import: "optional:file:.env[.properties]"
