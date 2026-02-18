@@ -3,6 +3,7 @@ package com.femsa.gpf.pagosdigitales.api.controller;
 import java.util.Map;
 
 import org.apache.camel.ProducerTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -68,7 +69,8 @@ public class DirectOnlinePaymentRequestsController {
      * @return respuesta normalizada del proveedor o estructura de error
      * @throws IllegalArgumentException cuando no se define el proveedor
      */
-    @PostMapping("/direct-online-payment-requests")
+    @PostMapping(value = "/direct-online-payment-requests", consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> directOnlinePaymentRequests(@RequestBody DirectOnlinePaymentRequest req) {
         log.info("Request recibido direct-online-payment-requests: {}", req);
         try {
@@ -84,7 +86,8 @@ public class DirectOnlinePaymentRequestsController {
             }
 
             Map<String, Object> outboundBody = directOnlinePaymentMap.mapProviderRequest(req, proveedor);
-            log.info("Request enviado a proveedor {}: {}", proveedor, outboundBody);
+            log.info("Request enviado a proveedor {}: {}", proveedor,
+                    AppUtils.formatPayload(outboundBody, objectMapper));
 
             Map<String, Object> headers = Map.of(
                     "direct-online-payment-requests", proveedor

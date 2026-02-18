@@ -3,6 +3,7 @@ package com.femsa.gpf.pagosdigitales.api.controller;
 import java.util.Map;
 
 import org.apache.camel.ProducerTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -37,6 +38,16 @@ public class MerchantEventsController {
     private final ObjectMapper objectMapper;
     private final ErrorMappingProperties errorMappingProperties;
 
+    /**
+     * Crea el controlador de eventos de comercio con sus dependencias.
+     *
+     * @param camel motor de envio a rutas Camel
+     * @param props configuracion de proveedores para merchant-events
+     * @param providersPayService servicio de proveedores habilitados
+     * @param merchantEventsMap mapeador de solicitudes y respuestas
+     * @param objectMapper serializador de payloads
+     * @param errorMappingProperties configuracion de mapeo de errores
+     */
     public MerchantEventsController(ProducerTemplate camel,
             MerchantEventsProperties props,
             ProvidersPayService providersPayService,
@@ -57,7 +68,8 @@ public class MerchantEventsController {
      * @param req request generico
      * @return response generico o estructura de error
      */
-    @PostMapping("/merchant-events")
+    @PostMapping(value = "/merchant-events", consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> merchantEvents(@RequestBody MerchantEventsRequest req) {
         log.info("Request recibido merchant-events: {}", req);
         try {

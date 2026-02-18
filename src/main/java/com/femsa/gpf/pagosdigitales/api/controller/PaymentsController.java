@@ -5,6 +5,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 import org.apache.camel.ProducerTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -73,7 +74,8 @@ public class PaymentsController {
      * @return respuesta con las operaciones de pago o estructura de error
      * @throws IllegalArgumentException cuando falta informacion requerida
      */
-    @GetMapping("/payments")
+    @GetMapping(value = "/payments", consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPayments(@RequestBody PaymentsRequest req) {
         log.info("Request recibido payments: {}", req);
         try {
