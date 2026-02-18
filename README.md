@@ -43,8 +43,9 @@ providers:
 Notas:
 - Ajusta `spring.datasource.*` segun el entorno.
 - Los proveedores de pago se leen desde `TUKUNAFUNC.AD_BILLETERAS_DIGITALES` (`CODIGO`, `NOMBRE_BILLETERA_DIGITAL`, `ACTIVA='S'`).
-- La consulta de bancos usa codigos de cadena parametrizables: `cod_GEO_FYB`, `cod_GEO_SANA`, `cod_GEO_OKI`, `cod_GEO_FR`.
-- Las tablas `AD_BILLETERAS_DIGITALES` y `AD_TIPO_PAGO` se cargan en cache en memoria.
+- La validacion principal de bancos usa `AD_TIPO_PAGO` por cadena (`CADENA_FYB`, `CADENA_SANA`, `CADENA_OKI`, `CADENA_FR`).
+- La validacion por canal es un filtro adicional usando `AD_CANAL`, `AD_CANAL_TIPO_PAGO` y `AD_TIPO_PAGO`.
+- Las tablas `AD_BILLETERAS_DIGITALES`, `AD_CANAL`, `AD_CANAL_TIPO_PAGO` y `AD_TIPO_PAGO` se cargan en cache en memoria.
 - El refresco de cache se ejecuta al arranque y luego cada 6 horas (`00:00`, `06:00`, `12:00`, `18:00` del servidor).
 
 ## Despliegue con Docker (puerto 8080)
@@ -533,13 +534,16 @@ payments:
 - country_code
 
 Reglas de filtrado backend:
-- Se consume el servicio externo y luego se filtran bancos con `TUKUNAFUNC.AD_TIPO_PAGO`.
-- Solo se incluyen bancos con `ACTIVO = 'S'`.
-- Se valida `CODIGO_BILLETERA_DIGITAL = payment_provider_code`.
-- Segun `chain`, se exige `S` en `CADENA_FYB`, `CADENA_SANA`, `CADENA_OKI` o `CADENA_FR`.
-- El mapeo de `chain` a GEO se configura con:
-`cod_GEO_FYB`, `cod_GEO_SANA`, `cod_GEO_OKI`, `cod_GEO_FR`.
-- El catalogo `AD_TIPO_PAGO` usado para filtrar bancos se consulta desde cache en memoria (no por request).
+- Se consume el servicio externo y luego se aplican dos filtros en interseccion.
+- Filtro 1 (principal por cadena): `AD_TIPO_PAGO` con `ACTIVO = 'S'` y bandera de cadena en `S`
+(`CADENA_FYB`/`CADENA_SANA`/`CADENA_OKI`/`CADENA_FR`) segun `chain`.
+- Filtro 2 (adicional por canal): consulta `AD_CANAL` + `AD_CANAL_TIPO_PAGO` + `AD_TIPO_PAGO`
+con `A.ACTIVO = 'S'`.
+- En filtro por canal, el match es:
+`A.DESCRIPCION -> channel_POS`, `B.CODIGO_TIPOPAGO -> banks.bank_id`,
+`C.CODIGO_BILLETERA_DIGITAL -> payment_provider_code`.
+- Solo se devuelven bancos que cumplan ambos filtros.
+- Ambos catalogos se consultan desde cache en memoria (no por request).
 
 ## Ejemplo de request
 

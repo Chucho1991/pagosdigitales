@@ -137,7 +137,7 @@ public class BanksController {
                 }
 
                 BanksResponse response = banksMap.mapBanksByProviderResponse(req, rawResp, proveedor);
-                applyBanksFilter(response, req.getChain());
+                applyBanksFilter(response, req.getChain(), req.getChannel_POS());
                 log.info("Response enviado al cliente banks: {}", response);
                 logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK");
                 logInternal(req, response, 200, "OK");
@@ -197,7 +197,7 @@ public class BanksController {
                 }
 
                 BanksResponse response = banksMap.mapAllBanksResponse(req, listProvidersData);
-                applyBanksFilter(response, req.getChain());
+                applyBanksFilter(response, req.getChain(), req.getChannel_POS());
                 log.info("Response enviado al cliente banks: {}", response);
                 logInternal(req, response, 200, "OK_MULTI_PROVIDER");
                 return ResponseEntity.ok(response);
@@ -271,13 +271,13 @@ public class BanksController {
                 .build());
     }
 
-    private void applyBanksFilter(BanksResponse response, Integer chain) {
+    private void applyBanksFilter(BanksResponse response, Integer chain, String channelPos) {
         if (response == null || response.getPayment_providers() == null) {
             return;
         }
         response.getPayment_providers().forEach(provider -> {
             Integer providerCode = provider.getPayment_provider_code();
-            Set<String> allowedBankCodes = banksCatalogService.findAllowedBankCodes(providerCode, chain);
+            Set<String> allowedBankCodes = banksCatalogService.findAllowedBankCodes(providerCode, chain, channelPos);
             if (provider.getBanks() == null || provider.getBanks().isEmpty()) {
                 return;
             }
