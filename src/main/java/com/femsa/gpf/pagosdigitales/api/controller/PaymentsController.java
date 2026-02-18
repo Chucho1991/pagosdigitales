@@ -24,6 +24,7 @@ import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
+import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -84,6 +85,7 @@ public class PaymentsController {
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPayments(@RequestBody PaymentsRequest req) {
         log.info("Request recibido payments: {}", req);
+        req.setChannel_POS(ChannelPosUtils.normalize(req.getChannel_POS()));
         String proveedor = null;
         Map<String, Object> camelHeaders = null;
         try {
@@ -127,7 +129,7 @@ public class PaymentsController {
             if (providerError != null) {
                 int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
                 Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
-                        req.getPos(), req.getPayment_provider_code(), providerError);
+                        req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), providerError);
                 logExternal(req, camelHeaders, errorBody, proveedor, httpCode, "ERROR_PROVEEDOR");
                 logInternal(req, errorBody, httpCode, "ERROR_PROVEEDOR");
                 return ResponseEntity.status(httpCode).body(errorBody);
@@ -141,14 +143,14 @@ public class PaymentsController {
         } catch (IllegalArgumentException e) {
             ErrorInfo error = ApiErrorUtils.invalidRequest(e.getMessage(), null, null, null);
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
-                    req.getPos(), req.getPayment_provider_code(), error);
+                    req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             logInternal(req, errorBody, 400, e.getMessage());
             return ResponseEntity.status(400).body(errorBody);
         } catch (Exception e) {
             log.error("Error procesando payments", e);
             ErrorInfo error = ApiErrorUtils.genericError(500, "Internal error");
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
-                    req.getPos(), req.getPayment_provider_code(), error);
+                    req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             if (proveedor != null) {
                 logExternal(req, camelHeaders, errorBody, proveedor, 500, "ERROR_TECNICO");
             }
@@ -164,6 +166,7 @@ public class PaymentsController {
                 .usuario("SYSTEM")
                 .mensaje(message)
                 .origen("WS_INTERNO")
+                .canal(req.getChannel_POS())
                 .codigoProvPago(req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString())
                 .nombreFarmacia(req.getStore_name())
                 .folio(req.getOperation_id())
@@ -187,6 +190,7 @@ public class PaymentsController {
                 .usuario("SYSTEM")
                 .mensaje(message)
                 .origen(providerName)
+                .canal(req.getChannel_POS())
                 .codigoProvPago(req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString())
                 .nombreFarmacia(req.getStore_name())
                 .folio(req.getOperation_id())

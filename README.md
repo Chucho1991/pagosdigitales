@@ -80,6 +80,11 @@ docker run --rm --name pagosdigitales -e SERVER_PORT=8080 -p 8080:8080 pagosdigi
 - `GET /api/v1/payments`: consulta de pagos por `operation_id`.
 - `POST /api/v1/banks`: consulta de bancos por proveedor o todos.
 
+Nota de contrato:
+- En todos los servicios anteriores (excepto `/api/v1/pagos/test`), `channel_POS` es opcional en request.
+- Si `channel_POS` no llega o llega vacio, el backend usa `POS` por defecto.
+- Las respuestas JSON de estos servicios incluyen `channel_POS`.
+
 ## Auditoria de logs en base de datos
 
 El backend registra auditoria en Oracle para cada flujo:

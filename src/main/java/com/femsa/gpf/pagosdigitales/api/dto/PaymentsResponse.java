@@ -13,6 +13,7 @@ public class PaymentsResponse {
     private Integer chain;
     private Integer store;
     private Integer pos;
+    private String channel_POS;
     private Integer payment_provider_code;
     private String request_id;
     private String response_datetime;

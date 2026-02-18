@@ -106,6 +106,7 @@ public class DirectOnlinePaymentMap {
         resp.setChain(req.getChain());
         resp.setStore(req.getStore());
         resp.setPos(req.getPos());
+        resp.setChannel_POS(req.getChannel_POS());
         resp.setPayment_provider_code(req.getPayment_provider_code());
 
         resp.setResponse_datetime(getValue(map, responseMapping.getResponseDatetime(), String.class));

@@ -56,6 +56,7 @@ public class BanksMap {
         resp.setChain(req.getChain());
         resp.setStore(req.getStore());
         resp.setPos(req.getPos());
+        resp.setChannel_POS(req.getChannel_POS());
 
         ResponseMapping responseMapping = mapping.getResponse();
         resp.setRequest_id(getValue(map, responseMapping.getRequestId(), String.class));
@@ -86,6 +87,7 @@ public class BanksMap {
         resp.setChain(req.getChain());
         resp.setStore(req.getStore());
         resp.setPos(req.getPos());
+        resp.setChannel_POS(req.getChannel_POS());
 
         List<Map<String, Object>> providerMaps = listaProviderItems.stream()
                 .map(item -> toMap(item.getData()))

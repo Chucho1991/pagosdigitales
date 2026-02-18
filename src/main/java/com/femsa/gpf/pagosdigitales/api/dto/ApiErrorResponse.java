@@ -12,6 +12,7 @@ public class ApiErrorResponse {
     private Integer store;
     private String store_name;
     private Integer pos;
+    private String channel_POS;
     private Integer payment_provider_code;
     private ErrorInfo error;
 }

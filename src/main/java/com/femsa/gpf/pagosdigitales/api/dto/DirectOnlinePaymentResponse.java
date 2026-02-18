@@ -15,6 +15,7 @@ public class DirectOnlinePaymentResponse {
     private Integer chain;
     private Integer store;
     private Integer pos;
+    private String channel_POS;
     private Integer payment_provider_code;
 
     private String response_datetime;

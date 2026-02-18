@@ -8,6 +8,7 @@ import lombok.Data;
 @Data
 public class SafetypayConfirmationResponse {
 
+    private String channel_POS;
     private int errorNumber;
     private String responseDateTime;
     private String merchantSalesId;

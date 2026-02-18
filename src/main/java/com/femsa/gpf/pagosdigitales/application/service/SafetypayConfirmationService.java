@@ -187,6 +187,7 @@ public class SafetypayConfirmationService {
 
     private SafetypayConfirmationResponse baseResponse(SafetypayConfirmationRequest req) {
         SafetypayConfirmationResponse response = new SafetypayConfirmationResponse();
+        response.setChannel_POS(req.getChannel_POS());
         response.setMerchantSalesId(req.getMerchantSalesId());
         response.setReferenceNo(req.getReferenceNo());
         response.setCreationDateTime(req.getCreationDateTime());

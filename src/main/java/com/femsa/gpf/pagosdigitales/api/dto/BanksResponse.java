@@ -14,6 +14,7 @@ public class BanksResponse {
     private Integer chain;
     private Integer store;
     private Integer pos;
+    private String channel_POS;
 
     private String request_id;
     private String response_datetime;

@@ -55,17 +55,19 @@ public final class ApiErrorUtils {
      * @param store tienda
      * @param storeName nombre de tienda
      * @param pos punto de venta
+     * @param channelPos canal POS de origen
      * @param paymentProviderCode codigo del proveedor
      * @param error error a incluir
      * @return respuesta de error
      */
     public static ApiErrorResponse buildResponse(Integer chain, Integer store, String storeName, Integer pos,
-            Integer paymentProviderCode, ErrorInfo error) {
+            String channelPos, Integer paymentProviderCode, ErrorInfo error) {
         ApiErrorResponse response = new ApiErrorResponse();
         response.setChain(chain);
         response.setStore(store);
         response.setStore_name(storeName);
         response.setPos(pos);
+        response.setChannel_POS(channelPos);
         response.setPayment_provider_code(paymentProviderCode);
         response.setError(error);
         return response;

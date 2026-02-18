@@ -14,6 +14,7 @@ public class MerchantEventsRequest {
     private Integer store;
     private String store_name;
     private Integer pos;
+    private String channel_POS;
     private Integer payment_provider_code;
     private List<MerchantEvent> merchant_events;
     private String request_datetime;

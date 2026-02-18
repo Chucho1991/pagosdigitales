@@ -15,6 +15,7 @@ public class DirectOnlinePaymentRequest {
     private Integer store;
     private String store_name;
     private Integer pos;
+    private String channel_POS;
     private Integer payment_provider_code;
     private SalesAmount sales_amount;
     private String country_code;

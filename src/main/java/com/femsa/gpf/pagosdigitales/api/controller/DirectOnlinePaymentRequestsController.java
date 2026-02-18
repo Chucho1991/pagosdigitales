@@ -22,6 +22,7 @@ import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
+import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -79,6 +80,7 @@ public class DirectOnlinePaymentRequestsController {
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> directOnlinePaymentRequests(@RequestBody DirectOnlinePaymentRequest req) {
         log.info("Request recibido direct-online-payment-requests: {}", req);
+        req.setChannel_POS(ChannelPosUtils.normalize(req.getChannel_POS()));
         String proveedor = null;
         Map<String, Object> outboundBody = null;
         try {
@@ -115,7 +117,7 @@ public class DirectOnlinePaymentRequestsController {
             if (providerError != null) {
                 int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
                 Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
-                        req.getPos(), req.getPayment_provider_code(), providerError);
+                        req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), providerError);
                 logExternal(req, outboundBody, errorBody, proveedor, httpCode, "ERROR_PROVEEDOR");
                 logInternal(req, errorBody, httpCode, "ERROR_PROVEEDOR");
                 return ResponseEntity.status(httpCode).body(errorBody);
@@ -129,14 +131,14 @@ public class DirectOnlinePaymentRequestsController {
         } catch (IllegalArgumentException e) {
             ErrorInfo error = ApiErrorUtils.invalidRequest(e.getMessage(), null, null, null);
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
-                    req.getPos(), req.getPayment_provider_code(), error);
+                    req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             logInternal(req, errorBody, 400, e.getMessage());
             return ResponseEntity.status(400).body(errorBody);
         } catch (Exception e) {
             log.error("Error procesando direct-online-payment-requests", e);
             ErrorInfo error = ApiErrorUtils.genericError(500, "Internal error");
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
-                    req.getPos(), req.getPayment_provider_code(), error);
+                    req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             if (proveedor != null) {
                 logExternal(req, outboundBody, errorBody, proveedor, 500, "ERROR_TECNICO");
             }
@@ -153,6 +155,7 @@ public class DirectOnlinePaymentRequestsController {
                 .mensaje(message)
                 .origen("WS_INTERNO")
                 .pais(req.getCountry_code())
+                .canal(req.getChannel_POS())
                 .codigoProvPago(req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString())
                 .nombreFarmacia(req.getStore_name())
                 .folio(req.getMerchant_sales_id())
@@ -177,6 +180,7 @@ public class DirectOnlinePaymentRequestsController {
                 .mensaje(message)
                 .origen(providerName)
                 .pais(req.getCountry_code())
+                .canal(req.getChannel_POS())
                 .codigoProvPago(req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString())
                 .nombreFarmacia(req.getStore_name())
                 .folio(req.getMerchant_sales_id())
