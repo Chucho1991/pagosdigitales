@@ -34,7 +34,7 @@ public class IntegrationLogService {
                 codigo_prov_pago, nombre_farmacia, folio, farmacia, cadena, pos, url, metodo,
                 cp_var1, cp_var2, cp_var3, cp_number1, cp_number2, cp_number3, cp_date1, cp_date2, cp_date3
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, SYSDATE, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             """;
 
@@ -44,7 +44,7 @@ public class IntegrationLogService {
                 codigo_prov_pago, nombre_farmacia, folio, farmacia, cadena, pos, url, metodo,
                 cp_var1, cp_var2, cp_var3, cp_number1, cp_number2, cp_number3, cp_date1, cp_date2, cp_date3
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, SYSDATE, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             """;
 
@@ -104,28 +104,27 @@ public class IntegrationLogService {
             ps.setString(1, toJson(record.getRequestPayload()));
             ps.setString(2, toJson(record.getResponsePayload()));
             ps.setString(3, trim(record.getUsuario(), 100, "SYSTEM"));
-            ps.setTimestamp(4, Timestamp.valueOf(LocalDateTime.now()));
-            ps.setString(5, trim(record.getMensaje(), 2000, null));
-            ps.setString(6, trim(record.getOrigen(), 100, null));
-            ps.setString(7, trim(record.getPais(), 100, null));
-            ps.setString(8, trim(record.getCanal(), 100, null));
-            ps.setString(9, trim(record.getCodigoProvPago(), 50, null));
-            ps.setString(10, trim(record.getNombreFarmacia(), 100, null));
-            ps.setString(11, trim(record.getFolio(), 100, null));
-            setInteger(ps, 12, record.getFarmacia());
-            setInteger(ps, 13, record.getCadena());
-            setInteger(ps, 14, record.getPos());
-            ps.setString(15, trim(record.getUrl(), 300, null));
-            ps.setString(16, trim(record.getMetodo(), 20, null));
-            ps.setString(17, trim(record.getCpVar1(), 1500, null));
-            ps.setString(18, trim(record.getCpVar2(), 1500, null));
-            ps.setString(19, trim(record.getCpVar3(), 1500, null));
-            setInteger(ps, 20, record.getCpNumber1());
-            setInteger(ps, 21, record.getCpNumber2());
-            setInteger(ps, 22, record.getCpNumber3());
-            setDate(ps, 23, record.getCpDate1());
-            setDate(ps, 24, record.getCpDate2());
-            setDate(ps, 25, record.getCpDate3());
+            ps.setString(4, trim(record.getMensaje(), 2000, null));
+            ps.setString(5, trim(record.getOrigen(), 100, null));
+            ps.setString(6, trim(record.getPais(), 100, null));
+            ps.setString(7, trim(record.getCanal(), 100, null));
+            ps.setString(8, trim(record.getCodigoProvPago(), 50, null));
+            ps.setString(9, trim(record.getNombreFarmacia(), 100, null));
+            ps.setString(10, trim(record.getFolio(), 100, null));
+            setInteger(ps, 11, record.getFarmacia());
+            setInteger(ps, 12, record.getCadena());
+            setInteger(ps, 13, record.getPos());
+            ps.setString(14, trim(record.getUrl(), 300, null));
+            ps.setString(15, trim(record.getMetodo(), 20, null));
+            ps.setString(16, trim(record.getCpVar1(), 1500, null));
+            ps.setString(17, trim(record.getCpVar2(), 1500, null));
+            ps.setString(18, trim(record.getCpVar3(), 1500, null));
+            setInteger(ps, 19, record.getCpNumber1());
+            setInteger(ps, 20, record.getCpNumber2());
+            setInteger(ps, 21, record.getCpNumber3());
+            setDate(ps, 22, record.getCpDate1());
+            setDate(ps, 23, record.getCpDate2());
+            setDate(ps, 24, record.getCpDate3());
 
             ps.executeUpdate();
         } catch (Exception e) {
