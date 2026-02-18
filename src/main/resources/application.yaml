@@ -282,11 +282,6 @@ getbanks:
         locations_url: locations_url
         amount_limits: amount_limits
 
-providers-pay:
-  codes:
-    paysafe: ${PROVIDERS_PAYSAFE_CODE:235689}
-    pichincha: ${PROVIDERS_PICHINCHA_CODE:456123}
-
 providers:
   dynamic-routes-enabled: true
 

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.femsa.gpf.pagosdigitales.api.dto.ErrorInfo;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEventsRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEventsResponse;
+import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.PaymentRegistryService;
@@ -35,17 +36,21 @@ public class MerchantEventsController {
 
     private final IntegrationLogService integrationLogService;
     private final PaymentRegistryService paymentRegistryService;
+    private final ProvidersPayService providersPayService;
 
     /**
      * Crea el controlador de eventos de comercio con sus dependencias.
      *
      * @param integrationLogService servicio de auditoria de logs
      * @param paymentRegistryService servicio de registro de pagos
+     * @param providersPayService servicio de proveedores habilitados
      */
     public MerchantEventsController(IntegrationLogService integrationLogService,
-            PaymentRegistryService paymentRegistryService) {
+            PaymentRegistryService paymentRegistryService,
+            ProvidersPayService providersPayService) {
         this.integrationLogService = integrationLogService;
         this.paymentRegistryService = paymentRegistryService;
+        this.providersPayService = providersPayService;
     }
 
     /**
@@ -62,6 +67,10 @@ public class MerchantEventsController {
         try {
             if (req.getPayment_provider_code() == null) {
                 throw new IllegalArgumentException("payment_provider_code requerido");
+            }
+            String proveedor = providersPayService.getProviderNameByCode(req.getPayment_provider_code());
+            if ("without-provider".equals(proveedor)) {
+                throw new IllegalArgumentException("Proveedor no configurado");
             }
             String folioConflict = paymentRegistryService.validateFolioUniqueness(req);
             if (folioConflict != null) {

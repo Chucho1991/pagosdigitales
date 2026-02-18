@@ -31,18 +31,13 @@ camel:
   springboot:
     main-run-controller: true
 
-providers-pay:
-  codes:
-    paysafe: 235689
-    pichincha: 456123
-
 providers:
   dynamic-routes-enabled: true
 ```
 
 Notas:
 - Ajusta `spring.datasource.*` segun el entorno.
-- `providers-pay.codes` define los codigos de proveedores usados en los endpoints genericos.
+- Los proveedores de pago se leen desde `TUKUNAFUNC.AD_BILLETERAS_DIGITALES` (`CODIGO`, `NOMBRE_BILLETERA_DIGITAL`, `ACTIVA='S'`).
 
 ## Despliegue con Docker (puerto 8080)
 
