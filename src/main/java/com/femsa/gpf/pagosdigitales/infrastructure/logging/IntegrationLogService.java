@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.Properties;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -77,6 +78,7 @@ public class IntegrationLogService {
      *
      * @param record datos de log
      */
+    @Async("loggingTaskExecutor")
     public void logInternal(IntegrationLogRecord record) {
         insert(INSERT_APP_LOG, record, "IN_LOGS_APP_PAG_DIGIT");
     }
@@ -86,6 +88,7 @@ public class IntegrationLogService {
      *
      * @param record datos de log
      */
+    @Async("loggingTaskExecutor")
     public void logExternal(IntegrationLogRecord record) {
         insert(INSERT_EXT_LOG, record, "IN_LOGS_WS_EXT");
     }

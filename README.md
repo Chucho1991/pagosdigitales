@@ -86,6 +86,7 @@ El backend registra auditoria en Oracle para cada flujo:
 
 - `TUKUNAFUNC.IN_LOGS_APP_PAG_DIGIT`: registra consumo de servicios expuestos por la API.
 - `TUKUNAFUNC.IN_LOGS_WS_EXT`: registra consumo de servicios externos por proveedor (por ejemplo Paysafe/Pichincha).
+- El registro se ejecuta de forma asincrona (en paralelo al flujo HTTP) para no afectar las respuestas en linea.
 
 Campos principales poblados por flujo:
 
