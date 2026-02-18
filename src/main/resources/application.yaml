@@ -11,6 +11,9 @@ spring:
     username: ${DB_USERNAME:TUKUNAFUNC}
     password: ${DB_PASSWORD:tvkvn4tst}
     driver-class-name: ${DB_DRIVER:oracle.jdbc.OracleDriver}
+    hikari:
+      data-source-properties:
+        oracle.jdbc.timezoneAsRegion: false
 #PROVISIONAL DEV
   devtools:
     restart:

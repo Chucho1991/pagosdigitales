@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.femsa.gpf.pagosdigitales.api.dto.SafetypayConfirmationRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.SafetypayConfirmationResponse;
 import com.femsa.gpf.pagosdigitales.application.service.SafetypayConfirmationService;
+import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
+import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -24,14 +26,18 @@ import lombok.extern.log4j.Log4j2;
 public class SafetypayConfirmationController {
 
     private final SafetypayConfirmationService confirmationService;
+    private final IntegrationLogService integrationLogService;
 
     /**
      * Crea el controller con sus dependencias.
      *
      * @param confirmationService servicio de confirmaciones
+     * @param integrationLogService servicio de auditoria de logs
      */
-    public SafetypayConfirmationController(SafetypayConfirmationService confirmationService) {
+    public SafetypayConfirmationController(SafetypayConfirmationService confirmationService,
+            IntegrationLogService integrationLogService) {
         this.confirmationService = confirmationService;
+        this.integrationLogService = integrationLogService;
     }
 
     /**
@@ -85,11 +91,30 @@ public class SafetypayConfirmationController {
                     httpRequest.getRemoteAddr());
             log.info("Confirmation procesada. MerchantSalesID={} ErrorNumber={}",
                     merchantSalesId, response.getErrorNumber());
+            logInternal(req, response.toCsvLine(), "OK", 200);
             return ResponseEntity.ok(response.toCsvLine());
         } catch (Exception e) {
             log.error("Error procesando confirmation. MerchantSalesID={}", merchantSalesId, e);
             SafetypayConfirmationResponse response = confirmationService.errorResponse(req, 3);
+            logInternal(req, response.toCsvLine(), "ERROR_CONFIRMATION", 200);
             return ResponseEntity.ok(response.toCsvLine());
         }
+    }
+
+    private void logInternal(SafetypayConfirmationRequest req, String responseCsv, String message, int status) {
+        integrationLogService.logInternal(IntegrationLogRecord.builder()
+                .requestPayload(req)
+                .responsePayload(responseCsv)
+                .usuario("SYSTEM")
+                .mensaje(message)
+                .origen("WS_INTERNO")
+                .codigoProvPago(req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString())
+                .folio(req.getMerchantSalesId())
+                .url("/api/v1/safetypay/confirmation")
+                .metodo("POST")
+                .cpVar1("safetypay-confirmation")
+                .cpVar2(message)
+                .cpNumber1(status)
+                .build());
     }
 }

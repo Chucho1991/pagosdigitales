@@ -23,6 +23,8 @@ import com.femsa.gpf.pagosdigitales.application.mapper.BanksMap;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.ErrorMappingProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.GetBanksProperties;
+import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
+import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 
@@ -42,6 +44,7 @@ public class BanksController {
     private final BanksMap banksMap;
     private final ObjectMapper objectMapper;
     private final ErrorMappingProperties errorMappingProperties;
+    private final IntegrationLogService integrationLogService;
 
     /**
      * Crea el controlador de bancos con sus dependencias.
@@ -52,16 +55,18 @@ public class BanksController {
      * @param banksMap mapeador de respuestas de bancos
      * @param objectMapper serializador de payloads
      * @param errorMappingProperties configuracion de mapeo de errores
+     * @param integrationLogService servicio de auditoria de logs
      */
     public BanksController(ProducerTemplate camel, GetBanksProperties getBanksprops,
             ProvidersPayService providersPayService, BanksMap banksMap, ObjectMapper objectMapper,
-            ErrorMappingProperties errorMappingProperties) {
+            ErrorMappingProperties errorMappingProperties, IntegrationLogService integrationLogService) {
         this.camel = camel;
         this.getBanksprops = getBanksprops;
         this.providersPayService = providersPayService;
         this.banksMap = banksMap;
         this.objectMapper = objectMapper;
         this.errorMappingProperties = errorMappingProperties;
+        this.integrationLogService = integrationLogService;
     }
 
     /**
@@ -75,6 +80,8 @@ public class BanksController {
             produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getBanks(@RequestBody BanksRequest req) {
         log.info("Request recibido banks: {}", req);
+        String proveedorSeleccionado = null;
+        Map<String, Object> headersProveedor = null;
 
         try {
             if (req.getPayment_provider_code() != null) {
@@ -82,6 +89,7 @@ public class BanksController {
                 log.info("ID Proveedor: {}", req.getPayment_provider_code());
 
                 String proveedor = providersPayService.getProviderNameByCode(req.getPayment_provider_code());
+                proveedorSeleccionado = proveedor;
 
                 log.info("Nombre Proveedor: {}", proveedor);
 
@@ -94,6 +102,7 @@ public class BanksController {
                         "now", LocalDateTime.now().toString(),
                         "getbanks", proveedor
                 );
+                headersProveedor = camelHeaders;
 
                 log.info(camelHeaders);
 
@@ -110,17 +119,21 @@ public class BanksController {
                 ErrorInfo providerError = ApiErrorUtils.extractProviderError(rawResp, objectMapper, errorPath);
                 if (providerError != null) {
                     int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
-                    return ResponseEntity.status(httpCode)
-                            .body(ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
-                                    req.getPos(), req.getPayment_provider_code(), providerError));
+                    Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
+                            req.getPos(), req.getPayment_provider_code(), providerError);
+                    logExternal(req, camelHeaders, errorBody, proveedor, httpCode, "ERROR_PROVEEDOR");
+                    logInternal(req, errorBody, httpCode, "ERROR_PROVEEDOR");
+                    return ResponseEntity.status(httpCode).body(errorBody);
                 }
 
                 BanksResponse response = banksMap.mapBanksByProviderResponse(req, rawResp, proveedor);
                 log.info("Response enviado al cliente banks: {}", response);
+                logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK");
+                logInternal(req, response, 200, "OK");
                 return ResponseEntity.ok(response);
 
             } else {
-                log.info("No se proporciono un ID de proveedor");
+                log.info("No se proporciono payment_provider_code; se ejecuta consulta multi-proveedor.");
 
                 Map<String, Integer> listProveedores = providersPayService.getAllProviders();
                 List<ProviderItem> listProvidersData = new ArrayList<>();
@@ -161,30 +174,88 @@ public class BanksController {
                             providerItem.setData(rawResp);
 
                             listProvidersData.add(providerItem);
+                            logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK");
 
                         } catch (CamelExecutionException e) {
                             log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
                                     proveedor, codProveedor, e.getMessage());
+                            logExternal(req, null, "Error consultando proveedor: " + e.getMessage(), proveedor, 500,
+                                    "ERROR_CAMEL");
                         }
                     }
                 }
 
                 BanksResponse response = banksMap.mapAllBanksResponse(req, listProvidersData);
                 log.info("Response enviado al cliente banks: {}", response);
+                logInternal(req, response, 200, "OK_MULTI_PROVIDER");
                 return ResponseEntity.ok(response);
             }
         } catch (IllegalArgumentException e) {
             ErrorInfo error = ApiErrorUtils.invalidRequest(e.getMessage(), null, null, null);
-            return ResponseEntity.status(400)
-                    .body(ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
-                            req.getPos(), req.getPayment_provider_code(), error));
+            Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
+                    req.getPos(), req.getPayment_provider_code(), error);
+            logInternal(req, errorBody, 400, e.getMessage());
+            return ResponseEntity.status(400).body(errorBody);
         } catch (Exception e) {
             log.error("Error procesando banks", e);
             ErrorInfo error = ApiErrorUtils.genericError(500, "Internal error");
-            return ResponseEntity.status(500)
-                    .body(ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
-                            req.getPos(), req.getPayment_provider_code(), error));
+            Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
+                    req.getPos(), req.getPayment_provider_code(), error);
+            if (proveedorSeleccionado != null) {
+                logExternal(req, headersProveedor, errorBody, proveedorSeleccionado, 500, "ERROR_TECNICO");
+            }
+            logInternal(req, errorBody, 500, "ERROR_INTERNO");
+            return ResponseEntity.status(500).body(errorBody);
         }
     }
 
+    private void logInternal(BanksRequest req, Object response, int status, String message) {
+        integrationLogService.logInternal(IntegrationLogRecord.builder()
+                .requestPayload(req)
+                .responsePayload(response)
+                .usuario("SYSTEM")
+                .mensaje(message)
+                .origen("WS_INTERNO")
+                .pais(req.getCountry_code())
+                .canal(req.getChannel_POS())
+                .codigoProvPago(req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString())
+                .nombreFarmacia(req.getStore_name())
+                .farmacia(req.getStore())
+                .cadena(req.getChain())
+                .pos(req.getPos())
+                .url("/api/v1/banks")
+                .metodo("POST")
+                .cpVar1("banks")
+                .cpVar2(message)
+                .cpNumber1(status)
+                .build());
+    }
+
+    private void logExternal(BanksRequest req, Object outboundBody, Object response, String providerName,
+            int status, String message) {
+        GetBanksProperties.ProviderConfig providerConfig = getBanksprops.getProviders().get(providerName);
+        String providerCode = req.getPayment_provider_code() == null
+                ? String.valueOf(providersPayService.getProviderCodeByName(providerName))
+                : req.getPayment_provider_code().toString();
+        integrationLogService.logExternal(IntegrationLogRecord.builder()
+                .requestPayload(outboundBody)
+                .responsePayload(response)
+                .usuario("SYSTEM")
+                .mensaje(message)
+                .origen(providerName)
+                .pais(req.getCountry_code())
+                .canal(req.getChannel_POS())
+                .codigoProvPago(providerCode)
+                .nombreFarmacia(req.getStore_name())
+                .farmacia(req.getStore())
+                .cadena(req.getChain())
+                .pos(req.getPos())
+                .url(providerConfig == null ? null : providerConfig.getUrl())
+                .metodo(providerConfig == null ? null : providerConfig.getMethod())
+                .cpVar1("banks")
+                .cpVar2(message)
+                .cpVar3(providerName)
+                .cpNumber1(status)
+                .build());
+    }
 }

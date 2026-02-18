@@ -80,6 +80,21 @@ docker run --rm --name pagosdigitales -e SERVER_PORT=8080 -p 8080:8080 pagosdigi
 - `GET /api/v1/payments`: consulta de pagos por `operation_id`.
 - `POST /api/v1/banks`: consulta de bancos por proveedor o todos.
 
+## Auditoria de logs en base de datos
+
+El backend registra auditoria en Oracle para cada flujo:
+
+- `TUKUNAFUNC.IN_LOGS_APP_PAG_DIGIT`: registra consumo de servicios expuestos por la API.
+- `TUKUNAFUNC.IN_LOGS_WS_EXT`: registra consumo de servicios externos por proveedor (por ejemplo Paysafe/Pichincha).
+
+Campos principales poblados por flujo:
+
+- `request` y `response`: payload de entrada/salida serializado.
+- `fecha_registro`: fecha/hora del registro.
+- `mensaje`: resultado del flujo (`OK`, `ERROR_PROVEEDOR`, `ERROR_TECNICO`, etc.).
+- `origen`: `WS_INTERNO` para API y nombre de proveedor para consumo externo.
+- `codigo_prov_pago`, `url`, `metodo`, `cadena`, `farmacia`, `pos`, `folio`: contexto operativo del consumo.
+
 ## SLA/SLO/SLI
 
 - Disponibilidad objetivo: 99.9%.
