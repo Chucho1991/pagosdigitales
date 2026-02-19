@@ -6,12 +6,14 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.Iterator;
 import java.util.Properties;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 
@@ -80,7 +82,7 @@ public class IntegrationLogService {
      */
     @Async("loggingTaskExecutor")
     public void logInternal(IntegrationLogRecord record) {
-        insert(INSERT_APP_LOG, record, "IN_LOGS_APP_PAG_DIGIT");
+        insert(INSERT_APP_LOG, record, "IN_LOGS_APP_PAG_DIGIT", false);
     }
 
     /**
@@ -90,13 +92,14 @@ public class IntegrationLogService {
      */
     @Async("loggingTaskExecutor")
     public void logExternal(IntegrationLogRecord record) {
-        insert(INSERT_EXT_LOG, record, "IN_LOGS_WS_EXT");
+        insert(INSERT_EXT_LOG, record, "IN_LOGS_WS_EXT", true);
     }
 
-    private void insert(String sql, IntegrationLogRecord record, String tableName) {
+    private void insert(String sql, IntegrationLogRecord record, String tableName, boolean externalLog) {
         if (record == null) {
             return;
         }
+        DerivedLogValues derivedValues = deriveLogValues(record);
 
         try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
                 PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -110,15 +113,15 @@ public class IntegrationLogService {
             ps.setString(7, trim(record.getCanal(), 100, null));
             ps.setString(8, trim(record.getCodigoProvPago(), 50, null));
             ps.setString(9, trim(record.getNombreFarmacia(), 100, null));
-            ps.setString(10, trim(record.getFolio(), 100, null));
+            ps.setString(10, trim(derivedValues.folio(), 100, null));
             setInteger(ps, 11, record.getFarmacia());
             setInteger(ps, 12, record.getCadena());
             setInteger(ps, 13, record.getPos());
             ps.setString(14, trim(record.getUrl(), 300, null));
             ps.setString(15, trim(record.getMetodo(), 20, null));
             ps.setString(16, trim(record.getCpVar1(), 1500, null));
-            ps.setString(17, trim(record.getCpVar2(), 1500, null));
-            ps.setString(18, trim(record.getCpVar3(), 1500, null));
+            ps.setString(17, trim(derivedValues.operationId(), 1500, null));
+            ps.setString(18, trim(externalLog ? null : record.getCpVar3(), 1500, null));
             setInteger(ps, 19, record.getCpNumber1());
             setInteger(ps, 20, record.getCpNumber2());
             setInteger(ps, 21, record.getCpNumber3());
@@ -130,6 +133,113 @@ public class IntegrationLogService {
         } catch (Exception e) {
             log.error("No fue posible guardar log en {}: {}", tableName, e.getMessage());
         }
+    }
+
+    private DerivedLogValues deriveLogValues(IntegrationLogRecord record) {
+        String operationId = firstNonBlank(
+                findFirstValue(record.getRequestPayload(), "operation_id", "operationId", "operationid"),
+                findFirstValue(record.getResponsePayload(), "operation_id", "operationId", "operationid"));
+        String merchantSalesId = firstNonBlank(
+                findFirstValue(record.getRequestPayload(), "merchant_sales_id", "merchantSalesId", "MerchantSalesID",
+                        "merchantsalesid"),
+                findFirstValue(record.getResponsePayload(), "merchant_sales_id", "merchantSalesId", "MerchantSalesID",
+                        "merchantsalesid"));
+        return new DerivedLogValues(operationId, merchantSalesId);
+    }
+
+    private String findFirstValue(Object payload, String... candidateKeys) {
+        JsonNode root = toJsonNode(payload);
+        if (root == null || root.isNull()) {
+            return null;
+        }
+        return findFirstValueRecursive(root, candidateKeys);
+    }
+
+    private JsonNode toJsonNode(Object payload) {
+        if (payload == null) {
+            return null;
+        }
+        if (payload instanceof String text) {
+            if (text.isBlank()) {
+                return null;
+            }
+            try {
+                return objectMapper.readTree(text);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        if (payload instanceof byte[] bytes) {
+            if (bytes.length == 0) {
+                return null;
+            }
+            try {
+                return objectMapper.readTree(bytes);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+        return objectMapper.valueToTree(payload);
+    }
+
+    private String findFirstValueRecursive(JsonNode node, String... candidateKeys) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        if (node.isObject()) {
+            Iterator<String> fieldNames = node.fieldNames();
+            while (fieldNames.hasNext()) {
+                String fieldName = fieldNames.next();
+                JsonNode child = node.get(fieldName);
+                if (matchesAny(fieldName, candidateKeys) && child != null && !child.isNull()) {
+                    String value = child.asText();
+                    if (value != null && !value.isBlank()) {
+                        return value;
+                    }
+                }
+                String nested = findFirstValueRecursive(child, candidateKeys);
+                if (nested != null && !nested.isBlank()) {
+                    return nested;
+                }
+            }
+            return null;
+        }
+        if (node.isArray()) {
+            for (JsonNode child : node) {
+                String nested = findFirstValueRecursive(child, candidateKeys);
+                if (nested != null && !nested.isBlank()) {
+                    return nested;
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean matchesAny(String fieldName, String... candidateKeys) {
+        String normalizedFieldName = normalizeKey(fieldName);
+        for (String candidateKey : candidateKeys) {
+            if (normalizedFieldName.equals(normalizeKey(candidateKey))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String normalizeKey(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replaceAll("[^A-Za-z0-9]", "").toLowerCase();
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        if (second != null && !second.isBlank()) {
+            return second;
+        }
+        return null;
     }
 
     private String toJson(Object payload) {
@@ -175,5 +285,8 @@ public class IntegrationLogService {
             return;
         }
         ps.setTimestamp(index, Timestamp.valueOf(value));
+    }
+
+    private record DerivedLogValues(String operationId, String folio) {
     }
 }

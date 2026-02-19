@@ -104,6 +104,9 @@ Campos principales poblados por flujo:
 - `mensaje`: resultado del flujo (`OK`, `ERROR_PROVEEDOR`, `ERROR_TECNICO`, etc.).
 - `origen`: `WS_INTERNO` para API y nombre de proveedor para consumo externo.
 - `codigo_prov_pago`, `url`, `metodo`, `cadena`, `farmacia`, `pos`, `folio`: contexto operativo del consumo.
+- `folio`: se deriva de `merchant_sales_id` (request/response) cuando exista; si no, `NULL`.
+- `cp_var2`: se deriva de `operation_id` (request/response) cuando exista; si no, `NULL`.
+- En `IN_LOGS_WS_EXT`, `cp_var3` se registra siempre en `NULL`.
 
 ## Registro de pagos en IN_REGISTRO_PAGOS
 
@@ -152,6 +155,10 @@ Valores de `ErrorNumber` en `confirmation`:
 - `1`: `API Key not recognized`
 - `2`: `Signature not valid`
 - `3`: `Other errors`
+
+Comportamiento de `OrderNo` en CSV de confirmation:
+- `OrderNo` siempre retorna el mismo valor de `MerchantSalesID`.
+- Entre escenarios de error, el unico campo que cambia es `ErrorNumber`.
 
 ## SLA/SLO/SLI
 

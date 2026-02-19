@@ -28,12 +28,10 @@ import lombok.extern.log4j.Log4j2;
 public class SafetypayConfirmationService {
 
     private static final DateTimeFormatter RESPONSE_DATETIME_FORMAT = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
-    private static final String STATUS_PAID = "102";
 
     private final SafetypayConfirmationProperties properties;
     private final SignatureService signatureService;
     private final SafetypayNotificationStore notificationStore;
-    private final SafetypayOrderService orderService;
     private final ObjectMapper objectMapper;
     private final ProvidersPayService providersPayService;
 
@@ -43,20 +41,17 @@ public class SafetypayConfirmationService {
      * @param properties configuracion de SafetyPay
      * @param signatureService servicio de firma
      * @param notificationStore store de idempotencia
-     * @param orderService servicio de ordenes
      * @param objectMapper serializador JSON
      * @param providersPayService servicio de proveedores de pago
      */
     public SafetypayConfirmationService(SafetypayConfirmationProperties properties,
             SignatureService signatureService,
             SafetypayNotificationStore notificationStore,
-            SafetypayOrderService orderService,
             ObjectMapper objectMapper,
             ProvidersPayService providersPayService) {
         this.properties = properties;
         this.signatureService = signatureService;
         this.notificationStore = notificationStore;
-        this.orderService = orderService;
         this.objectMapper = objectMapper;
         this.providersPayService = providersPayService;
     }
@@ -105,21 +100,10 @@ public class SafetypayConfirmationService {
                 req.getReferenceNo(),
                 req.getPaymentReferenceNo());
         if (existing.isPresent()) {
-            response.setOrderNo(existing.get().getOrderNo());
             return signResponse(response, 0, providerConfig);
         }
 
-        Optional<String> orderNo = orderService.resolveOrderNo(req.getMerchantSalesId());
-        if (orderNo.isEmpty()) {
-            return signResponse(response, 3, providerConfig);
-        }
-        response.setOrderNo(orderNo.get());
-
-        if (STATUS_PAID.equals(req.getStatus())) {
-            orderService.markAsPaid(orderNo.get(), req.getMerchantSalesId());
-        }
-
-        SafetypayNotificationRecord record = buildRecord(req, orderNo.get());
+        SafetypayNotificationRecord record = buildRecord(req, req.getMerchantSalesId());
         notificationStore.save(record);
         log.info("Notificacion SafetyPay registrada: {}", AppUtils.formatPayload(record, objectMapper));
 
@@ -195,6 +179,7 @@ public class SafetypayConfirmationService {
         response.setCurrencyId(req.getCurrencyId());
         response.setPaymentReferenceNo(req.getPaymentReferenceNo());
         response.setStatus(req.getStatus());
+        response.setOrderNo(req.getMerchantSalesId());
         response.setResponseDateTime(OffsetDateTime.now(ZoneOffset.UTC).format(RESPONSE_DATETIME_FORMAT));
         return response;
     }
