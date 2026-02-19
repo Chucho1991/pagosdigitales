@@ -137,7 +137,6 @@ Regla de validacion para `merchant-events`:
 2. Endpoint `POST /api/v1/safetypay/confirmation`:
 - Busca por:
 `ID_INTERNO_VENTA = MerchantSalesID`,
-`CODIGO_PROV_PAGO = payment_provider_code`,
 `ID_OPERACION_EXTERNO = ReferenceNo`.
 - Actualiza:
 `FECHA_AUTORIZACION_PROV <- RequestDateTime`,
@@ -218,7 +217,6 @@ error-mapping:
 ## Parametros de entrada (form-urlencoded)
 
 - ApiKey
-- payment_provider_code
 - RequestDateTime
 - MerchantSalesID
 - ReferenceNo
@@ -235,7 +233,6 @@ error-mapping:
 curl -X POST http://localhost:8080/api/v1/safetypay/confirmation \
   -H "Content-Type: application/x-www-form-urlencoded" \
   --data-urlencode "ApiKey=MI_API_KEY" \
-  --data-urlencode "payment_provider_code=235689" \
   --data-urlencode "RequestDateTime=2020-10-20T12:27:27" \
   --data-urlencode "MerchantSalesID=Prueba1" \
   --data-urlencode "ReferenceNo=Ref1" \

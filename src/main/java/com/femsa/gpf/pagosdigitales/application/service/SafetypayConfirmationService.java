@@ -3,6 +3,7 @@ package com.femsa.gpf.pagosdigitales.application.service;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -12,7 +13,6 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.api.dto.SafetypayConfirmationRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.SafetypayConfirmationResponse;
-import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.domain.service.SignatureService;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.SafetypayConfirmationProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.SafetypayConfirmationProperties.ProviderConfig;
@@ -33,7 +33,6 @@ public class SafetypayConfirmationService {
     private final SignatureService signatureService;
     private final SafetypayNotificationStore notificationStore;
     private final ObjectMapper objectMapper;
-    private final ProvidersPayService providersPayService;
 
     /**
      * Crea el servicio con dependencias configuradas.
@@ -42,18 +41,15 @@ public class SafetypayConfirmationService {
      * @param signatureService servicio de firma
      * @param notificationStore store de idempotencia
      * @param objectMapper serializador JSON
-     * @param providersPayService servicio de proveedores de pago
      */
     public SafetypayConfirmationService(SafetypayConfirmationProperties properties,
             SignatureService signatureService,
             SafetypayNotificationStore notificationStore,
-            ObjectMapper objectMapper,
-            ProvidersPayService providersPayService) {
+            ObjectMapper objectMapper) {
         this.properties = properties;
         this.signatureService = signatureService;
         this.notificationStore = notificationStore;
         this.objectMapper = objectMapper;
-        this.providersPayService = providersPayService;
     }
 
     /**
@@ -70,10 +66,11 @@ public class SafetypayConfirmationService {
             return signResponse(response, 3);
         }
 
-        ProviderConfig providerConfig = resolveProviderConfig(req.getPayment_provider_code());
-        if (providerConfig == null) {
+        ResolvedProvider resolvedProvider = resolveProvider();
+        if (resolvedProvider == null) {
             return signResponse(response, 3);
         }
+        ProviderConfig providerConfig = resolvedProvider.config();
 
         if (!hasRequiredFields(req)) {
             return signResponse(response, 3, providerConfig);
@@ -103,7 +100,7 @@ public class SafetypayConfirmationService {
             return signResponse(response, 0, providerConfig);
         }
 
-        SafetypayNotificationRecord record = buildRecord(req, req.getMerchantSalesId());
+        SafetypayNotificationRecord record = buildRecord(req, req.getMerchantSalesId(), resolvedProvider.name());
         notificationStore.save(record);
         log.info("Notificacion SafetyPay registrada: {}", AppUtils.formatPayload(record, objectMapper));
 
@@ -118,11 +115,11 @@ public class SafetypayConfirmationService {
      * @return response firmado
      */
     public SafetypayConfirmationResponse errorResponse(SafetypayConfirmationRequest req, int errorNumber) {
-        ProviderConfig providerConfig = resolveProviderConfig(req.getPayment_provider_code());
-        if (providerConfig == null) {
+        ResolvedProvider resolvedProvider = resolveProvider();
+        if (resolvedProvider == null) {
             return signResponse(baseResponse(req), errorNumber);
         }
-        return signResponse(baseResponse(req), errorNumber, providerConfig);
+        return signResponse(baseResponse(req), errorNumber, resolvedProvider.config());
     }
 
     /**
@@ -145,15 +142,20 @@ public class SafetypayConfirmationService {
                 + nullSafe(secret);
     }
 
-    private ProviderConfig resolveProviderConfig(Integer paymentProviderCode) {
-        if (paymentProviderCode == null) {
+    private ResolvedProvider resolveProvider() {
+        if (properties.getProviders() == null || properties.getProviders().isEmpty()) {
             return null;
         }
-        String providerName = providersPayService.getProviderNameByCode(paymentProviderCode);
-        if ("without-provider".equals(providerName)) {
+        ProviderConfig paysafeConfig = properties.getProviders().get("paysafe");
+        if (paysafeConfig != null) {
+            return new ResolvedProvider("paysafe", paysafeConfig);
+        }
+        Iterator<Map.Entry<String, ProviderConfig>> iterator = properties.getProviders().entrySet().iterator();
+        if (!iterator.hasNext()) {
             return null;
         }
-        return properties.getProviders().get(providerName);
+        Map.Entry<String, ProviderConfig> firstProvider = iterator.next();
+        return new ResolvedProvider(firstProvider.getKey(), firstProvider.getValue());
     }
 
     private boolean isApiKeyValid(ProviderConfig config, String apiKey) {
@@ -215,10 +217,10 @@ public class SafetypayConfirmationService {
         return response;
     }
 
-    private SafetypayNotificationRecord buildRecord(SafetypayConfirmationRequest req, String orderNo) {
+    private SafetypayNotificationRecord buildRecord(SafetypayConfirmationRequest req, String orderNo, String providerName) {
         SafetypayNotificationRecord record = new SafetypayNotificationRecord();
-        record.setPaymentProviderCode(req.getPayment_provider_code());
-        record.setProviderName(providersPayService.getProviderNameByCode(req.getPayment_provider_code()));
+        record.setPaymentProviderCode(null);
+        record.setProviderName(providerName);
         record.setMerchantSalesId(req.getMerchantSalesId());
         record.setReferenceNo(req.getReferenceNo());
         record.setPaymentReferenceNo(req.getPaymentReferenceNo());
@@ -246,7 +248,6 @@ public class SafetypayConfirmationService {
 
     private Map<String, Object> buildRawPayload(SafetypayConfirmationRequest req) {
         Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("payment_provider_code", req.getPayment_provider_code());
         payload.put("ApiKey", req.getApiKey());
         payload.put("RequestDateTime", req.getRequestDateTime());
         payload.put("MerchantSalesID", req.getMerchantSalesId());
@@ -276,5 +277,8 @@ public class SafetypayConfirmationService {
             return false;
         }
         return config.getAllowedIps().contains(remoteAddr);
+    }
+
+    private record ResolvedProvider(String name, ProviderConfig config) {
     }
 }

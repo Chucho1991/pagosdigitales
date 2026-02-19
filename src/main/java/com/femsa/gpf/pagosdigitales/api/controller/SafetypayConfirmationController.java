@@ -51,7 +51,6 @@ public class SafetypayConfirmationController {
      *
      * @param channelPos canal POS de origen
      * @param apiKey api key entrante
-     * @param paymentProviderCode codigo del proveedor de pago
      * @param requestDateTime fecha de request
      * @param merchantSalesId identificador del comercio
      * @param referenceNo referencia
@@ -68,7 +67,6 @@ public class SafetypayConfirmationController {
             produces = MediaType.TEXT_PLAIN_VALUE)
     public ResponseEntity<String> confirm(
             @RequestParam(name = "channel_POS", required = false) String channelPos,
-            @RequestParam(name = "payment_provider_code", required = false) Integer paymentProviderCode,
             @RequestParam(name = "ApiKey", required = false) String apiKey,
             @RequestParam(name = "RequestDateTime", required = false) String requestDateTime,
             @RequestParam(name = "MerchantSalesID", required = false) String merchantSalesId,
@@ -83,7 +81,6 @@ public class SafetypayConfirmationController {
 
         SafetypayConfirmationRequest req = new SafetypayConfirmationRequest();
         req.setChannel_POS(ChannelPosUtils.normalize(channelPos));
-        req.setPayment_provider_code(paymentProviderCode);
         req.setApiKey(apiKey);
         req.setRequestDateTime(requestDateTime);
         req.setMerchantSalesId(merchantSalesId);
@@ -127,7 +124,7 @@ public class SafetypayConfirmationController {
                 .mensaje(message)
                 .origen("WS_INTERNO")
                 .canal(req.getChannel_POS())
-                .codigoProvPago(req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString())
+                .codigoProvPago(null)
                 .folio(req.getMerchantSalesId())
                 .url("/api/v1/safetypay/confirmation")
                 .metodo("POST")

@@ -9,7 +9,6 @@ import lombok.Data;
 public class SafetypayConfirmationRequest {
 
     private String channel_POS;
-    private Integer payment_provider_code;
     private String apiKey;
     private String requestDateTime;
     private String merchantSalesId;

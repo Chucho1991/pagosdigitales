@@ -43,7 +43,6 @@ public class PaymentRegistryService {
             SELECT CODIGO
             FROM TUKUNAFUNC.IN_REGISTRO_PAGOS
             WHERE ID_INTERNO_VENTA = ?
-              AND CODIGO_PROV_PAGO = ?
               AND ID_OPERACION_EXTERNO = ?
             """;
 
@@ -57,7 +56,6 @@ public class PaymentRegistryService {
                 COD_ESTADO_PAGO = ?,
                 FIRMA = ?
             WHERE ID_INTERNO_VENTA = ?
-              AND CODIGO_PROV_PAGO = ?
               AND ID_OPERACION_EXTERNO = ?
             """;
 
@@ -66,7 +64,6 @@ public class PaymentRegistryService {
             SET CP_VAR1 = ?,
                 CP_NUMBER1 = ?
             WHERE ID_INTERNO_VENTA = ?
-              AND CODIGO_PROV_PAGO = ?
               AND ID_OPERACION_EXTERNO = ?
             """;
 
@@ -218,19 +215,17 @@ public class PaymentRegistryService {
      * @return true cuando se encontro y actualizo el registro; false en caso contrario
      */
     public boolean updateFromSafetypayConfirmation(SafetypayConfirmationRequest req) {
-        if (req == null || isBlank(req.getMerchantSalesId()) || req.getPayment_provider_code() == null
-                || isBlank(req.getReferenceNo())) {
+        if (req == null || isBlank(req.getMerchantSalesId()) || isBlank(req.getReferenceNo())) {
             return false;
         }
 
         String idInternoVenta = req.getMerchantSalesId();
-        String codigoProvPago = req.getPayment_provider_code().toString();
         String idOperacionExterno = req.getReferenceNo();
 
         try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties)) {
-            if (!existsTargetRecord(connection, idInternoVenta, codigoProvPago, idOperacionExterno)) {
-                log.warn("No existe registro en IN_REGISTRO_PAGOS para ID_INTERNO_VENTA={}, CODIGO_PROV_PAGO={} e ID_OPERACION_EXTERNO={}",
-                        idInternoVenta, codigoProvPago, idOperacionExterno);
+            if (!existsTargetRecord(connection, idInternoVenta, idOperacionExterno)) {
+                log.warn("No existe registro en IN_REGISTRO_PAGOS para ID_INTERNO_VENTA={} e ID_OPERACION_EXTERNO={}",
+                        idInternoVenta, idOperacionExterno);
                 return false;
             }
 
@@ -243,8 +238,7 @@ public class PaymentRegistryService {
                 ps.setString(6, req.getStatus());
                 ps.setString(7, req.getSignature());
                 ps.setString(8, idInternoVenta);
-                ps.setString(9, codigoProvPago);
-                ps.setString(10, idOperacionExterno);
+                ps.setString(9, idOperacionExterno);
                 int updated = ps.executeUpdate();
                 return updated > 0;
             }
@@ -262,13 +256,11 @@ public class PaymentRegistryService {
      * @return true si se actualizo al menos un registro
      */
     public boolean updateConfirmationErrorInfo(SafetypayConfirmationRequest req, int errorNumber) {
-        if (req == null || isBlank(req.getMerchantSalesId()) || req.getPayment_provider_code() == null
-                || isBlank(req.getReferenceNo())) {
+        if (req == null || isBlank(req.getMerchantSalesId()) || isBlank(req.getReferenceNo())) {
             return false;
         }
 
         String idInternoVenta = req.getMerchantSalesId();
-        String codigoProvPago = req.getPayment_provider_code().toString();
         String idOperacionExterno = req.getReferenceNo();
         String cpVar1 = errorNumberDescription(errorNumber);
 
@@ -277,8 +269,7 @@ public class PaymentRegistryService {
             ps.setString(1, cpVar1);
             ps.setObject(2, errorNumber, java.sql.Types.NUMERIC);
             ps.setString(3, idInternoVenta);
-            ps.setString(4, codigoProvPago);
-            ps.setString(5, idOperacionExterno);
+            ps.setString(4, idOperacionExterno);
             return ps.executeUpdate() > 0;
         } catch (Exception e) {
             log.error("No fue posible actualizar CP_VAR1/CP_NUMBER1 de confirmation en IN_REGISTRO_PAGOS: {}", e.getMessage());
@@ -286,12 +277,11 @@ public class PaymentRegistryService {
         }
     }
 
-    private boolean existsTargetRecord(Connection connection, String idInternoVenta, String codigoProvPago,
-            String idOperacionExterno) throws Exception {
+    private boolean existsTargetRecord(Connection connection, String idInternoVenta, String idOperacionExterno)
+            throws Exception {
         try (PreparedStatement ps = connection.prepareStatement(SELECT_CONFIRMATION_TARGET)) {
             ps.setString(1, idInternoVenta);
-            ps.setString(2, codigoProvPago);
-            ps.setString(3, idOperacionExterno);
+            ps.setString(2, idOperacionExterno);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next();
             }

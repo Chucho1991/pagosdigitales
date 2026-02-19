@@ -210,8 +210,6 @@ components:
     SafetypayConfirmationRequest:
       type: object
       properties:
-        payment_provider_code:
-          type: integer
         ApiKey:
           type: string
         RequestDateTime:
