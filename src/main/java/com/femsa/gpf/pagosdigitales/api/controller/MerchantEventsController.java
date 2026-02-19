@@ -68,6 +68,7 @@ public class MerchantEventsController {
             if (req.getPayment_provider_code() == null) {
                 throw new IllegalArgumentException("payment_provider_code requerido");
             }
+            validateMerchantSalesId(req);
             String proveedor = providersPayService.getProviderNameByCode(req.getPayment_provider_code());
             if ("without-provider".equals(proveedor)) {
                 throw new IllegalArgumentException("Proveedor no configurado");
@@ -99,6 +100,19 @@ public class MerchantEventsController {
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             logInternal(req, errorBody, 500, "ERROR_INTERNO");
             return ResponseEntity.status(500).body(errorBody);
+        }
+    }
+
+    private void validateMerchantSalesId(MerchantEventsRequest req) {
+        if (req.getMerchant_events() == null || req.getMerchant_events().isEmpty()) {
+            throw new IllegalArgumentException("merchant_events requerido");
+        }
+        boolean invalidMerchantSalesId = req.getMerchant_events().stream()
+                .anyMatch(event -> event == null
+                        || event.getMerchant_sales_id() == null
+                        || event.getMerchant_sales_id().isBlank());
+        if (invalidMerchantSalesId) {
+            throw new IllegalArgumentException("merchant_sales_id requerido en merchant_events");
         }
     }
 

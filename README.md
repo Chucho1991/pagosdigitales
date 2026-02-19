@@ -381,6 +381,10 @@ direct-online-payment-requests:
 - merchant_events[].operation_status
 - request_datetime
 
+Validaciones:
+- `merchant_events` es requerido.
+- `merchant_events[].merchant_sales_id` no puede ser nulo ni vacio.
+
 ## Ejemplo de request
 
 ```bash
