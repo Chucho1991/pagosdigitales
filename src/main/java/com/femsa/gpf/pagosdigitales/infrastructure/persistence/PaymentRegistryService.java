@@ -88,6 +88,18 @@ public class PaymentRegistryService {
             WHERE ROWNUM = 1
             """;
 
+    private static final String SELECT_EVENT_PAIR_EXISTS = """
+            SELECT 1
+            FROM (
+                SELECT 1
+                FROM TUKUNAFUNC.IN_REGISTRO_PAGOS
+                WHERE ID_INTERNO_VENTA = ?
+                  AND ID_OPERACION_EXTERNO = ?
+                  AND NVL(FARMACIA, -1) = NVL(?, -1)
+            )
+            WHERE ROWNUM = 1
+            """;
+
     private final String dbUrl;
     private final Properties connectionProperties;
 
@@ -244,6 +256,39 @@ public class PaymentRegistryService {
             }
         } catch (Exception e) {
             log.error("No fue posible actualizar confirmacion SafetyPay en IN_REGISTRO_PAGOS: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Verifica si todos los eventos del request ya fueron registrados por la llave
+     * ID_INTERNO_VENTA + ID_OPERACION_EXTERNO + FARMACIA.
+     *
+     * @param req request de merchant-events
+     * @return true cuando todos los eventos ya existen en la tabla
+     */
+    public boolean areAllEventsAlreadyRegistered(MerchantEventsRequest req) {
+        if (req == null || req.getMerchant_events() == null || req.getMerchant_events().isEmpty()) {
+            return false;
+        }
+        try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
+                PreparedStatement ps = connection.prepareStatement(SELECT_EVENT_PAIR_EXISTS)) {
+            for (MerchantEvent event : req.getMerchant_events()) {
+                if (event == null || isBlank(event.getMerchant_sales_id()) || isBlank(event.getOperation_id())) {
+                    return false;
+                }
+                ps.setString(1, event.getMerchant_sales_id());
+                ps.setString(2, event.getOperation_id());
+                ps.setObject(3, req.getStore());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            log.error("No fue posible validar idempotencia de merchant-events en IN_REGISTRO_PAGOS: {}", e.getMessage());
             return false;
         }
     }

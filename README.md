@@ -131,6 +131,7 @@ Los valores de esos campos se manejan unicamente en el flujo de `confirmation`.
 Regla de validacion para `merchant-events`:
 - Antes de registrar, se valida que la combinacion `ID_INTERNO_VENTA-farmacia` (`merchant_sales_id` + `store`) no exista previamente en `IN_REGISTRO_PAGOS`.
 - Antes de registrar, se valida que `operation_id` no exista previamente en `IN_REGISTRO_PAGOS` (unicidad global).
+- Si el request llega con la misma combinacion `ID_INTERNO_VENTA + ID_OPERACION_EXTERNO + FARMACIA` ya registrada, el endpoint responde `200 OK` con la respuesta generica (idempotencia) y no reinserta.
 - Si existe conflicto, el endpoint responde error `400` y no registra el evento como exitoso.
 - Si el endpoint retorna cualquier error (`400/500`), no se inserta registro en `IN_REGISTRO_PAGOS`.
 

@@ -73,6 +73,14 @@ public class MerchantEventsController {
             if ("without-provider".equals(proveedor)) {
                 throw new IllegalArgumentException("Proveedor no configurado");
             }
+
+            if (paymentRegistryService.areAllEventsAlreadyRegistered(req)) {
+                MerchantEventsResponse response = buildGenericResponse(req);
+                log.info("Request idempotente en merchant-events. Se retorna respuesta OK sin reinsercion.");
+                logInternal(req, response, 200, "OK_IDEMPOTENTE");
+                return ResponseEntity.ok(response);
+            }
+
             String folioConflict = paymentRegistryService.validateFolioUniqueness(req);
             if (folioConflict != null) {
                 throw new IllegalArgumentException(folioConflict);
