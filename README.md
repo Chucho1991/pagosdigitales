@@ -69,6 +69,11 @@ docker run --rm --name pagosdigitales -e SERVER_PORT=8080 -p 8080:8080 pagosdigi
 docker run --rm --name pagosdigitales -e SERVER_PORT=8080 -p 8080:8080 pagosdigitales:local
 ```
 
+Nota TLS saliente:
+- El contenedor fuerza TLS 1.2 para consumos salientes con:
+`-Djdk.tls.client.protocols=TLSv1.2 -Dhttps.protocols=TLSv1.2`.
+- Si un proveedor externo acepta solo TLS 1.3, la conexion fallara.
+
 ## Endpoint
 
 - Metodo: POST

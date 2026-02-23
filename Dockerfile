@@ -17,7 +17,7 @@ RUN apt-get update \
     && update-ca-certificates -f \
     && rm -rf /var/lib/apt/lists/*
 
-ENV JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts"
+ENV JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djdk.tls.client.protocols=TLSv1.2 -Dhttps.protocols=TLSv1.2"
 
 ENV SERVER_PORT=8787
 WORKDIR /app
