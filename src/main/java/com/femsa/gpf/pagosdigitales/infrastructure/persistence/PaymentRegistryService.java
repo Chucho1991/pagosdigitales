@@ -2,7 +2,6 @@ package com.femsa.gpf.pagosdigitales.infrastructure.persistence;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
@@ -10,9 +9,9 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Properties;
 
-import org.springframework.beans.factory.annotation.Value;
+import javax.sql.DataSource;
+
 import org.springframework.stereotype.Service;
 
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEvent;
@@ -54,14 +53,8 @@ public class PaymentRegistryService {
                 MONTO = ?,
                 MONEDA = ?,
                 COD_ESTADO_PAGO = ?,
-                FIRMA = ?
-            WHERE ID_INTERNO_VENTA = ?
-              AND ID_OPERACION_EXTERNO = ?
-            """;
-
-    private static final String UPDATE_CONFIRMATION_ERROR_FIELDS = """
-            UPDATE TUKUNAFUNC.IN_REGISTRO_PAGOS
-            SET CP_VAR1 = ?,
+                FIRMA = ?,
+                CP_VAR1 = ?,
                 CP_NUMBER1 = ?
             WHERE ID_INTERNO_VENTA = ?
               AND ID_OPERACION_EXTERNO = ?
@@ -100,21 +93,15 @@ public class PaymentRegistryService {
             WHERE ROWNUM = 1
             """;
 
-    private final String dbUrl;
-    private final Properties connectionProperties;
+    private final DataSource dataSource;
 
     /**
      * Crea el servicio con configuracion de conexion.
      *
-     * @param dbUrl URL JDBC
-     * @param dbUsername usuario BD
-     * @param dbPassword password BD
+     * @param dataSource datasource JDBC
      */
-    public PaymentRegistryService(@Value("${spring.datasource.url}") String dbUrl,
-            @Value("${spring.datasource.username}") String dbUsername,
-            @Value("${spring.datasource.password}") String dbPassword) {
-        this.dbUrl = dbUrl;
-        this.connectionProperties = buildConnectionProperties(dbUsername, dbPassword);
+    public PaymentRegistryService(DataSource dataSource) {
+        this.dataSource = dataSource;
     }
 
     /**
@@ -131,7 +118,7 @@ public class PaymentRegistryService {
             return;
         }
 
-        try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
+        try (Connection connection = dataSource.getConnection();
                 PreparedStatement ps = connection.prepareStatement(INSERT_MERCHANT_EVENT)) {
 
             for (MerchantEvent event : events) {
@@ -166,7 +153,7 @@ public class PaymentRegistryService {
             return null;
         }
 
-        try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
+        try (Connection connection = dataSource.getConnection();
                 PreparedStatement ps = connection.prepareStatement(SELECT_OPERATION_CONFLICT)) {
             for (MerchantEvent event : req.getMerchant_events()) {
                 if (event == null || isBlank(event.getOperation_id())) {
@@ -198,7 +185,7 @@ public class PaymentRegistryService {
             return null;
         }
 
-        try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
+        try (Connection connection = dataSource.getConnection();
                 PreparedStatement ps = connection.prepareStatement(SELECT_FOLIO_EXISTS)) {
             for (MerchantEvent event : req.getMerchant_events()) {
                 if (event == null || isBlank(event.getMerchant_sales_id())) {
@@ -226,34 +213,29 @@ public class PaymentRegistryService {
      * @param req request de confirmacion SafetyPay
      * @return true cuando se encontro y actualizo el registro; false en caso contrario
      */
-    public boolean updateFromSafetypayConfirmation(SafetypayConfirmationRequest req) {
+    public boolean updateFromSafetypayConfirmation(SafetypayConfirmationRequest req, int errorNumber) {
         if (req == null || isBlank(req.getMerchantSalesId()) || isBlank(req.getReferenceNo())) {
             return false;
         }
 
         String idInternoVenta = req.getMerchantSalesId();
         String idOperacionExterno = req.getReferenceNo();
+        String cpVar1 = errorNumberDescription(errorNumber);
 
-        try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties)) {
-            if (!existsTargetRecord(connection, idInternoVenta, idOperacionExterno)) {
-                log.warn("No existe registro en IN_REGISTRO_PAGOS para ID_INTERNO_VENTA={} e ID_OPERACION_EXTERNO={}",
-                        idInternoVenta, idOperacionExterno);
-                return false;
-            }
-
-            try (PreparedStatement ps = connection.prepareStatement(UPDATE_CONFIRMATION)) {
-                setDate(ps, 1, parseDateTime(req.getRequestDateTime()));
-                ps.setString(2, req.getReferenceNo());
-                ps.setString(3, req.getPaymentReferenceNo());
-                setAmount(ps, 4, req.getAmount());
-                ps.setString(5, req.getCurrencyId());
-                ps.setString(6, req.getStatus());
-                ps.setString(7, req.getSignature());
-                ps.setString(8, idInternoVenta);
-                ps.setString(9, idOperacionExterno);
-                int updated = ps.executeUpdate();
-                return updated > 0;
-            }
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement ps = connection.prepareStatement(UPDATE_CONFIRMATION)) {
+            setDate(ps, 1, parseDateTime(req.getRequestDateTime()));
+            ps.setString(2, req.getReferenceNo());
+            ps.setString(3, req.getPaymentReferenceNo());
+            setAmount(ps, 4, req.getAmount());
+            ps.setString(5, req.getCurrencyId());
+            ps.setString(6, req.getStatus());
+            ps.setString(7, req.getSignature());
+            ps.setString(8, cpVar1);
+            ps.setObject(9, errorNumber, java.sql.Types.NUMERIC);
+            ps.setString(10, idInternoVenta);
+            ps.setString(11, idOperacionExterno);
+            return ps.executeUpdate() > 0;
         } catch (Exception e) {
             log.error("No fue posible actualizar confirmacion SafetyPay en IN_REGISTRO_PAGOS: {}", e.getMessage());
             return false;
@@ -271,7 +253,7 @@ public class PaymentRegistryService {
         if (req == null || req.getMerchant_events() == null || req.getMerchant_events().isEmpty()) {
             return false;
         }
-        try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
+        try (Connection connection = dataSource.getConnection();
                 PreparedStatement ps = connection.prepareStatement(SELECT_EVENT_PAIR_EXISTS)) {
             for (MerchantEvent event : req.getMerchant_events()) {
                 if (event == null || isBlank(event.getMerchant_sales_id()) || isBlank(event.getOperation_id())) {
@@ -294,30 +276,19 @@ public class PaymentRegistryService {
     }
 
     /**
-     * Actualiza CP_VAR1 y CP_NUMBER1 para confirmation segun el ErrorNumber final.
+     * Verifica si existe registro objetivo para confirmation.
      *
-     * @param req request de confirmacion
-     * @param errorNumber codigo de error final
-     * @return true si se actualizo al menos un registro
+     * @param req request de confirmation
+     * @return true si existe al menos un registro para MerchantSalesID + ReferenceNo
      */
-    public boolean updateConfirmationErrorInfo(SafetypayConfirmationRequest req, int errorNumber) {
+    public boolean existsConfirmationTarget(SafetypayConfirmationRequest req) {
         if (req == null || isBlank(req.getMerchantSalesId()) || isBlank(req.getReferenceNo())) {
             return false;
         }
-
-        String idInternoVenta = req.getMerchantSalesId();
-        String idOperacionExterno = req.getReferenceNo();
-        String cpVar1 = errorNumberDescription(errorNumber);
-
-        try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
-                PreparedStatement ps = connection.prepareStatement(UPDATE_CONFIRMATION_ERROR_FIELDS)) {
-            ps.setString(1, cpVar1);
-            ps.setObject(2, errorNumber, java.sql.Types.NUMERIC);
-            ps.setString(3, idInternoVenta);
-            ps.setString(4, idOperacionExterno);
-            return ps.executeUpdate() > 0;
+        try (Connection connection = dataSource.getConnection()) {
+            return existsTargetRecord(connection, req.getMerchantSalesId(), req.getReferenceNo());
         } catch (Exception e) {
-            log.error("No fue posible actualizar CP_VAR1/CP_NUMBER1 de confirmation en IN_REGISTRO_PAGOS: {}", e.getMessage());
+            log.error("No fue posible validar existencia para confirmation en IN_REGISTRO_PAGOS: {}", e.getMessage());
             return false;
         }
     }
@@ -381,11 +352,4 @@ public class PaymentRegistryService {
         };
     }
 
-    private Properties buildConnectionProperties(String username, String password) {
-        Properties props = new Properties();
-        props.setProperty("user", username);
-        props.setProperty("password", password);
-        props.setProperty("oracle.jdbc.timezoneAsRegion", "false");
-        return props;
-    }
 }

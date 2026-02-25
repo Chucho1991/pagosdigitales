@@ -91,10 +91,10 @@ public class SafetypayConfirmationController {
         req.setPaymentReferenceNo(paymentReferenceNo);
         req.setStatus(status);
         req.setSignature(signature);
-        boolean updatedPaymentRegistry = paymentRegistryService.updateFromSafetypayConfirmation(req);
+        boolean updatedPaymentRegistry = paymentRegistryService.existsConfirmationTarget(req);
         if (!updatedPaymentRegistry) {
             SafetypayConfirmationResponse response = confirmationService.errorResponse(req, 3);
-            paymentRegistryService.updateConfirmationErrorInfo(req, response.getErrorNumber());
+            paymentRegistryService.updateFromSafetypayConfirmation(req, response.getErrorNumber());
             logInternal(req, response.toCsvLine(), "REGISTRO_NO_ENCONTRADO", 200);
             return ResponseEntity.ok(response.toCsvLine());
         }
@@ -102,7 +102,7 @@ public class SafetypayConfirmationController {
         try {
             SafetypayConfirmationResponse response = confirmationService.handleConfirmation(req,
                     httpRequest.getRemoteAddr());
-            paymentRegistryService.updateConfirmationErrorInfo(req, response.getErrorNumber());
+            paymentRegistryService.updateFromSafetypayConfirmation(req, response.getErrorNumber());
             log.info("Confirmation procesada. MerchantSalesID={} ErrorNumber={}",
                     merchantSalesId, response.getErrorNumber());
             logInternal(req, response.toCsvLine(), "OK", 200);
@@ -110,7 +110,7 @@ public class SafetypayConfirmationController {
         } catch (Exception e) {
             log.error("Error procesando confirmation. MerchantSalesID={}", merchantSalesId, e);
             SafetypayConfirmationResponse response = confirmationService.errorResponse(req, 3);
-            paymentRegistryService.updateConfirmationErrorInfo(req, response.getErrorNumber());
+            paymentRegistryService.updateFromSafetypayConfirmation(req, response.getErrorNumber());
             logInternal(req, response.toCsvLine(), "ERROR_CONFIRMATION", 200);
             return ResponseEntity.ok(response.toCsvLine());
         }
