@@ -25,6 +25,7 @@ import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
+import com.femsa.gpf.pagosdigitales.infrastructure.util.ExternalCallTimer;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -88,6 +89,7 @@ public class PaymentsController {
         req.setChannel_POS(ChannelPosUtils.normalize(req.getChannel_POS()));
         String proveedor = null;
         Map<String, Object> camelHeaders = null;
+        Integer externalElapsedMs = null;
         try {
             if (req.getPayment_provider_code() == null) {
                 throw new IllegalArgumentException("payment_provider_code requerido");
@@ -115,11 +117,19 @@ public class PaymentsController {
                     "request_datetime", requestDatetime
             );
 
-            Object rawResp = camel.requestBodyAndHeaders(
-                    "direct:payments",
-                    null,
-                    camelHeaders
-            );
+            ExternalCallTimer timer = ExternalCallTimer.start();
+            Object rawResp;
+            try {
+                rawResp = camel.requestBodyAndHeaders(
+                        "direct:payments",
+                        null,
+                        camelHeaders
+                );
+            } catch (Exception ex) {
+                externalElapsedMs = timer.elapsedMillis();
+                throw ex;
+            }
+            externalElapsedMs = timer.elapsedMillis();
 
             log.info("Response recibido de proveedor {}: {}", proveedor,
                     AppUtils.formatPayload(rawResp, objectMapper));
@@ -130,14 +140,14 @@ public class PaymentsController {
                 int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
                 Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                         req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), providerError);
-                logExternal(req, camelHeaders, errorBody, proveedor, httpCode, "ERROR_PROVEEDOR");
+                logExternal(req, camelHeaders, errorBody, proveedor, httpCode, "ERROR_PROVEEDOR", externalElapsedMs);
                 logInternal(req, errorBody, httpCode, "ERROR_PROVEEDOR");
                 return ResponseEntity.status(httpCode).body(errorBody);
             }
 
             PaymentsResponse response = paymentsMap.mapProviderResponse(req, rawResp, proveedor);
             log.info("Response enviado al cliente payments: {}", response);
-            logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK");
+            logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK", externalElapsedMs);
             logInternal(req, response, 200, "OK");
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
@@ -152,7 +162,7 @@ public class PaymentsController {
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             if (proveedor != null) {
-                logExternal(req, camelHeaders, errorBody, proveedor, 500, "ERROR_TECNICO");
+                logExternal(req, camelHeaders, errorBody, proveedor, 500, "ERROR_TECNICO", externalElapsedMs);
             }
             logInternal(req, errorBody, 500, "ERROR_INTERNO");
             return ResponseEntity.status(500).body(errorBody);
@@ -182,7 +192,7 @@ public class PaymentsController {
     }
 
     private void logExternal(PaymentsRequest req, Object outboundBody, Object response, String providerName,
-            int status, String message) {
+            int status, String message, Integer externalElapsedMs) {
         PaymentsProperties.ProviderConfig providerConfig = paymentsProperties.getProviders().get(providerName);
         integrationLogService.logExternal(IntegrationLogRecord.builder()
                 .requestPayload(outboundBody)
@@ -203,6 +213,7 @@ public class PaymentsController {
                 .cpVar2(message)
                 .cpVar3(providerName)
                 .cpNumber1(status)
+                .cpNumber2(externalElapsedMs)
                 .build());
     }
 }

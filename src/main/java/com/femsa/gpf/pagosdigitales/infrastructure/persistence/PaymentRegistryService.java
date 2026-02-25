@@ -10,8 +10,6 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import javax.sql.DataSource;
-
 import org.springframework.stereotype.Service;
 
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEvent;
@@ -93,15 +91,15 @@ public class PaymentRegistryService {
             WHERE ROWNUM = 1
             """;
 
-    private final DataSource dataSource;
+    private final DatabaseExecutor databaseExecutor;
 
     /**
      * Crea el servicio con configuracion de conexion.
      *
-     * @param dataSource datasource JDBC
+     * @param databaseExecutor ejecutor global de conexiones JDBC
      */
-    public PaymentRegistryService(DataSource dataSource) {
-        this.dataSource = dataSource;
+    public PaymentRegistryService(DatabaseExecutor databaseExecutor) {
+        this.databaseExecutor = databaseExecutor;
     }
 
     /**
@@ -118,25 +116,28 @@ public class PaymentRegistryService {
             return;
         }
 
-        try (Connection connection = dataSource.getConnection();
-                PreparedStatement ps = connection.prepareStatement(INSERT_MERCHANT_EVENT)) {
-
-            for (MerchantEvent event : events) {
-                ps.setObject(1, req.getChain());
-                ps.setObject(2, req.getStore());
-                ps.setString(3, req.getStore_name());
-                ps.setObject(4, req.getPos());
-                setDate(ps, 5, parseDateTime(event.getCreation_datetime()));
-                ps.setString(6, req.getChannel_POS());
-                ps.setString(7, req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString());
-                ps.setString(8, event.getMerchant_sales_id());
-                ps.setString(9, event.getOperation_id());
-                ps.setString(10, event.getMerchant_sales_id());
-                ps.setNull(11, java.sql.Types.VARCHAR);
-                ps.setNull(12, java.sql.Types.NUMERIC);
-                ps.addBatch();
-            }
-            ps.executeBatch();
+        try {
+            databaseExecutor.withConnection(connection -> {
+                try (PreparedStatement ps = connection.prepareStatement(INSERT_MERCHANT_EVENT)) {
+                    for (MerchantEvent event : events) {
+                        ps.setObject(1, req.getChain());
+                        ps.setObject(2, req.getStore());
+                        ps.setString(3, req.getStore_name());
+                        ps.setObject(4, req.getPos());
+                        setDate(ps, 5, parseDateTime(event.getCreation_datetime()));
+                        ps.setString(6, req.getChannel_POS());
+                        ps.setString(7,
+                                req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString());
+                        ps.setString(8, event.getMerchant_sales_id());
+                        ps.setString(9, event.getOperation_id());
+                        ps.setString(10, event.getMerchant_sales_id());
+                        ps.setNull(11, java.sql.Types.VARCHAR);
+                        ps.setNull(12, java.sql.Types.NUMERIC);
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
+            });
         } catch (Exception e) {
             log.error("No fue posible insertar registros de merchant-events en IN_REGISTRO_PAGOS: {}", e.getMessage());
         }
@@ -153,21 +154,24 @@ public class PaymentRegistryService {
             return null;
         }
 
-        try (Connection connection = dataSource.getConnection();
-                PreparedStatement ps = connection.prepareStatement(SELECT_OPERATION_CONFLICT)) {
-            for (MerchantEvent event : req.getMerchant_events()) {
-                if (event == null || isBlank(event.getOperation_id())) {
-                    continue;
-                }
-                ps.setString(1, event.getOperation_id());
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        return "operation_id " + event.getOperation_id()
-                                + " ya existe en IN_REGISTRO_PAGOS";
+        try {
+            return databaseExecutor.withConnection(connection -> {
+                try (PreparedStatement ps = connection.prepareStatement(SELECT_OPERATION_CONFLICT)) {
+                    for (MerchantEvent event : req.getMerchant_events()) {
+                        if (event == null || isBlank(event.getOperation_id())) {
+                            continue;
+                        }
+                        ps.setString(1, event.getOperation_id());
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                return "operation_id " + event.getOperation_id()
+                                        + " ya existe en IN_REGISTRO_PAGOS";
+                            }
+                        }
                     }
+                    return null;
                 }
-            }
-            return null;
+            });
         } catch (Exception e) {
             log.error("No fue posible validar ownership de operation_id en IN_REGISTRO_PAGOS: {}", e.getMessage());
             return "No fue posible validar operation_id";
@@ -185,22 +189,25 @@ public class PaymentRegistryService {
             return null;
         }
 
-        try (Connection connection = dataSource.getConnection();
-                PreparedStatement ps = connection.prepareStatement(SELECT_FOLIO_EXISTS)) {
-            for (MerchantEvent event : req.getMerchant_events()) {
-                if (event == null || isBlank(event.getMerchant_sales_id())) {
-                    continue;
-                }
-                ps.setString(1, event.getMerchant_sales_id());
-                ps.setObject(2, req.getStore());
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) {
-                        return "folio " + event.getMerchant_sales_id()
-                                + " ya existe para la farmacia " + req.getStore();
+        try {
+            return databaseExecutor.withConnection(connection -> {
+                try (PreparedStatement ps = connection.prepareStatement(SELECT_FOLIO_EXISTS)) {
+                    for (MerchantEvent event : req.getMerchant_events()) {
+                        if (event == null || isBlank(event.getMerchant_sales_id())) {
+                            continue;
+                        }
+                        ps.setString(1, event.getMerchant_sales_id());
+                        ps.setObject(2, req.getStore());
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                return "folio " + event.getMerchant_sales_id()
+                                        + " ya existe para la farmacia " + req.getStore();
+                            }
+                        }
                     }
+                    return null;
                 }
-            }
-            return null;
+            });
         } catch (Exception e) {
             log.error("No fue posible validar unicidad de folio en IN_REGISTRO_PAGOS: {}", e.getMessage());
             return "No fue posible validar folio";
@@ -222,20 +229,23 @@ public class PaymentRegistryService {
         String idOperacionExterno = req.getReferenceNo();
         String cpVar1 = errorNumberDescription(errorNumber);
 
-        try (Connection connection = dataSource.getConnection();
-                PreparedStatement ps = connection.prepareStatement(UPDATE_CONFIRMATION)) {
-            setDate(ps, 1, parseDateTime(req.getRequestDateTime()));
-            ps.setString(2, req.getReferenceNo());
-            ps.setString(3, req.getPaymentReferenceNo());
-            setAmount(ps, 4, req.getAmount());
-            ps.setString(5, req.getCurrencyId());
-            ps.setString(6, req.getStatus());
-            ps.setString(7, req.getSignature());
-            ps.setString(8, cpVar1);
-            ps.setObject(9, errorNumber, java.sql.Types.NUMERIC);
-            ps.setString(10, idInternoVenta);
-            ps.setString(11, idOperacionExterno);
-            return ps.executeUpdate() > 0;
+        try {
+            return databaseExecutor.withConnection(connection -> {
+                try (PreparedStatement ps = connection.prepareStatement(UPDATE_CONFIRMATION)) {
+                    setDate(ps, 1, parseDateTime(req.getRequestDateTime()));
+                    ps.setString(2, req.getReferenceNo());
+                    ps.setString(3, req.getPaymentReferenceNo());
+                    setAmount(ps, 4, req.getAmount());
+                    ps.setString(5, req.getCurrencyId());
+                    ps.setString(6, req.getStatus());
+                    ps.setString(7, req.getSignature());
+                    ps.setString(8, cpVar1);
+                    ps.setObject(9, errorNumber, java.sql.Types.NUMERIC);
+                    ps.setString(10, idInternoVenta);
+                    ps.setString(11, idOperacionExterno);
+                    return ps.executeUpdate() > 0;
+                }
+            });
         } catch (Exception e) {
             log.error("No fue posible actualizar confirmacion SafetyPay en IN_REGISTRO_PAGOS: {}", e.getMessage());
             return false;
@@ -253,22 +263,25 @@ public class PaymentRegistryService {
         if (req == null || req.getMerchant_events() == null || req.getMerchant_events().isEmpty()) {
             return false;
         }
-        try (Connection connection = dataSource.getConnection();
-                PreparedStatement ps = connection.prepareStatement(SELECT_EVENT_PAIR_EXISTS)) {
-            for (MerchantEvent event : req.getMerchant_events()) {
-                if (event == null || isBlank(event.getMerchant_sales_id()) || isBlank(event.getOperation_id())) {
-                    return false;
-                }
-                ps.setString(1, event.getMerchant_sales_id());
-                ps.setString(2, event.getOperation_id());
-                ps.setObject(3, req.getStore());
-                try (ResultSet rs = ps.executeQuery()) {
-                    if (!rs.next()) {
-                        return false;
+        try {
+            return databaseExecutor.withConnection(connection -> {
+                try (PreparedStatement ps = connection.prepareStatement(SELECT_EVENT_PAIR_EXISTS)) {
+                    for (MerchantEvent event : req.getMerchant_events()) {
+                        if (event == null || isBlank(event.getMerchant_sales_id()) || isBlank(event.getOperation_id())) {
+                            return false;
+                        }
+                        ps.setString(1, event.getMerchant_sales_id());
+                        ps.setString(2, event.getOperation_id());
+                        ps.setObject(3, req.getStore());
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (!rs.next()) {
+                                return false;
+                            }
+                        }
                     }
+                    return true;
                 }
-            }
-            return true;
+            });
         } catch (Exception e) {
             log.error("No fue posible validar idempotencia de merchant-events en IN_REGISTRO_PAGOS: {}", e.getMessage());
             return false;
@@ -285,8 +298,10 @@ public class PaymentRegistryService {
         if (req == null || isBlank(req.getMerchantSalesId()) || isBlank(req.getReferenceNo())) {
             return false;
         }
-        try (Connection connection = dataSource.getConnection()) {
-            return existsTargetRecord(connection, req.getMerchantSalesId(), req.getReferenceNo());
+        try {
+            return databaseExecutor.withConnection(
+                    (DatabaseExecutor.ConnectionCallback<Boolean>) connection -> existsTargetRecord(connection,
+                            req.getMerchantSalesId(), req.getReferenceNo()));
         } catch (Exception e) {
             log.error("No fue posible validar existencia para confirmation en IN_REGISTRO_PAGOS: {}", e.getMessage());
             return false;

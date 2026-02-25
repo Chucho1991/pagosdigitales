@@ -1,19 +1,17 @@
 package com.femsa.gpf.pagosdigitales.domain.service;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Properties;
 
 import jakarta.annotation.PostConstruct;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.DatabaseExecutor;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -28,23 +26,17 @@ public class ProvidersPayService {
             + "FROM TUKUNAFUNC.AD_BILLETERAS_DIGITALES "
             + "WHERE ACTIVA = 'S'";
 
-    private final String dbUrl;
-    private final Properties connectionProperties;
+    private final DatabaseExecutor databaseExecutor;
     private volatile Map<String, Integer> providersByName = Map.of();
     private volatile Map<Integer, String> providersByCode = Map.of();
 
     /**
      * Crea el servicio con configuracion de conexion.
      *
-     * @param dbUrl URL JDBC
-     * @param dbUsername usuario BD
-     * @param dbPassword password BD
+     * @param databaseExecutor ejecutor global de conexiones JDBC
      */
-    public ProvidersPayService(@Value("${spring.datasource.url}") String dbUrl,
-            @Value("${spring.datasource.username}") String dbUsername,
-            @Value("${spring.datasource.password}") String dbPassword) {
-        this.dbUrl = dbUrl;
-        this.connectionProperties = buildConnectionProperties(dbUsername, dbPassword);
+    public ProvidersPayService(DatabaseExecutor databaseExecutor) {
+        this.databaseExecutor = databaseExecutor;
     }
 
     /**
@@ -110,18 +102,19 @@ public class ProvidersPayService {
 
     private Map<String, Integer> loadActiveProvidersFromDb() throws Exception {
         Map<String, Integer> providers = new LinkedHashMap<>();
-        try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
-                PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_WALLETS);
-                ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                String providerName = normalizeProviderKey(rs.getString("NOMBRE_BILLETERA_DIGITAL"));
-                Integer providerCode = rs.getInt("CODIGO");
-                if (!providerName.isBlank()) {
-                    providers.put(providerName, providerCode);
+        databaseExecutor.withConnection(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_WALLETS);
+                    ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String providerName = normalizeProviderKey(rs.getString("NOMBRE_BILLETERA_DIGITAL"));
+                    Integer providerCode = rs.getInt("CODIGO");
+                    if (!providerName.isBlank()) {
+                        providers.put(providerName, providerCode);
+                    }
                 }
             }
-            return providers;
-        }
+        });
+        return providers;
     }
 
     private String normalizeProviderName(String providerName) {
@@ -140,14 +133,6 @@ public class ProvidersPayService {
             return "pichincha";
         }
         return normalized;
-    }
-
-    private Properties buildConnectionProperties(String username, String password) {
-        Properties props = new Properties();
-        props.setProperty("user", username);
-        props.setProperty("password", password);
-        props.setProperty("oracle.jdbc.timezoneAsRegion", "false");
-        return props;
     }
 
 }

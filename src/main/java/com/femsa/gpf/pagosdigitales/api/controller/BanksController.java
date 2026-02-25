@@ -32,6 +32,7 @@ import com.femsa.gpf.pagosdigitales.infrastructure.persistence.BanksCatalogServi
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
+import com.femsa.gpf.pagosdigitales.infrastructure.util.ExternalCallTimer;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -92,6 +93,7 @@ public class BanksController {
         req.setChannel_POS(ChannelPosUtils.normalize(req.getChannel_POS()));
         String proveedorSeleccionado = null;
         Map<String, Object> headersProveedor = null;
+        Integer externalElapsedMs = null;
 
         try {
             if (req.getPayment_provider_code() != null) {
@@ -116,11 +118,19 @@ public class BanksController {
 
                 log.info(camelHeaders);
 
-                Object rawResp = camel.requestBodyAndHeaders(
-                        "direct:getbanks",
-                        null,
-                        camelHeaders
-                );
+                ExternalCallTimer timer = ExternalCallTimer.start();
+                Object rawResp;
+                try {
+                    rawResp = camel.requestBodyAndHeaders(
+                            "direct:getbanks",
+                            null,
+                            camelHeaders
+                    );
+                } catch (Exception ex) {
+                    externalElapsedMs = timer.elapsedMillis();
+                    throw ex;
+                }
+                externalElapsedMs = timer.elapsedMillis();
 
                 log.info("Response recibido de proveedor {}: {}", proveedor,
                         AppUtils.formatPayload(rawResp, objectMapper));
@@ -131,7 +141,8 @@ public class BanksController {
                     int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
                     Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                             req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), providerError);
-                    logExternal(req, camelHeaders, errorBody, proveedor, httpCode, "ERROR_PROVEEDOR");
+                    logExternal(req, camelHeaders, errorBody, proveedor, httpCode, "ERROR_PROVEEDOR",
+                            externalElapsedMs);
                     logInternal(req, errorBody, httpCode, "ERROR_PROVEEDOR");
                     return ResponseEntity.status(httpCode).body(errorBody);
                 }
@@ -139,7 +150,7 @@ public class BanksController {
                 BanksResponse response = banksMap.mapBanksByProviderResponse(req, rawResp, proveedor);
                 applyBanksFilter(response, req.getChain(), req.getChannel_POS());
                 log.info("Response enviado al cliente banks: {}", response);
-                logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK");
+                logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK", externalElapsedMs);
                 logInternal(req, response, 200, "OK");
                 return ResponseEntity.ok(response);
 
@@ -171,11 +182,24 @@ public class BanksController {
                                     "getbanks", proveedor
                             );
 
-                            Object rawResp = camel.requestBodyAndHeaders(
-                                    "direct:getbanks",
-                                    null,
-                                    camelHeaders
-                            );
+                            ExternalCallTimer timer = ExternalCallTimer.start();
+                            Integer providerElapsedMs;
+                            Object rawResp;
+                            try {
+                                rawResp = camel.requestBodyAndHeaders(
+                                        "direct:getbanks",
+                                        null,
+                                        camelHeaders
+                                );
+                                providerElapsedMs = timer.elapsedMillis();
+                            } catch (CamelExecutionException e) {
+                                providerElapsedMs = timer.elapsedMillis();
+                                log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
+                                        proveedor, codProveedor, e.getMessage());
+                                logExternal(req, null, "Error consultando proveedor: " + e.getMessage(), proveedor, 500,
+                                        "ERROR_CAMEL", providerElapsedMs);
+                                continue;
+                            }
 
                             log.info("Response recibido de proveedor {}: {}", proveedor,
                                     AppUtils.formatPayload(rawResp, objectMapper));
@@ -185,13 +209,13 @@ public class BanksController {
                             providerItem.setData(rawResp);
 
                             listProvidersData.add(providerItem);
-                            logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK");
+                            logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK", providerElapsedMs);
 
-                        } catch (CamelExecutionException e) {
+                        } catch (Exception e) {
                             log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
                                     proveedor, codProveedor, e.getMessage());
                             logExternal(req, null, "Error consultando proveedor: " + e.getMessage(), proveedor, 500,
-                                    "ERROR_CAMEL");
+                                    "ERROR_CAMEL", null);
                         }
                     }
                 }
@@ -214,7 +238,8 @@ public class BanksController {
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             if (proveedorSeleccionado != null) {
-                logExternal(req, headersProveedor, errorBody, proveedorSeleccionado, 500, "ERROR_TECNICO");
+                logExternal(req, headersProveedor, errorBody, proveedorSeleccionado, 500, "ERROR_TECNICO",
+                        externalElapsedMs);
             }
             logInternal(req, errorBody, 500, "ERROR_INTERNO");
             return ResponseEntity.status(500).body(errorBody);
@@ -244,7 +269,7 @@ public class BanksController {
     }
 
     private void logExternal(BanksRequest req, Object outboundBody, Object response, String providerName,
-            int status, String message) {
+            int status, String message, Integer externalElapsedMs) {
         GetBanksProperties.ProviderConfig providerConfig = getBanksprops.getProviders().get(providerName);
         String providerCode = req.getPayment_provider_code() == null
                 ? String.valueOf(providersPayService.getProviderCodeByName(providerName))
@@ -268,6 +293,7 @@ public class BanksController {
                 .cpVar2(message)
                 .cpVar3(providerName)
                 .cpNumber1(status)
+                .cpNumber2(externalElapsedMs)
                 .build());
     }
 

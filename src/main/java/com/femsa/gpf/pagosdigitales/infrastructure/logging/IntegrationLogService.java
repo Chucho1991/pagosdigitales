@@ -1,20 +1,17 @@
 package com.femsa.gpf.pagosdigitales.infrastructure.logging;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Iterator;
-import java.util.Properties;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.DatabaseExecutor;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 
 import lombok.extern.log4j.Log4j2;
@@ -51,28 +48,17 @@ public class IntegrationLogService {
             """;
 
     private final ObjectMapper objectMapper;
-    private final String dbUrl;
-    private final String dbUsername;
-    private final String dbPassword;
-    private final Properties connectionProperties;
+    private final DatabaseExecutor databaseExecutor;
 
     /**
      * Crea el servicio con conexion y serializador.
      *
      * @param objectMapper serializador JSON
-     * @param dbUrl URL JDBC
-     * @param dbUsername usuario BD
-     * @param dbPassword password BD
+     * @param databaseExecutor ejecutor global de conexiones JDBC
      */
-    public IntegrationLogService(ObjectMapper objectMapper,
-            @Value("${spring.datasource.url}") String dbUrl,
-            @Value("${spring.datasource.username}") String dbUsername,
-            @Value("${spring.datasource.password}") String dbPassword) {
+    public IntegrationLogService(ObjectMapper objectMapper, DatabaseExecutor databaseExecutor) {
         this.objectMapper = objectMapper;
-        this.dbUrl = dbUrl;
-        this.dbUsername = dbUsername;
-        this.dbPassword = dbPassword;
-        this.connectionProperties = buildConnectionProperties(dbUsername, dbPassword);
+        this.databaseExecutor = databaseExecutor;
     }
 
     /**
@@ -101,35 +87,36 @@ public class IntegrationLogService {
         }
         DerivedLogValues derivedValues = deriveLogValues(record);
 
-        try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
-                PreparedStatement ps = connection.prepareStatement(sql)) {
-
-            ps.setString(1, toJson(record.getRequestPayload()));
-            ps.setString(2, toJson(record.getResponsePayload()));
-            ps.setString(3, trim(record.getUsuario(), 100, "SYSTEM"));
-            ps.setString(4, trim(record.getMensaje(), 2000, null));
-            ps.setString(5, trim(record.getOrigen(), 100, null));
-            ps.setString(6, trim(record.getPais(), 100, null));
-            ps.setString(7, trim(record.getCanal(), 100, null));
-            ps.setString(8, trim(record.getCodigoProvPago(), 50, null));
-            ps.setString(9, trim(record.getNombreFarmacia(), 100, null));
-            ps.setString(10, trim(derivedValues.folio(), 100, null));
-            setInteger(ps, 11, record.getFarmacia());
-            setInteger(ps, 12, record.getCadena());
-            setInteger(ps, 13, record.getPos());
-            ps.setString(14, trim(record.getUrl(), 300, null));
-            ps.setString(15, trim(record.getMetodo(), 20, null));
-            ps.setString(16, trim(record.getCpVar1(), 1500, null));
-            ps.setString(17, trim(derivedValues.operationId(), 1500, null));
-            ps.setString(18, trim(externalLog ? null : record.getCpVar3(), 1500, null));
-            setInteger(ps, 19, record.getCpNumber1());
-            setInteger(ps, 20, record.getCpNumber2());
-            setInteger(ps, 21, record.getCpNumber3());
-            setDate(ps, 22, record.getCpDate1());
-            setDate(ps, 23, record.getCpDate2());
-            setDate(ps, 24, record.getCpDate3());
-
-            ps.executeUpdate();
+        try {
+            databaseExecutor.withConnection(connection -> {
+                try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                    ps.setString(1, toJson(record.getRequestPayload()));
+                    ps.setString(2, toJson(record.getResponsePayload()));
+                    ps.setString(3, trim(record.getUsuario(), 100, "SYSTEM"));
+                    ps.setString(4, trim(record.getMensaje(), 2000, null));
+                    ps.setString(5, trim(record.getOrigen(), 100, null));
+                    ps.setString(6, trim(record.getPais(), 100, null));
+                    ps.setString(7, trim(record.getCanal(), 100, null));
+                    ps.setString(8, trim(record.getCodigoProvPago(), 50, null));
+                    ps.setString(9, trim(record.getNombreFarmacia(), 100, null));
+                    ps.setString(10, trim(derivedValues.folio(), 100, null));
+                    setInteger(ps, 11, record.getFarmacia());
+                    setInteger(ps, 12, record.getCadena());
+                    setInteger(ps, 13, record.getPos());
+                    ps.setString(14, trim(record.getUrl(), 300, null));
+                    ps.setString(15, trim(record.getMetodo(), 20, null));
+                    ps.setString(16, trim(record.getCpVar1(), 1500, null));
+                    ps.setString(17, trim(derivedValues.operationId(), 1500, null));
+                    ps.setString(18, trim(externalLog ? null : record.getCpVar3(), 1500, null));
+                    setInteger(ps, 19, record.getCpNumber1());
+                    setInteger(ps, 20, record.getCpNumber2());
+                    setInteger(ps, 21, record.getCpNumber3());
+                    setDate(ps, 22, record.getCpDate1());
+                    setDate(ps, 23, record.getCpDate2());
+                    setDate(ps, 24, record.getCpDate3());
+                    ps.executeUpdate();
+                }
+            });
         } catch (Exception e) {
             log.error("No fue posible guardar log en {}: {}", tableName, e.getMessage());
         }
@@ -250,14 +237,6 @@ public class IntegrationLogService {
             return text;
         }
         return AppUtils.formatPayload(payload, objectMapper);
-    }
-
-    private Properties buildConnectionProperties(String username, String password) {
-        Properties props = new Properties();
-        props.setProperty("user", username);
-        props.setProperty("password", password);
-        props.setProperty("oracle.jdbc.timezoneAsRegion", "false");
-        return props;
     }
 
     private String trim(String value, int maxLength, String defaultValue) {

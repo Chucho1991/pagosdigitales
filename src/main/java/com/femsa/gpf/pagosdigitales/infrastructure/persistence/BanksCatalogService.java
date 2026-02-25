@@ -1,14 +1,11 @@
 package com.femsa.gpf.pagosdigitales.infrastructure.persistence;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -43,8 +40,7 @@ public class BanksCatalogService {
             + "AND B.CODIGO_TIPOPAGO = C.CODIGO "
             + "AND A.ACTIVO = 'S'";
 
-    private final String dbUrl;
-    private final Properties connectionProperties;
+    private final DatabaseExecutor databaseExecutor;
     private final Integer codGeoFyb;
     private final Integer codGeoSana;
     private final Integer codGeoOki;
@@ -55,23 +51,18 @@ public class BanksCatalogService {
     /**
      * Crea el servicio con configuracion de BD y codigos de cadena.
      *
-     * @param dbUrl URL JDBC
-     * @param dbUsername usuario BD
-     * @param dbPassword password BD
+     * @param databaseExecutor ejecutor global de conexiones JDBC
      * @param codGeoFyb codigo de cadena FYB
      * @param codGeoSana codigo de cadena SANA
      * @param codGeoOki codigo de cadena OKI
      * @param codGeoFr codigo de cadena FR
      */
-    public BanksCatalogService(@Value("${spring.datasource.url}") String dbUrl,
-            @Value("${spring.datasource.username}") String dbUsername,
-            @Value("${spring.datasource.password}") String dbPassword,
+    public BanksCatalogService(DatabaseExecutor databaseExecutor,
             @Value("${cod_GEO_FYB}") Integer codGeoFyb,
             @Value("${cod_GEO_SANA}") Integer codGeoSana,
             @Value("${cod_GEO_OKI}") Integer codGeoOki,
             @Value("${cod_GEO_FR}") Integer codGeoFr) {
-        this.dbUrl = dbUrl;
-        this.connectionProperties = buildConnectionProperties(dbUsername, dbPassword);
+        this.databaseExecutor = databaseExecutor;
         this.codGeoFyb = codGeoFyb;
         this.codGeoSana = codGeoSana;
         this.codGeoOki = codGeoOki;
@@ -128,9 +119,9 @@ public class BanksCatalogService {
 
     private Map<String, Set<String>> loadAllowedBanksByChainFromDb() throws Exception {
         Map<String, Set<String>> temp = new HashMap<>();
-        try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
-                PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_BANKS_BY_CHAIN)) {
-            try (ResultSet rs = ps.executeQuery()) {
+        databaseExecutor.withConnection(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_BANKS_BY_CHAIN);
+                    ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String bankCode = rs.getString("CODIGO");
                     Integer providerCode = rs.getInt("CODIGO_BILLETERA_DIGITAL");
@@ -152,15 +143,15 @@ public class BanksCatalogService {
                     }
                 }
             }
-        }
+        });
         return immutableCopy(temp);
     }
 
     private Map<String, Set<String>> loadAllowedBanksByChannelFromDb() throws Exception {
         Map<String, Set<String>> temp = new HashMap<>();
-        try (Connection connection = DriverManager.getConnection(dbUrl, connectionProperties);
-                PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_CHANNEL_BANKS)) {
-            try (ResultSet rs = ps.executeQuery()) {
+        databaseExecutor.withConnection(connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_CHANNEL_BANKS);
+                    ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String channel = rs.getString("CANAL");
                     String bankCode = rs.getString("ID_BANCO");
@@ -171,7 +162,7 @@ public class BanksCatalogService {
                     addBankByChannel(temp, providerCode, channel, bankCode.trim());
                 }
             }
-        }
+        });
         return immutableCopy(temp);
     }
 
@@ -209,11 +200,4 @@ public class BanksCatalogService {
         return channel.trim().toUpperCase(Locale.ROOT);
     }
 
-    private Properties buildConnectionProperties(String username, String password) {
-        Properties props = new Properties();
-        props.setProperty("user", username);
-        props.setProperty("password", password);
-        props.setProperty("oracle.jdbc.timezoneAsRegion", "false");
-        return props;
-    }
 }
