@@ -29,4 +29,36 @@ public final class ExternalCallTimer {
         long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000L;
         return elapsedMs > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) elapsedMs;
     }
+
+    /**
+     * Ejecuta una llamada y devuelve su resultado junto al tiempo transcurrido.
+     *
+     * @param <T> tipo de resultado
+     * @param supplier llamada externa a ejecutar
+     * @return resultado medido, incluyendo excepcion en caso de fallo
+     */
+    public static <T> TimedExecution<T> execute(CheckedSupplier<T> supplier) {
+        ExternalCallTimer timer = start();
+        try {
+            return new TimedExecution<>(supplier.get(), timer.elapsedMillis(), null);
+        } catch (Exception ex) {
+            return new TimedExecution<>(null, timer.elapsedMillis(), ex);
+        }
+    }
+
+    @FunctionalInterface
+    public interface CheckedSupplier<T> {
+        T get() throws Exception;
+    }
+
+    /**
+     * Resultado de una ejecucion temporizada.
+     *
+     * @param <T> tipo del resultado
+     * @param value resultado de la ejecucion
+     * @param elapsedMs tiempo transcurrido en ms
+     * @param exception excepcion capturada, si existio
+     */
+    public record TimedExecution<T>(T value, Integer elapsedMs, Exception exception) {
+    }
 }

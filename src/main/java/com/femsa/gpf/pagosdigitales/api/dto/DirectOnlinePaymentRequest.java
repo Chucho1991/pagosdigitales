@@ -2,6 +2,7 @@ package com.femsa.gpf.pagosdigitales.api.dto;
 
 import java.math.BigDecimal;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 /**
@@ -16,6 +17,7 @@ public class DirectOnlinePaymentRequest {
     private String store_name;
     private Integer pos;
     private String channel_POS;
+    @NotNull(message = "payment_provider_code requerido")
     private Integer payment_provider_code;
     private SalesAmount sales_amount;
     private String country_code;

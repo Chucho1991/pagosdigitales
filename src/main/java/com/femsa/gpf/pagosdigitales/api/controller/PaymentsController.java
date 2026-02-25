@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
+import jakarta.validation.Valid;
+
 import org.apache.camel.ProducerTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -84,21 +86,13 @@ public class PaymentsController {
      */
     @PostMapping(value = "/payments", consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPayments(@RequestBody PaymentsRequest req) {
+    public ResponseEntity<?> getPayments(@Valid @RequestBody PaymentsRequest req) {
         log.info("Request recibido payments: {}", req);
         req.setChannel_POS(ChannelPosUtils.normalize(req.getChannel_POS()));
         String proveedor = null;
         Map<String, Object> camelHeaders = null;
         Integer externalElapsedMs = null;
         try {
-            if (req.getPayment_provider_code() == null) {
-                throw new IllegalArgumentException("payment_provider_code requerido");
-            }
-
-            if (req.getOperation_id() == null || req.getOperation_id().isBlank()) {
-                throw new IllegalArgumentException("operation_id requerido");
-            }
-
             proveedor = providersPayService.getProviderNameByCode(req.getPayment_provider_code());
             log.info("Nombre Proveedor: {}", proveedor);
 
@@ -116,20 +110,18 @@ public class PaymentsController {
                     "operation_id", req.getOperation_id(),
                     "request_datetime", requestDatetime
             );
+            final Map<String, Object> headersForProvider = camelHeaders;
 
-            ExternalCallTimer timer = ExternalCallTimer.start();
-            Object rawResp;
-            try {
-                rawResp = camel.requestBodyAndHeaders(
-                        "direct:payments",
-                        null,
-                        camelHeaders
-                );
-            } catch (Exception ex) {
-                externalElapsedMs = timer.elapsedMillis();
-                throw ex;
+            ExternalCallTimer.TimedExecution<Object> timedExecution = ExternalCallTimer.execute(
+                    () -> camel.requestBodyAndHeaders(
+                            "direct:payments",
+                            null,
+                            headersForProvider));
+            externalElapsedMs = timedExecution.elapsedMs();
+            if (timedExecution.exception() != null) {
+                throw timedExecution.exception();
             }
-            externalElapsedMs = timer.elapsedMillis();
+            Object rawResp = timedExecution.value();
 
             log.info("Response recibido de proveedor {}: {}", proveedor,
                     AppUtils.formatPayload(rawResp, objectMapper));

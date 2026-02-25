@@ -15,6 +15,7 @@ import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentResponse;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentMappingProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentMappingProperties.ResponseMapping;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentProperties;
+import com.femsa.gpf.pagosdigitales.infrastructure.util.JsonPayloadUtils;
 
 /**
  * Mapper para solicitudes y respuestas de pago en linea.
@@ -61,7 +62,7 @@ public class DirectOnlinePaymentMap {
             mapping.forEach((targetPath, sourcePath) -> {
                 Object value = getValueByPath(reqMap, sourcePath);
                 if (value != null) {
-                    setValueByPath(body, targetPath, value);
+                    JsonPayloadUtils.setValueByPath(body, targetPath, value);
                 }
             });
         }
@@ -99,7 +100,7 @@ public class DirectOnlinePaymentMap {
      * @return respuesta de pago en linea normalizada
      */
     public DirectOnlinePaymentResponse mapProviderResponse(DirectOnlinePaymentRequest req, Object raw, String providerName) {
-        Map<String, Object> map = toMap(raw);
+        Map<String, Object> map = JsonPayloadUtils.toMap(raw, mapper, "Error parseando respuesta de proveedor");
         ResponseMapping responseMapping = mappingProperties.resolve(providerName).getResponse();
 
         DirectOnlinePaymentResponse resp = new DirectOnlinePaymentResponse();
@@ -154,39 +155,7 @@ public class DirectOnlinePaymentMap {
     }
 
     private Object getValueByPath(Map<String, Object> map, String path) {
-        if (path == null || path.isBlank()) {
-            return null;
-        }
-
-        Object current = map;
-        for (String part : path.split("\\.")) {
-            if (current instanceof Map<?, ?> currentMap) {
-                current = currentMap.get(part);
-            } else {
-                current = null;
-                break;
-            }
-        }
-        return current;
-    }
-
-    private void setValueByPath(Map<String, Object> map, String path, Object value) {
-        if (path == null || path.isBlank()) {
-            return;
-        }
-        String[] parts = path.split("\\.");
-        Map<String, Object> current = map;
-        for (int i = 0; i < parts.length - 1; i++) {
-            Object next = current.get(parts[i]);
-            if (!(next instanceof Map)) {
-                Map<String, Object> created = new LinkedHashMap<>();
-                current.put(parts[i], created);
-                current = created;
-            } else {
-                current = (Map<String, Object>) next;
-            }
-        }
-        current.put(parts[parts.length - 1], value);
+        return JsonPayloadUtils.getValueByPath(map, path);
     }
 
     private List<Map<String, Object>> mapItemList(List<Map<String, Object>> items, Map<String, String> mapping) {
@@ -195,7 +164,7 @@ public class DirectOnlinePaymentMap {
             mapping.forEach((targetPath, sourcePath) -> {
                 Object value = getValueByPath(item, sourcePath);
                 if (value != null) {
-                    setValueByPath(target, targetPath, value);
+                    JsonPayloadUtils.setValueByPath(target, targetPath, value);
                 }
             });
             return target;
@@ -229,23 +198,6 @@ public class DirectOnlinePaymentMap {
 
             return target;
         }).toList();
-    }
-
-    private Map<String, Object> toMap(Object raw) {
-        if (raw instanceof Map) {
-            return (Map<String, Object>) raw;
-        }
-        try {
-            if (raw instanceof byte[] bytes) {
-                return mapper.readValue(bytes, MAP_TYPE);
-            }
-            if (raw instanceof String text) {
-                return mapper.readValue(text, MAP_TYPE);
-            }
-            return mapper.convertValue(raw, MAP_TYPE);
-        } catch (Exception e) {
-            throw new RuntimeException("Error parseando respuesta de proveedor", e);
-        }
     }
 
 }

@@ -63,12 +63,12 @@ public class SafetypayConfirmationService {
         SafetypayConfirmationResponse response = baseResponse(req);
 
         if (!properties.isEnabled()) {
-            return signResponse(response, 3);
+            return signResponse(response, 3, null);
         }
 
         ResolvedProvider resolvedProvider = resolveProvider();
         if (resolvedProvider == null) {
-            return signResponse(response, 3);
+            return signResponse(response, 3, null);
         }
         ProviderConfig providerConfig = resolvedProvider.config();
 
@@ -117,7 +117,7 @@ public class SafetypayConfirmationService {
     public SafetypayConfirmationResponse errorResponse(SafetypayConfirmationRequest req, int errorNumber) {
         ResolvedProvider resolvedProvider = resolveProvider();
         if (resolvedProvider == null) {
-            return signResponse(baseResponse(req), errorNumber);
+            return signResponse(baseResponse(req), errorNumber, null);
         }
         return signResponse(baseResponse(req), errorNumber, resolvedProvider.config());
     }
@@ -186,22 +186,6 @@ public class SafetypayConfirmationService {
         return response;
     }
 
-    private SafetypayConfirmationResponse signResponse(SafetypayConfirmationResponse response, int errorNumber) {
-        response.setErrorNumber(errorNumber);
-        String base = nullSafe(response.getResponseDateTime())
-                + nullSafe(response.getMerchantSalesId())
-                + nullSafe(response.getReferenceNo())
-                + nullSafe(response.getCreationDateTime())
-                + nullSafe(response.getAmount())
-                + nullSafe(response.getCurrencyId())
-                + nullSafe(response.getPaymentReferenceNo())
-                + nullSafe(response.getStatus())
-                + nullSafe(response.getOrderNo())
-                + nullSafe("");
-        response.setSignature(signatureService.sha256Hex(base));
-        return response;
-    }
-
     private SafetypayConfirmationResponse signResponse(SafetypayConfirmationResponse response, int errorNumber,
             ProviderConfig config) {
         response.setErrorNumber(errorNumber);
@@ -214,7 +198,7 @@ public class SafetypayConfirmationService {
                 + nullSafe(response.getPaymentReferenceNo())
                 + nullSafe(response.getStatus())
                 + nullSafe(response.getOrderNo())
-                + nullSafe(config.getSecret());
+                + nullSafe(config == null ? null : config.getSecret());
         response.setSignature(signatureService.sha256Hex(base));
         return response;
     }

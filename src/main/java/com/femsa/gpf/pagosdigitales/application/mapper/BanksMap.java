@@ -17,6 +17,7 @@ import com.femsa.gpf.pagosdigitales.api.dto.ProviderItem;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.BankMappingProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.BankMappingProperties.ProviderMapping;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.BankMappingProperties.ResponseMapping;
+import com.femsa.gpf.pagosdigitales.infrastructure.util.JsonPayloadUtils;
 
 /**
  * Mapper para normalizar respuestas de bancos por proveedor.
@@ -24,18 +25,17 @@ import com.femsa.gpf.pagosdigitales.infrastructure.config.BankMappingProperties.
 @Component
 public class BanksMap {
 
-    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
-    };
-
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper;
     private final BankMappingProperties bankMappingProperties;
 
     /**
      * Crea el mapper con la configuracion de mapeo.
      *
+     * @param mapper serializador JSON
      * @param bankMappingProperties propiedades de mapeo de bancos
      */
-    public BanksMap(BankMappingProperties bankMappingProperties) {
+    public BanksMap(ObjectMapper mapper, BankMappingProperties bankMappingProperties) {
+        this.mapper = mapper;
         this.bankMappingProperties = bankMappingProperties;
     }
 
@@ -171,41 +171,11 @@ public class BanksMap {
     }
 
     private Map<String, Object> toMap(Object raw) {
-
-        if (raw instanceof Map) {
-            return (Map<String, Object>) raw;
-        }
-
-        try {
-            if (raw instanceof byte[]) {
-                return mapper.readValue((byte[]) raw, MAP_TYPE);
-            }
-            if (raw instanceof String) {
-                return mapper.readValue((String) raw, MAP_TYPE);
-            }
-            return mapper.convertValue(raw, MAP_TYPE);
-        } catch (Exception e) {
-            throw new RuntimeException("Error parseando respuesta de proveedor", e);
-        }
+        return JsonPayloadUtils.toMap(raw, mapper, "Error parseando respuesta de proveedor");
     }
 
     private <T> T getValue(Map<String, Object> map, String path, Class<T> clazz) {
-
-        if (path == null || path.isBlank()) {
-            return null;
-        }
-
-        Object current = map;
-        for (String part : path.split("\\.")) {
-            if (current instanceof Map<?, ?> currentMap) {
-                current = currentMap.get(part);
-            } else {
-                current = null;
-                break;
-            }
-        }
-
-        return Optional.ofNullable(current)
+        return Optional.ofNullable(JsonPayloadUtils.getValueByPath(map, path))
                 .map(clazz::cast)
                 .orElse(null);
     }

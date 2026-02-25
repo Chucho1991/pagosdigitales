@@ -118,19 +118,16 @@ public class BanksController {
 
                 log.info(camelHeaders);
 
-                ExternalCallTimer timer = ExternalCallTimer.start();
-                Object rawResp;
-                try {
-                    rawResp = camel.requestBodyAndHeaders(
-                            "direct:getbanks",
-                            null,
-                            camelHeaders
-                    );
-                } catch (Exception ex) {
-                    externalElapsedMs = timer.elapsedMillis();
-                    throw ex;
+                ExternalCallTimer.TimedExecution<Object> timedExecution = ExternalCallTimer.execute(
+                        () -> camel.requestBodyAndHeaders(
+                                "direct:getbanks",
+                                null,
+                                camelHeaders));
+                externalElapsedMs = timedExecution.elapsedMs();
+                if (timedExecution.exception() != null) {
+                    throw timedExecution.exception();
                 }
-                externalElapsedMs = timer.elapsedMillis();
+                Object rawResp = timedExecution.value();
 
                 log.info("Response recibido de proveedor {}: {}", proveedor,
                         AppUtils.formatPayload(rawResp, objectMapper));
@@ -182,21 +179,27 @@ public class BanksController {
                                     "getbanks", proveedor
                             );
 
-                            ExternalCallTimer timer = ExternalCallTimer.start();
-                            Integer providerElapsedMs;
-                            Object rawResp;
-                            try {
-                                rawResp = camel.requestBodyAndHeaders(
-                                        "direct:getbanks",
-                                        null,
-                                        camelHeaders
-                                );
-                                providerElapsedMs = timer.elapsedMillis();
-                            } catch (CamelExecutionException e) {
-                                providerElapsedMs = timer.elapsedMillis();
+                            ExternalCallTimer.TimedExecution<Object> timedExecution = ExternalCallTimer.execute(
+                                    () -> camel.requestBodyAndHeaders(
+                                            "direct:getbanks",
+                                            null,
+                                            camelHeaders));
+                            Integer providerElapsedMs = timedExecution.elapsedMs();
+                            if (timedExecution.exception() != null) {
+                                if (timedExecution.exception() instanceof CamelExecutionException e) {
+                                    log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
+                                            proveedor, codProveedor, e.getMessage());
+                                    logExternal(req, null, "Error consultando proveedor: " + e.getMessage(), proveedor, 500,
+                                            "ERROR_CAMEL", providerElapsedMs);
+                                    continue;
+                                }
+                                throw timedExecution.exception();
+                            }
+                            Object rawResp = timedExecution.value();
+                            if (rawResp == null) {
                                 log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
-                                        proveedor, codProveedor, e.getMessage());
-                                logExternal(req, null, "Error consultando proveedor: " + e.getMessage(), proveedor, 500,
+                                        proveedor, codProveedor, "Respuesta vacia de proveedor");
+                                logExternal(req, null, "Error consultando proveedor: respuesta vacia", proveedor, 500,
                                         "ERROR_CAMEL", providerElapsedMs);
                                 continue;
                             }

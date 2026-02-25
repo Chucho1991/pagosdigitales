@@ -116,6 +116,7 @@ public class PaymentRegistryService {
             return;
         }
 
+        String cpVar1 = errorNumberDescription(errorNumber);
         try {
             databaseExecutor.withConnection(connection -> {
                 try (PreparedStatement ps = connection.prepareStatement(INSERT_MERCHANT_EVENT)) {
@@ -131,8 +132,8 @@ public class PaymentRegistryService {
                         ps.setString(8, event.getMerchant_sales_id());
                         ps.setString(9, event.getOperation_id());
                         ps.setString(10, event.getMerchant_sales_id());
-                        ps.setNull(11, java.sql.Types.VARCHAR);
-                        ps.setNull(12, java.sql.Types.NUMERIC);
+                        ps.setString(11, cpVar1);
+                        ps.setObject(12, errorNumber, java.sql.Types.NUMERIC);
                         ps.addBatch();
                     }
                     ps.executeBatch();
