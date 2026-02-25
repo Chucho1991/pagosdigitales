@@ -1,7 +1,6 @@
 package com.femsa.gpf.pagosdigitales.application.service;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -27,7 +26,8 @@ import lombok.extern.log4j.Log4j2;
 @Service
 public class SafetypayConfirmationService {
 
-    private static final DateTimeFormatter RESPONSE_DATETIME_FORMAT = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+    private static final DateTimeFormatter RESPONSE_DATETIME_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
     private final SafetypayConfirmationProperties properties;
     private final SignatureService signatureService;
@@ -182,7 +182,7 @@ public class SafetypayConfirmationService {
         response.setPaymentReferenceNo(req.getPaymentReferenceNo());
         response.setStatus(req.getStatus());
         response.setOrderNo(req.getMerchantSalesId());
-        response.setResponseDateTime(OffsetDateTime.now(ZoneOffset.UTC).format(RESPONSE_DATETIME_FORMAT));
+        response.setResponseDateTime(LocalDateTime.now().format(RESPONSE_DATETIME_FORMAT));
         return response;
     }
 
@@ -196,6 +196,7 @@ public class SafetypayConfirmationService {
                 + nullSafe(response.getCurrencyId())
                 + nullSafe(response.getPaymentReferenceNo())
                 + nullSafe(response.getStatus())
+                + nullSafe(response.getOrderNo())
                 + nullSafe("");
         response.setSignature(signatureService.sha256Hex(base));
         return response;
@@ -212,6 +213,7 @@ public class SafetypayConfirmationService {
                 + nullSafe(response.getCurrencyId())
                 + nullSafe(response.getPaymentReferenceNo())
                 + nullSafe(response.getStatus())
+                + nullSafe(response.getOrderNo())
                 + nullSafe(config.getSecret());
         response.setSignature(signatureService.sha256Hex(base));
         return response;
@@ -228,7 +230,7 @@ public class SafetypayConfirmationService {
         record.setAmount(req.getAmount());
         record.setCurrencyId(req.getCurrencyId());
         record.setSignature(req.getSignature());
-        record.setReceivedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        record.setReceivedAt(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC));
         record.setOrderNo(orderNo);
         record.setRawPayload(AppUtils.formatPayload(buildRawPayload(req), objectMapper));
         return record;

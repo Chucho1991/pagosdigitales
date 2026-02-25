@@ -253,7 +253,7 @@ curl -X POST http://localhost:8080/api/v1/safetypay/confirmation \
 ## Ejemplo de response (CSV)
 
 ```
-0,2020-10-20T12:27:27Z,Prueba1,Ref1,2020-10-20T12:27:27,50.00,USD,606973,102,Prueba1,9F6A...
+0,2020-10-20T12:27:27,Prueba1,Ref1,2020-10-20T12:27:27,50.00,USD,606973,102,Prueba1,9F6A...
 ```
 
 ## Configuracion
@@ -272,14 +272,19 @@ safetypay:
 
 ## Calculo de firma (SHA-256)
 
-Texto base (concatenacion sin separadores) para request y response:
+Texto base request (concatenacion sin separadores):
 
 ```
 RequestDateTime + MerchantSalesID + ReferenceNo + CreationDateTime + Amount + CurrencyID +
 PaymentReferenceNo + Status + SignatureKey
 ```
 
-Para response se usa `ResponseDateTime` en lugar de `RequestDateTime`.
+Texto base response (concatenacion sin separadores):
+
+```
+ResponseDateTime + MerchantSalesID + ReferenceNo + CreationDateTime + Amount + CurrencyID +
+PaymentReferenceNo + Status + OrderNo + SignatureKey
+```
 
 La firma es el hash SHA-256 del texto base, en hexadecimal mayuscula.
 
