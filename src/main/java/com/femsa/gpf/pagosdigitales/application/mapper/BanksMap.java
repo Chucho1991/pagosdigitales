@@ -14,9 +14,7 @@ import com.femsa.gpf.pagosdigitales.api.dto.BanksRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.BanksResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.PaymentProviderResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.ProviderItem;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.BankMappingProperties;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.BankMappingProperties.ProviderMapping;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.BankMappingProperties.ResponseMapping;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.JsonPayloadUtils;
 
 /**
@@ -25,18 +23,19 @@ import com.femsa.gpf.pagosdigitales.infrastructure.util.JsonPayloadUtils;
 @Component
 public class BanksMap {
 
+    private static final String WS_KEY = "getbanks";
     private final ObjectMapper mapper;
-    private final BankMappingProperties bankMappingProperties;
+    private final ServiceMappingConfigService serviceMappingConfigService;
 
     /**
      * Crea el mapper con la configuracion de mapeo.
      *
      * @param mapper serializador JSON
-     * @param bankMappingProperties propiedades de mapeo de bancos
+     * @param serviceMappingConfigService servicio de mapeo por BD
      */
-    public BanksMap(ObjectMapper mapper, BankMappingProperties bankMappingProperties) {
+    public BanksMap(ObjectMapper mapper, ServiceMappingConfigService serviceMappingConfigService) {
         this.mapper = mapper;
-        this.bankMappingProperties = bankMappingProperties;
+        this.serviceMappingConfigService = serviceMappingConfigService;
     }
 
     /**
@@ -50,7 +49,11 @@ public class BanksMap {
     public BanksResponse mapBanksByProviderResponse(BanksRequest req, Object raw, String providerName) {
 
         Map<String, Object> map = toMap(raw);
-        ProviderMapping mapping = bankMappingProperties.resolve(providerName);
+        Map<String, String> responseMapping = serviceMappingConfigService.getResponseBodyMappings(
+                req.getPayment_provider_code(),
+                WS_KEY,
+                providerName);
+        Map<String, String> bankFieldMapping = extractPrefixedMappings(responseMapping, "bank.");
 
         BanksResponse resp = new BanksResponse();
         resp.setChain(req.getChain());
@@ -58,15 +61,14 @@ public class BanksMap {
         resp.setPos(req.getPos());
         resp.setChannel_POS(req.getChannel_POS());
 
-        ResponseMapping responseMapping = mapping.getResponse();
-        resp.setRequest_id(getValue(map, responseMapping.getRequestId(), String.class));
-        resp.setResponse_datetime(getValue(map, responseMapping.getResponseDatetime(), String.class));
+        resp.setRequest_id(getValue(map, responseMapping.get("requestId"), String.class));
+        resp.setResponse_datetime(getValue(map, responseMapping.get("responseDatetime"), String.class));
 
         PaymentProviderResponse provider = new PaymentProviderResponse();
         provider.setPayment_provider_name(providerName.toUpperCase());
         provider.setPayment_provider_code(req.getPayment_provider_code());
 
-        List<BankItem> items = buildBankItems(map, mapping);
+        List<BankItem> items = buildBankItems(map, responseMapping.get("banks"), bankFieldMapping);
         provider.setBanks(items);
 
         resp.setPayment_providers(List.of(provider));
@@ -95,12 +97,14 @@ public class BanksMap {
 
         if (!providerMaps.isEmpty()) {
             ProviderItem firstItem = listaProviderItems.get(0);
-            ProviderMapping firstMapping = bankMappingProperties.resolve(firstItem.getPayment_provider().getKey());
-            ResponseMapping responseMapping = firstMapping.getResponse();
+            Map<String, String> firstResponseMapping = serviceMappingConfigService.getResponseBodyMappings(
+                    firstItem.getPayment_provider().getValue(),
+                    WS_KEY,
+                    firstItem.getPayment_provider().getKey());
 
             Map<String, Object> first = providerMaps.get(0);
-            resp.setRequest_id(getValue(first, responseMapping.getRequestId(), String.class));
-            resp.setResponse_datetime(getValue(first, responseMapping.getResponseDatetime(), String.class));
+            resp.setRequest_id(getValue(first, firstResponseMapping.get("requestId"), String.class));
+            resp.setResponse_datetime(getValue(first, firstResponseMapping.get("responseDatetime"), String.class));
         }
 
         List<PaymentProviderResponse> providers = new java.util.ArrayList<>();
@@ -110,12 +114,16 @@ public class BanksMap {
 
             String providerName = item.getPayment_provider().getKey();
             Integer providerCode = item.getPayment_provider().getValue();
-            ProviderMapping mapping = bankMappingProperties.resolve(providerName);
+            Map<String, String> responseMapping = serviceMappingConfigService.getResponseBodyMappings(
+                    providerCode,
+                    WS_KEY,
+                    providerName);
+            Map<String, String> bankFieldMapping = extractPrefixedMappings(responseMapping, "bank.");
 
             PaymentProviderResponse provider = new PaymentProviderResponse();
             provider.setPayment_provider_name(providerName.toUpperCase());
             provider.setPayment_provider_code(providerCode);
-            provider.setBanks(buildBankItems(providerMap, mapping));
+            provider.setBanks(buildBankItems(providerMap, responseMapping.get("banks"), bankFieldMapping));
 
             providers.add(provider);
         }
@@ -125,9 +133,10 @@ public class BanksMap {
         return resp;
     }
 
-    private List<BankItem> buildBankItems(Map<String, Object> providerMap, ProviderMapping mapping) {
+    private List<BankItem> buildBankItems(Map<String, Object> providerMap, String banksPath,
+            Map<String, String> fieldMapping) {
 
-        Object banksObj = getValue(providerMap, mapping.getResponse().getBanks(), Object.class);
+        Object banksObj = getValue(providerMap, banksPath, Object.class);
         List<Map<String, Object>> banksList;
 
         if (banksObj instanceof List) {
@@ -141,7 +150,7 @@ public class BanksMap {
 
             BankItem bi = new BankItem();
 
-            mapping.getBank().forEach((targetField, sourceField) -> {
+            fieldMapping.forEach((targetField, sourceField) -> {
                 Object value = getValue(bank, sourceField, Object.class);
 
                 switch (targetField) {
@@ -168,6 +177,16 @@ public class BanksMap {
 
             return bi;
         }).toList();
+    }
+
+    private Map<String, String> extractPrefixedMappings(Map<String, String> mappings, String prefix) {
+        Map<String, String> extracted = new java.util.LinkedHashMap<>();
+        mappings.forEach((appPath, externalPath) -> {
+            if (appPath.startsWith(prefix)) {
+                extracted.put(appPath.substring(prefix.length()), externalPath);
+            }
+        });
+        return extracted;
     }
 
     private Map<String, Object> toMap(Object raw) {

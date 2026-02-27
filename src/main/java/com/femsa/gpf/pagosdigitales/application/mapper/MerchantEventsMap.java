@@ -9,8 +9,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEventsRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEventsResponse;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.MerchantEventsMappingProperties;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.MerchantEventsMappingProperties.ResponseMapping;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.JsonPayloadUtils;
 
 /**
@@ -20,13 +19,14 @@ import com.femsa.gpf.pagosdigitales.infrastructure.util.JsonPayloadUtils;
 public class MerchantEventsMap {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+    private static final String WS_KEY = "merchant-events";
 
     private final ObjectMapper mapper;
-    private final MerchantEventsMappingProperties mappingProperties;
+    private final ServiceMappingConfigService serviceMappingConfigService;
 
-    public MerchantEventsMap(ObjectMapper mapper, MerchantEventsMappingProperties mappingProperties) {
+    public MerchantEventsMap(ObjectMapper mapper, ServiceMappingConfigService serviceMappingConfigService) {
         this.mapper = mapper;
-        this.mappingProperties = mappingProperties;
+        this.serviceMappingConfigService = serviceMappingConfigService;
     }
 
     /**
@@ -40,7 +40,10 @@ public class MerchantEventsMap {
         Map<String, Object> body = new LinkedHashMap<>();
         Map<String, Object> reqMap = mapper.convertValue(req, MAP_TYPE);
 
-        var mapping = mappingProperties.resolve(providerName).getRequest();
+        var mapping = serviceMappingConfigService.getRequestBodyMappings(
+                req.getPayment_provider_code(),
+                WS_KEY,
+                providerName);
         if (mapping != null) {
             mapping.forEach((targetPath, sourcePath) -> {
                 Object value = getValueByPath(reqMap, sourcePath);
@@ -63,7 +66,10 @@ public class MerchantEventsMap {
      */
     public MerchantEventsResponse mapProviderResponse(MerchantEventsRequest req, Object raw, String providerName) {
         Map<String, Object> map = JsonPayloadUtils.toMap(raw, mapper, "Error parseando respuesta de proveedor");
-        ResponseMapping responseMapping = mappingProperties.resolve(providerName).getResponse();
+        Map<String, String> responseMapping = serviceMappingConfigService.getResponseBodyMappings(
+                req.getPayment_provider_code(),
+                WS_KEY,
+                providerName);
 
         MerchantEventsResponse resp = new MerchantEventsResponse();
         resp.setChain(req.getChain());
@@ -72,8 +78,8 @@ public class MerchantEventsMap {
         resp.setChannel_POS(req.getChannel_POS());
         resp.setPayment_provider_code(req.getPayment_provider_code());
 
-        resp.setRequest_id(getValue(map, responseMapping.getRequestId(), String.class));
-        resp.setResponse_datetime(getValue(map, responseMapping.getResponseDatetime(), String.class));
+        resp.setRequest_id(getValue(map, responseMapping.get("requestId"), String.class));
+        resp.setResponse_datetime(getValue(map, responseMapping.get("responseDatetime"), String.class));
 
         return resp;
     }

@@ -15,6 +15,7 @@ Este archivo define lineamientos para trabajo de backend.
 - Aplicar seguridad por rol en cada endpoint nuevo o modificado.
 - Para consumo de servicios externos, resolver URL/metodo desde `TUKUNAFUNC.IN_PASARELA_WS` usando `payment_provider_code`; no usar configuracion de endpoint en `application.yaml`.
 - Resolver headers desde `TUKUNAFUNC.IN_PASARELA_HEADERS` y definiciones/parametros (`DEFAULTS`/`QUERY`) desde `TUKUNAFUNC.IN_PASARELA_WS_DEFS`; no usar defaults/query por proveedor en `application.yaml` o `.env`.
+- Resolver mapeos de request/response/error desde `TUKUNAFUNC.AD_MAPEO_SERVICIOS`; no usar mapeos por proveedor en `application.yaml` o `.env`.
 - La resolucion de configuracion de integracion externa debe realizarse mediante lectura de BD (tablas de pasarela), no por configuracion local de la aplicacion.
 - Usar soft delete por defecto cuando el modulo lo requiera.
 - Si el modulo define solo eliminacion logica, no implementar borrado fisico.

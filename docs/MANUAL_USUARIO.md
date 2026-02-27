@@ -8,7 +8,7 @@ Este manual guÃ­a a usuarios funcionales y tÃ©cnicos en el uso de la API de 
 
 - Acceso a la API (URL base y credenciales de proveedor).
 - CÃ³digo de proveedor (`payment_provider_code`).
-- Proveedor habilitado en BD (`AD_BILLETERAS_DIGITALES`) y configuracion de integracion en `IN_PASARELA_WS`, `IN_PASARELA_HEADERS` e `IN_PASARELA_WS_DEFS`.
+- Proveedor habilitado en BD (`AD_BILLETERAS_DIGITALES`) y configuracion de integracion en `IN_PASARELA_WS`, `IN_PASARELA_HEADERS`, `IN_PASARELA_WS_DEFS` y `AD_MAPEO_SERVICIOS`.
 - Conocer el formato de los payloads JSON o form-urlencoded segÃºn el endpoint.
 
 ## 3. URL base
@@ -130,7 +130,7 @@ Los endpoints (excepto SafetyPay) devuelven un objeto de error con cÃ³digo HTT
 
 - Enviar `payment_provider_code` siempre que aplique.
 - Usar `request_datetime` en formato ISO cuando sea requerido.
-- Mantener sincronizada la configuracion de WS, headers y definiciones en BD (`IN_PASARELA_WS`, `IN_PASARELA_HEADERS`, `IN_PASARELA_WS_DEFS`).
+- Mantener sincronizada la configuracion de WS, headers, definiciones y mapeos en BD (`IN_PASARELA_WS`, `IN_PASARELA_HEADERS`, `IN_PASARELA_WS_DEFS`, `AD_MAPEO_SERVICIOS`).
 
 ## 8. Directorio de tÃ©rminos
 

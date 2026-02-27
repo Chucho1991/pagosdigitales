@@ -18,10 +18,10 @@ import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.ErrorInfo;
 import com.femsa.gpf.pagosdigitales.application.mapper.DirectOnlinePaymentMap;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.ErrorMappingProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
@@ -43,7 +43,7 @@ public class DirectOnlinePaymentRequestsController {
     private final ProvidersPayService providersPayService;
     private final DirectOnlinePaymentMap directOnlinePaymentMap;
     private final ObjectMapper objectMapper;
-    private final ErrorMappingProperties errorMappingProperties;
+    private final ServiceMappingConfigService serviceMappingConfigService;
     private final IntegrationLogService integrationLogService;
     private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
 
@@ -54,7 +54,7 @@ public class DirectOnlinePaymentRequestsController {
      * @param providersPayService servicio de proveedores habilitados
      * @param directOnlinePaymentMap mapeador de solicitudes y respuestas
      * @param objectMapper serializador de payloads
-     * @param errorMappingProperties configuracion de mapeo de errores
+     * @param serviceMappingConfigService servicio de mapeo por BD
      * @param integrationLogService servicio de auditoria de logs
      * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
      */
@@ -62,14 +62,14 @@ public class DirectOnlinePaymentRequestsController {
             ProvidersPayService providersPayService,
             DirectOnlinePaymentMap directOnlinePaymentMap,
             ObjectMapper objectMapper,
-            ErrorMappingProperties errorMappingProperties,
+            ServiceMappingConfigService serviceMappingConfigService,
             IntegrationLogService integrationLogService,
             GatewayWebServiceConfigService gatewayWebServiceConfigService) {
         this.camel = camel;
         this.providersPayService = providersPayService;
         this.directOnlinePaymentMap = directOnlinePaymentMap;
         this.objectMapper = objectMapper;
-        this.errorMappingProperties = errorMappingProperties;
+        this.serviceMappingConfigService = serviceMappingConfigService;
         this.integrationLogService = integrationLogService;
         this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
     }
@@ -122,7 +122,10 @@ public class DirectOnlinePaymentRequestsController {
             log.info("Response recibido de proveedor {}: {}", proveedor,
                     AppUtils.formatPayload(rawResp, objectMapper));
 
-            String errorPath = errorMappingProperties.resolve(proveedor).getError();
+            String errorPath = serviceMappingConfigService.getErrorPath(
+                    req.getPayment_provider_code(),
+                    WS_KEY,
+                    proveedor);
             ErrorInfo providerError = ApiErrorUtils.extractProviderError(rawResp, objectMapper, errorPath);
             if (providerError != null) {
                 int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();

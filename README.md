@@ -47,6 +47,7 @@ Notas:
 - La configuracion de consumo de WS externos se lee desde `TUKUNAFUNC.IN_PASARELA_WS` por `CODIGO_BILLETERA` (request `payment_provider_code`) y `WS_KEY`.
 - Los headers de consumo externo se leen desde `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`.
 - Los parametros de request y defaults de payload se leen desde `TUKUNAFUNC.IN_PASARELA_WS_DEFS` por `ID_WS` y `TIPO_DEF` (`QUERY`/`DEFAULTS`).
+- Los mapeos request/response por proveedor/servicio se leen desde `TUKUNAFUNC.AD_MAPEO_SERVICIOS` por `CODIGO_BILLETERA`, `APP_SERVICE_KEY`, `APP_OPERATION` y `DIRECCION`.
 - Para `IN_PASARELA_WS` se consideran activos los registros con `ENABLED='S'`, `TIPO_CONEXION='REST'` y con `METODO_HTTP` + `URI` informados.
 - La validacion principal de bancos usa `AD_TIPO_PAGO` por cadena (`CADENA_FYB`, `CADENA_SANA`, `CADENA_OKI`, `CADENA_FR`).
 - La validacion por canal es un filtro adicional usando `AD_CANAL`, `AD_CANAL_TIPO_PAGO` y `AD_TIPO_PAGO`.
@@ -212,18 +213,13 @@ o cuando se detecta un error de validacion interno:
 ## Configuracion de mapeo de errores por proveedor
 
 Si un proveedor devuelve el objeto de error en otra ruta, se puede configurar
-el path con `error-mapping.providers.<proveedor>.error`:
+el path en `TUKUNAFUNC.AD_MAPEO_SERVICIOS` con:
 
-```yaml
-error-mapping:
-  providers:
-    default:
-      error: error
-    paysafe:
-      error: error
-    pichincha:
-      error: error
-```
+- `APP_SERVICE_KEY`: servicio (`payments`, `getbanks`, etc.)
+- `APP_OPERATION`: proveedor (`DEFAULT`, `PAYSAFE`, `PICHINCHA`, etc.)
+- `DIRECCION='ERROR'`
+- `SECCION_APP='BODY'`, `ATRIBUTO_APP='error'`
+- `SECCION_EXT='BODY'`, `ATRIBUTO_EXT='<path_error_proveedor>'`
 
 ## Parametros de entrada (form-urlencoded)
 
@@ -379,6 +375,11 @@ Definiciones de payload por WS:
 - Clave funcional: `ID_WS` (relacion con `IN_PASARELA_WS.ID_WS`) y `TIPO_DEF='DEFAULTS'`
 - Campos usados: `DEFAULT_CLAVE`, `DEFAULT_VALOR_TEXTO`, `DEFAULT_VALOR_NUM`, `DEFAULT_VALOR_FECHA`, `DEFAULT_VALOR_SISTEMA`
 
+Mapeo de campos request/response:
+- Tabla: `TUKUNAFUNC.AD_MAPEO_SERVICIOS`
+- Clave funcional: `CODIGO_BILLETERA` + `APP_SERVICE_KEY='direct-online-payment-requests'` + `APP_OPERATION` + `DIRECCION`
+- Campos usados: `SECCION_APP`, `ATRIBUTO_APP`, `SECCION_EXT`, `ATRIBUTO_EXT`, `ORDEN_APLICACION`, `ACTIVO`
+
 ## Endpoint: Merchant Events
 
 - Metodo: POST
@@ -450,6 +451,11 @@ Configuracion externa (obligatoria en BD):
 
 Headers externos:
 - Tabla: `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`
+
+Mapeo de campos request/response:
+- Tabla: `TUKUNAFUNC.AD_MAPEO_SERVICIOS`
+- Clave funcional: `CODIGO_BILLETERA` + `APP_SERVICE_KEY='merchant-events'` + `APP_OPERATION` + `DIRECCION`
+- Campos usados: `SECCION_APP`, `ATRIBUTO_APP`, `SECCION_EXT`, `ATRIBUTO_EXT`, `ORDEN_APLICACION`, `ACTIVO`
 
 ## Endpoint: Payments
 
@@ -529,6 +535,11 @@ Parametros de query:
 - Clave funcional: `ID_WS` (relacion con `IN_PASARELA_WS.ID_WS`) y `TIPO_DEF='QUERY'`
 - Campos usados: `DEFAULT_CLAVE`, `DEFAULT_VALOR_TEXTO`, `DEFAULT_VALOR_NUM`, `DEFAULT_VALOR_FECHA`, `DEFAULT_VALOR_SISTEMA`
 
+Mapeo de campos response:
+- Tabla: `TUKUNAFUNC.AD_MAPEO_SERVICIOS`
+- Clave funcional: `CODIGO_BILLETERA` + `APP_SERVICE_KEY='payments'` + `APP_OPERATION` + `DIRECCION='RESPONSE'`
+- Campos usados: `SECCION_APP`, `ATRIBUTO_APP`, `SECCION_EXT`, `ATRIBUTO_EXT`, `ORDEN_APLICACION`, `ACTIVO`
+
 ## Endpoint: Banks
 
 - Metodo: POST
@@ -606,6 +617,11 @@ Parametros de query:
 - Tabla: `TUKUNAFUNC.IN_PASARELA_WS_DEFS`
 - Clave funcional: `ID_WS` (relacion con `IN_PASARELA_WS.ID_WS`) y `TIPO_DEF='QUERY'`
 - Campos usados: `DEFAULT_CLAVE`, `DEFAULT_VALOR_TEXTO`, `DEFAULT_VALOR_NUM`, `DEFAULT_VALOR_FECHA`, `DEFAULT_VALOR_SISTEMA`
+
+Mapeo de campos response:
+- Tabla: `TUKUNAFUNC.AD_MAPEO_SERVICIOS`
+- Clave funcional: `CODIGO_BILLETERA` + `APP_SERVICE_KEY='getbanks'` + `APP_OPERATION` + `DIRECCION='RESPONSE'`
+- Campos usados: `SECCION_APP`, `ATRIBUTO_APP`, `SECCION_EXT`, `ATRIBUTO_EXT`, `ORDEN_APLICACION`, `ACTIVO`
 
 ## Swagger / OpenAPI
 

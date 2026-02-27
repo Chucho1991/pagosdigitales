@@ -9,8 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.api.dto.PaymentOperation;
 import com.femsa.gpf.pagosdigitales.api.dto.PaymentsRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.PaymentsResponse;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.PaymentsMappingProperties;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.PaymentsMappingProperties.ResponseMapping;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.JsonPayloadUtils;
 
 /**
@@ -21,19 +20,20 @@ public class PaymentsMap {
 
     private static final TypeReference<java.util.List<PaymentOperation>> OPERATIONS_TYPE =
             new TypeReference<>() {};
+    private static final String WS_KEY = "payments";
 
     private final ObjectMapper mapper;
-    private final PaymentsMappingProperties mappingProperties;
+    private final ServiceMappingConfigService serviceMappingConfigService;
 
     /**
      * Crea el mapper con el serializador y las propiedades.
      *
      * @param mapper serializador de JSON
-     * @param mappingProperties configuracion de mapeo
+     * @param serviceMappingConfigService servicio de mapeo por BD
      */
-    public PaymentsMap(ObjectMapper mapper, PaymentsMappingProperties mappingProperties) {
+    public PaymentsMap(ObjectMapper mapper, ServiceMappingConfigService serviceMappingConfigService) {
         this.mapper = mapper;
-        this.mappingProperties = mappingProperties;
+        this.serviceMappingConfigService = serviceMappingConfigService;
     }
 
     /**
@@ -46,7 +46,10 @@ public class PaymentsMap {
      */
     public PaymentsResponse mapProviderResponse(PaymentsRequest req, Object raw, String providerName) {
         Map<String, Object> map = JsonPayloadUtils.toMap(raw, mapper, "Error parseando respuesta de proveedor");
-        ResponseMapping responseMapping = mappingProperties.resolve(providerName).getResponse();
+        Map<String, String> responseMapping = serviceMappingConfigService.getResponseBodyMappings(
+                req.getPayment_provider_code(),
+                WS_KEY,
+                providerName);
 
         PaymentsResponse resp = new PaymentsResponse();
         resp.setChain(req.getChain());
@@ -55,9 +58,9 @@ public class PaymentsMap {
         resp.setChannel_POS(req.getChannel_POS());
         resp.setPayment_provider_code(req.getPayment_provider_code());
 
-        resp.setRequest_id(getValue(map, responseMapping.getRequestId(), String.class));
-        resp.setResponse_datetime(getValue(map, responseMapping.getResponseDatetime(), String.class));
-        resp.setPayment_operations(getValue(map, responseMapping.getPaymentOperations(), OPERATIONS_TYPE));
+        resp.setRequest_id(getValue(map, responseMapping.get("requestId"), String.class));
+        resp.setResponse_datetime(getValue(map, responseMapping.get("responseDatetime"), String.class));
+        resp.setPayment_operations(getValue(map, responseMapping.get("paymentOperations"), OPERATIONS_TYPE));
 
         return resp;
     }

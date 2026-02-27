@@ -9,7 +9,7 @@ Este manual tÃ©cnico describe la operaciÃ³n interna del servicio PagosDigita
 - AplicaciÃ³n Spring Boot 3.x con Apache Camel.
 - API REST para pagos, bancos y notificaciones.
 - Confirmaciones SafetyPay con firma SHA-256.
-- Configuracion de WS externos por proveedor en BD (`IN_PASARELA_WS`, `IN_PASARELA_HEADERS` e `IN_PASARELA_WS_DEFS`).
+- Configuracion de WS externos por proveedor en BD (`IN_PASARELA_WS`, `IN_PASARELA_HEADERS`, `IN_PASARELA_WS_DEFS` y `AD_MAPEO_SERVICIOS`).
 
 ## 3. Arquitectura
 
@@ -44,7 +44,7 @@ Este manual tÃ©cnico describe la operaciÃ³n interna del servicio PagosDigita
 ### 6.1 Pagos en lÃ­nea
 1. Controller valida proveedor y solicitud.
 2. Mapper crea payload del proveedor segÃºn mapping.
-3. Mapper/Camel Route resuelven URL y metodo desde `IN_PASARELA_WS`, headers desde `IN_PASARELA_HEADERS` y defaults/query desde `IN_PASARELA_WS_DEFS`.
+3. Mapper/Camel Route resuelven URL y metodo desde `IN_PASARELA_WS`, headers desde `IN_PASARELA_HEADERS`, defaults/query desde `IN_PASARELA_WS_DEFS` y mapeos request/response desde `AD_MAPEO_SERVICIOS`.
 4. Respuesta normalizada hacia DTO interno.
 
 ### 6.2 Consulta de pagos
@@ -82,16 +82,14 @@ UbicaciÃ³n: `src/main/resources/application.yaml`
 - `TUKUNAFUNC.IN_PASARELA_WS`: configuracion de consumo externo por `CODIGO_BILLETERA` + `WS_KEY`.
 - `TUKUNAFUNC.IN_PASARELA_HEADERS`: headers externos por `CODIGO_BILLETERA`.
 - `TUKUNAFUNC.IN_PASARELA_WS_DEFS`: definiciones de request por `ID_WS` con `TIPO_DEF` (`QUERY`/`DEFAULTS`).
+- `TUKUNAFUNC.AD_MAPEO_SERVICIOS`: mapeo de atributos app/proveedor por `CODIGO_BILLETERA`, `APP_SERVICE_KEY`, `APP_OPERATION`, `DIRECCION`.
 
 ### 7.3 Mappings
-- `direct-online-payment-requests.mapping.*`
-- `merchant-events.mapping.*`
-- `payments.mapping.*`
-- `getbanks.mapping.*`
+- Fuente unica: `TUKUNAFUNC.AD_MAPEO_SERVICIOS`
+- Campos usados: `SECCION_APP`, `ATRIBUTO_APP`, `SECCION_EXT`, `ATRIBUTO_EXT`, `ORDEN_APLICACION`, `ACTIVO`
 
-### 7.4 CÃ³digos y errores
-- `providers-pay.codes`
-- `error-mapping.providers.*`
+### 7.4 Errores
+- Fuente unica: `TUKUNAFUNC.AD_MAPEO_SERVICIOS` con `DIRECCION='ERROR'`
 
 ### 7.5 SafetyPay
 - `safetypay.confirmation.enabled`
@@ -103,6 +101,7 @@ UbicaciÃ³n: `src/main/resources/application.yaml`
 - Lista opcional de IPs permitidas para confirmaciones.
 - Headers por proveedor obtenidos de `IN_PASARELA_HEADERS`.
 - Parametros de request por proveedor obtenidos de `IN_PASARELA_WS_DEFS`.
+- Mapeo request/response por proveedor obtenido de `AD_MAPEO_SERVICIOS`.
 
 ## 9. Despliegue
 

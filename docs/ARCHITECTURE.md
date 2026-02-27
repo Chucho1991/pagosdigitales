@@ -29,7 +29,7 @@
 ### 2.4 Infrastructure
 - **Camel Routes**: rutas dinÃ¡micas hacia proveedores (`Dynamic*Route`).
 - **Persistencia de configuracion externa**: `GatewayWebServiceConfigService`, `ProviderHeaderService` y `GatewayWebServiceDefinitionService`.
-- **Properties**: configuraciÃ³n de mapeos internos.
+- **Properties**: configuraciÃ³n general (errores/safetypay); el mapeo funcional de payload se obtiene desde BD.
 
 ## 3. Endpoints REST
 
@@ -47,7 +47,7 @@
 ### 4.1 Direct Online Payment Requests
 1. Controller valida proveedor.
 2. Mapper construye payload del proveedor con mappings.
-3. Mapper y Camel Route arman request dinÃ¡mico (URL/mÃ©todo desde `IN_PASARELA_WS`; headers desde `IN_PASARELA_HEADERS`; defaults/query desde `IN_PASARELA_WS_DEFS`).
+3. Mapper y Camel Route arman request dinÃ¡mico (URL/mÃ©todo desde `IN_PASARELA_WS`; headers desde `IN_PASARELA_HEADERS`; defaults/query desde `IN_PASARELA_WS_DEFS`; mapeo request/response desde `AD_MAPEO_SERVICIOS`).
 4. Mapper normaliza la respuesta.
 
 ### 4.2 Payments/Banks/Merchant Events
@@ -76,16 +76,14 @@ UbicaciÃ³n: `src/main/resources/application.yaml`
 - Tabla `TUKUNAFUNC.IN_PASARELA_WS`: URL y metodo HTTP por `CODIGO_BILLETERA` + `WS_KEY`.
 - Tabla `TUKUNAFUNC.IN_PASARELA_HEADERS`: headers por `CODIGO_BILLETERA`.
 - Tabla `TUKUNAFUNC.IN_PASARELA_WS_DEFS`: defaults/query por `ID_WS` y `TIPO_DEF`.
+- Tabla `TUKUNAFUNC.AD_MAPEO_SERVICIOS`: mapeo de atributos app/proveedor por `CODIGO_BILLETERA`, `APP_SERVICE_KEY`, `APP_OPERATION`, `DIRECCION`.
 
-### 5.3 Mapeos
-- `direct-online-payment-requests.mapping.*`
-- `merchant-events.mapping.*`
-- `payments.mapping.*`
-- `getbanks.mapping.*`
+### 5.3 Mapeos en BD
+- `TUKUNAFUNC.AD_MAPEO_SERVICIOS`
+- Campos base: `SECCION_APP`, `ATRIBUTO_APP`, `SECCION_EXT`, `ATRIBUTO_EXT`, `ORDEN_APLICACION`, `ACTIVO`
 
-### 5.4 CÃ³digos y errores
-- `providers-pay.codes`
-- `error-mapping.providers.*`
+### 5.4 Errores
+- Fuente unica: `TUKUNAFUNC.AD_MAPEO_SERVICIOS` con `DIRECCION='ERROR'`
 
 ### 5.5 SafetyPay
 - `safetypay.confirmation.enabled`
@@ -113,6 +111,7 @@ docker run -p 8080:8080 pagosdigitales
 - ValidaciÃ³n de firmas SHA-256 en confirmaciones SafetyPay.
 - ValidaciÃ³n de API Key y lista de IPs permitidas.
 - Headers de autenticaciÃ³n por proveedor desde `IN_PASARELA_HEADERS`.
+- Mapeo de payload por proveedor/servicio desde `AD_MAPEO_SERVICIOS`.
 - Idempotencia para evitar reprocesamiento de notificaciones.
 
 ## 8. Ejemplos de uso

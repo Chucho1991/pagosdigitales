@@ -15,21 +15,21 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentRequest;
 import com.femsa.gpf.pagosdigitales.application.mapper.DirectOnlinePaymentMap;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentMappingProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceDefinitionService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 
 class DirectOnlinePaymentMapTest {
 
     @Test
     void mapProviderRequestAddsDefaultsFromDbDefinitions() {
         GatewayWebServiceDefinitionService definitionsService = mock(GatewayWebServiceDefinitionService.class);
-        DirectOnlinePaymentMappingProperties mappingProperties = new DirectOnlinePaymentMappingProperties();
-        DirectOnlinePaymentMappingProperties.ProviderMapping providerMapping =
-                new DirectOnlinePaymentMappingProperties.ProviderMapping();
+        ServiceMappingConfigService serviceMappingConfigService = mock(ServiceMappingConfigService.class);
         Map<String, String> requestMapping = new LinkedHashMap<>();
         requestMapping.put("sales_amount.value", "sales_amount.value");
-        providerMapping.setRequest(requestMapping);
-        mappingProperties.setMapping(Map.of("default", providerMapping));
+        when(serviceMappingConfigService.getRequestBodyMappings(
+                eq(235689),
+                eq("direct-online-payment-requests"),
+                eq("paysafe"))).thenReturn(requestMapping);
 
         when(definitionsService.getDefaults(
                 eq(235689),
@@ -42,7 +42,7 @@ class DirectOnlinePaymentMapTest {
         DirectOnlinePaymentMap mapper = new DirectOnlinePaymentMap(
                 new ObjectMapper(),
                 definitionsService,
-                mappingProperties);
+                serviceMappingConfigService);
 
         DirectOnlinePaymentRequest req = new DirectOnlinePaymentRequest();
         req.setPayment_provider_code(235689);

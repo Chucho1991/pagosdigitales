@@ -20,10 +20,10 @@ import com.femsa.gpf.pagosdigitales.api.dto.PaymentsRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.PaymentsResponse;
 import com.femsa.gpf.pagosdigitales.application.mapper.PaymentsMap;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.ErrorMappingProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
@@ -47,7 +47,7 @@ public class PaymentsController {
     private final ProvidersPayService providersPayService;
     private final PaymentsMap paymentsMap;
     private final ObjectMapper objectMapper;
-    private final ErrorMappingProperties errorMappingProperties;
+    private final ServiceMappingConfigService serviceMappingConfigService;
     private final IntegrationLogService integrationLogService;
     private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
 
@@ -58,7 +58,7 @@ public class PaymentsController {
      * @param providersPayService servicio de proveedores habilitados
      * @param paymentsMap mapeador de respuestas de pagos
      * @param objectMapper serializador de payloads
-     * @param errorMappingProperties configuracion de mapeo de errores
+     * @param serviceMappingConfigService servicio de mapeo por BD
      * @param integrationLogService servicio de auditoria de logs
      * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
      */
@@ -66,14 +66,14 @@ public class PaymentsController {
             ProvidersPayService providersPayService,
             PaymentsMap paymentsMap,
             ObjectMapper objectMapper,
-            ErrorMappingProperties errorMappingProperties,
+            ServiceMappingConfigService serviceMappingConfigService,
             IntegrationLogService integrationLogService,
             GatewayWebServiceConfigService gatewayWebServiceConfigService) {
         this.camel = camel;
         this.providersPayService = providersPayService;
         this.paymentsMap = paymentsMap;
         this.objectMapper = objectMapper;
-        this.errorMappingProperties = errorMappingProperties;
+        this.serviceMappingConfigService = serviceMappingConfigService;
         this.integrationLogService = integrationLogService;
         this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
     }
@@ -129,7 +129,10 @@ public class PaymentsController {
             log.info("Response recibido de proveedor {}: {}", proveedor,
                     AppUtils.formatPayload(rawResp, objectMapper));
 
-            String errorPath = errorMappingProperties.resolve(proveedor).getError();
+            String errorPath = serviceMappingConfigService.getErrorPath(
+                    req.getPayment_provider_code(),
+                    WS_KEY,
+                    proveedor);
             ErrorInfo providerError = ApiErrorUtils.extractProviderError(rawResp, objectMapper, errorPath);
             if (providerError != null) {
                 int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
