@@ -49,10 +49,6 @@ providers:
 
 safetypay:
   confirmation:
-    enabled: true
-    providers:
-      paysafe:
-        apiKey: ${SAFETYPAY_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
-        secret: ${SAFETYPAY_SECRET:a8fed296d6a4e4d877c1abbe8de938a2}
-        signatureMode: ${SAFETYPAY_SIGNATURE_MODE:SHA256}
-        allowedIps: []
+    # Configuracion resuelta desde BD:
+    # IN_SAFETYPAY_CFG:
+    # CODIGO_BILLETERA, NOMBRE_PROVEEDOR, ENABLED, API_KEY, SECRET, SIGNATURE_MODE, ALLOWED_IPS, ACTIVO

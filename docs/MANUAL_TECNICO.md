@@ -1,76 +1,76 @@
-﻿# Manual tÃ©cnico â€” PagosDigitales
+# Manual técnico — PagosDigitales
 
-## 1. PropÃ³sito
+## 1. Propósito
 
-Este manual tÃ©cnico describe la operaciÃ³n interna del servicio PagosDigitales, su arquitectura, configuraciÃ³n, integraciÃ³n con proveedores y guÃ­as de despliegue y operaciÃ³n.
+Este manual técnico describe la operación interna del servicio PagosDigitales, su arquitectura, configuración, integración con proveedores y guías de despliegue y operación.
 
 ## 2. Alcance
 
-- AplicaciÃ³n Spring Boot 3.x con Apache Camel.
+- Aplicación Spring Boot 3.x con Apache Camel.
 - API REST para pagos, bancos y notificaciones.
 - Confirmaciones SafetyPay con firma SHA-256.
 - Configuracion de WS externos por proveedor en BD (`IN_PASARELA_WS`, `IN_PASARELA_HEADERS`, `IN_PASARELA_WS_DEFS` y `AD_MAPEO_SERVICIOS`).
 
 ## 3. Arquitectura
 
-**Estilo:** monolito en capas (API, Application, Domain, Infrastructure) con integraciÃ³n dinÃ¡mica por proveedor.
+**Estilo:** monolito en capas (API, Application, Domain, Infrastructure) con integración dinámica por proveedor.
 
 **Componentes clave:**
 - **Controllers:** expone endpoints REST.
 - **Mappers:** transforman requests/responses hacia el formato de cada proveedor.
-- **Servicios de dominio:** firma y resoluciÃ³n de proveedor.
+- **Servicios de dominio:** firma y resolución de proveedor.
 - **Camel Routes:** enrutan solicitudes hacia proveedores externos.
 
 ## 4. Estructura de paquetes
 
 - `com.femsa.gpf.pagosdigitales.api`: controladores y DTOs.
-- `com.femsa.gpf.pagosdigitales.application`: orquestaciÃ³n y mapeos.
-- `com.femsa.gpf.pagosdigitales.domain`: lÃ³gica de negocio.
-- `com.femsa.gpf.pagosdigitales.infrastructure`: rutas Camel y configuraciÃ³n.
+- `com.femsa.gpf.pagosdigitales.application`: orquestación y mapeos.
+- `com.femsa.gpf.pagosdigitales.domain`: lógica de negocio.
+- `com.femsa.gpf.pagosdigitales.infrastructure`: rutas Camel y configuración.
 
 ## 5. Endpoints
 
-| MÃ©todo | Ruta | DescripciÃ³n | Content-Type | Respuesta |
+| Método | Ruta | Descripción | Content-Type | Respuesta |
 |---|---|---|---|---|
 | POST | `/api/v1/banks` | Consulta bancos por proveedor o todos | JSON | JSON |
 | POST | `/api/v1/payments` | Consulta pagos por `operation_id` | JSON (body) | JSON |
-| POST | `/api/v1/direct-online-payment-requests` | Solicitud de pago en lÃ­nea | JSON | JSON |
+| POST | `/api/v1/direct-online-payment-requests` | Solicitud de pago en línea | JSON | JSON |
 | POST | `/api/v1/payments/notifications/merchant-events` | Notificaciones de eventos del comercio | JSON | JSON |
 | POST | `/api/v1/safetypay/confirmation` | Webhook SafetyPay (CSV firmado) | `application/x-www-form-urlencoded` | `text/plain` |
-| GET | `/api/v1/pagos/test` | Health check | â€” | text/plain |
+| GET | `/api/v1/pagos/test` | Health check | — | text/plain |
 
-## 6. Flujo de integraciÃ³n
+## 6. Flujo de integración
 
-### 6.1 Pagos en lÃ­nea
+### 6.1 Pagos en línea
 1. Controller valida proveedor y solicitud.
-2. Mapper crea payload del proveedor segÃºn mapping.
+2. Mapper crea payload del proveedor según mapping.
 3. Mapper/Camel Route resuelven URL y metodo desde `IN_PASARELA_WS`, headers desde `IN_PASARELA_HEADERS`, defaults/query desde `IN_PASARELA_WS_DEFS` y mapeos request/response desde `AD_MAPEO_SERVICIOS`.
 4. Respuesta normalizada hacia DTO interno.
 
 ### 6.2 Consulta de pagos
 1. Controller valida `payment_provider_code` y `operation_id`.
-2. Camel Route agrega parÃ¡metros de consulta.
+2. Camel Route agrega parámetros de consulta.
 3. Respuesta normalizada a DTO interno.
 
 ### 6.3 Consulta de bancos
-1. Controller consulta proveedor especÃ­fico o todos.
-2. Camel Route construye URL con parÃ¡metros.
+1. Controller consulta proveedor específico o todos.
+2. Camel Route construye URL con parámetros.
 3. Respuesta normalizada por mapping.
 
 ### 6.4 Merchant Events
 1. Controller valida proveedor.
 2. Mapper transforma payload.
-3. Camel Route envÃ­a notificaciÃ³n.
+3. Camel Route envía notificación.
 
 ### 6.5 SafetyPay Confirmation
 1. Controller mapea form-urlencoded a DTO.
 2. Service valida API Key, firma e IP permitida.
-3. Aplica idempotencia y registra notificaciÃ³n.
+3. Aplica idempotencia y registra notificación.
 4. Responde CSV firmado.
 
-## 7. ConfiguraciÃ³n
+## 7. Configuración
 
-UbicaciÃ³n: `src/main/resources/application.yaml`
+Ubicación: `src/main/resources/application.yaml`
 
 ### 7.1 Base
 - `server.port`
@@ -92,12 +92,12 @@ UbicaciÃ³n: `src/main/resources/application.yaml`
 - Fuente unica: `TUKUNAFUNC.AD_MAPEO_SERVICIOS` con `DIRECCION='ERROR'`
 
 ### 7.5 SafetyPay
-- `safetypay.confirmation.enabled`
-- `safetypay.confirmation.providers.*`
+- Fuente unica en BD:
+- `IN_SAFETYPAY_CFG` (`CODIGO_BILLETERA`, `ENABLED`, `API_KEY`, `SECRET`, `SIGNATURE_MODE`, `ALLOWED_IPS`, `ACTIVO`)
 
 ## 8. Seguridad
 
-- ValidaciÃ³n de firma SHA-256 y API Key en SafetyPay.
+- Validación de firma SHA-256 y API Key en SafetyPay.
 - Lista opcional de IPs permitidas para confirmaciones.
 - Headers por proveedor obtenidos de `IN_PASARELA_HEADERS`.
 - Parametros de request por proveedor obtenidos de `IN_PASARELA_WS_DEFS`.
@@ -124,21 +124,21 @@ EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
 ```
 
-## 10. OperaciÃ³n y monitoreo
+## 10. Operación y monitoreo
 
 - Revisar logs de Camel para trazabilidad de requests/response.
-- Validar mÃ©tricas de latencia por endpoint.
-- Ajustar timeouts por proveedor segÃºn SLA.
+- Validar métricas de latencia por endpoint.
+- Ajustar timeouts por proveedor según SLA.
 
-## 11. Directorio de tÃ©rminos
+## 11. Directorio de términos
 
-- **API**: Interfaz de programaciÃ³n que expone los endpoints del servicio.
+- **API**: Interfaz de programación que expone los endpoints del servicio.
 - **Camel Route**: Ruta de Apache Camel que orquesta llamadas a proveedores externos.
 - **DTO**: Objeto de transferencia de datos usado en requests/responses.
-- **Idempotencia**: Capacidad de procesar la misma notificaciÃ³n sin duplicar efectos.
+- **Idempotencia**: Capacidad de procesar la misma notificación sin duplicar efectos.
 - **Provider**: Proveedor externo de pagos configurado en tablas de BD.
 - **SafetyPay Confirmation**: Webhook firmado que confirma el estado de un pago.
-- **Signature**: Firma criptogrÃ¡fica SHA-256 usada para validar autenticidad.
+- **Signature**: Firma criptográfica SHA-256 usada para validar autenticidad.
 
 ## 12. Ejemplos de uso
 

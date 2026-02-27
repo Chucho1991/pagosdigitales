@@ -259,17 +259,10 @@ curl -X POST http://localhost:8080/api/v1/safetypay/confirmation \
 
 ## Configuracion
 
-```yaml
-safetypay:
-  confirmation:
-    enabled: true
-    providers:
-      paysafe:
-        apiKey: ${SAFETYPAY_CONFIRMATION_API_KEY:}
-        secret: ${SAFETYPAY_CONFIRMATION_SECRET:}
-        signatureMode: SHA256
-        allowedIps: []
-```
+Configuracion externa (obligatoria en BD):
+- Tabla: `TUKUNAFUNC.IN_SAFETYPAY_CFG`
+- Clave funcional: `CODIGO_BILLETERA`
+- Campos usados: `ENABLED`, `API_KEY`, `SECRET`, `SIGNATURE_MODE`, `ALLOWED_IPS`, `ACTIVO`
 
 ## Calculo de firma (SHA-256)
 

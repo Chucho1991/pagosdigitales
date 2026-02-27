@@ -2,7 +2,6 @@ package com.femsa.gpf.pagosdigitales.application.service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -13,8 +12,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.api.dto.SafetypayConfirmationRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.SafetypayConfirmationResponse;
 import com.femsa.gpf.pagosdigitales.domain.service.SignatureService;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.SafetypayConfirmationProperties;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.SafetypayConfirmationProperties.ProviderConfig;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.SafetypayConfirmationConfigService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.SafetypayConfirmationConfigService.ProviderConfig;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 
 import lombok.extern.log4j.Log4j2;
@@ -29,7 +28,7 @@ public class SafetypayConfirmationService {
     private static final DateTimeFormatter RESPONSE_DATETIME_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
-    private final SafetypayConfirmationProperties properties;
+    private final SafetypayConfirmationConfigService configService;
     private final SignatureService signatureService;
     private final SafetypayNotificationStore notificationStore;
     private final ObjectMapper objectMapper;
@@ -37,16 +36,16 @@ public class SafetypayConfirmationService {
     /**
      * Crea el servicio con dependencias configuradas.
      *
-     * @param properties configuracion de SafetyPay
+     * @param configService configuracion de SafetyPay desde BD
      * @param signatureService servicio de firma
      * @param notificationStore store de idempotencia
      * @param objectMapper serializador JSON
      */
-    public SafetypayConfirmationService(SafetypayConfirmationProperties properties,
+    public SafetypayConfirmationService(SafetypayConfirmationConfigService configService,
             SignatureService signatureService,
             SafetypayNotificationStore notificationStore,
             ObjectMapper objectMapper) {
-        this.properties = properties;
+        this.configService = configService;
         this.signatureService = signatureService;
         this.notificationStore = notificationStore;
         this.objectMapper = objectMapper;
@@ -62,11 +61,11 @@ public class SafetypayConfirmationService {
     public SafetypayConfirmationResponse handleConfirmation(SafetypayConfirmationRequest req, String remoteAddr) {
         SafetypayConfirmationResponse response = baseResponse(req);
 
-        if (!properties.isEnabled()) {
+        if (!configService.isEnabled()) {
             return signResponse(response, 3, null);
         }
 
-        ResolvedProvider resolvedProvider = resolveProvider();
+        ResolvedProvider resolvedProvider = resolveProvider(req.getApiKey());
         if (resolvedProvider == null) {
             return signResponse(response, 3, null);
         }
@@ -80,7 +79,7 @@ public class SafetypayConfirmationService {
             return signResponse(response, 3, providerConfig);
         }
 
-        if (isBlank(providerConfig.getSecret())) {
+        if (isBlank(providerConfig.secret())) {
             return signResponse(response, 3, providerConfig);
         }
 
@@ -115,7 +114,7 @@ public class SafetypayConfirmationService {
      * @return response firmado
      */
     public SafetypayConfirmationResponse errorResponse(SafetypayConfirmationRequest req, int errorNumber) {
-        ResolvedProvider resolvedProvider = resolveProvider();
+        ResolvedProvider resolvedProvider = resolveProvider(req.getApiKey());
         if (resolvedProvider == null) {
             return signResponse(baseResponse(req), errorNumber, null);
         }
@@ -142,31 +141,21 @@ public class SafetypayConfirmationService {
                 + nullSafe(secret);
     }
 
-    private ResolvedProvider resolveProvider() {
-        if (properties.getProviders() == null || properties.getProviders().isEmpty()) {
-            return null;
-        }
-        ProviderConfig paysafeConfig = properties.getProviders().get("paysafe");
-        if (paysafeConfig != null) {
-            return new ResolvedProvider("paysafe", paysafeConfig);
-        }
-        Iterator<Map.Entry<String, ProviderConfig>> iterator = properties.getProviders().entrySet().iterator();
-        if (!iterator.hasNext()) {
-            return null;
-        }
-        Map.Entry<String, ProviderConfig> firstProvider = iterator.next();
-        return new ResolvedProvider(firstProvider.getKey(), firstProvider.getValue());
+    private ResolvedProvider resolveProvider(String apiKey) {
+        return configService.resolveProvider(apiKey)
+                .map(provider -> new ResolvedProvider(provider.providerName(), provider))
+                .orElse(null);
     }
 
     private boolean isApiKeyValid(ProviderConfig config, String apiKey) {
-        if (config.getApiKey() == null) {
+        if (config.apiKey() == null) {
             return false;
         }
-        return config.getApiKey().equals(apiKey);
+        return config.apiKey().equals(apiKey);
     }
 
     private boolean isSignatureValid(ProviderConfig config, SafetypayConfirmationRequest req) {
-        String base = buildSignatureBase(req.getRequestDateTime(), req, config.getSecret());
+        String base = buildSignatureBase(req.getRequestDateTime(), req, config.secret());
         String expected = signatureService.sha256Hex(base);
         return signatureService.isValid(expected, req.getSignature());
     }
@@ -198,7 +187,7 @@ public class SafetypayConfirmationService {
                 + nullSafe(response.getPaymentReferenceNo())
                 + nullSafe(response.getStatus())
                 + nullSafe(response.getOrderNo())
-                + nullSafe(config == null ? null : config.getSecret());
+                + nullSafe(config == null ? null : config.secret());
         response.setSignature(signatureService.sha256Hex(base));
         return response;
     }
@@ -256,13 +245,13 @@ public class SafetypayConfirmationService {
     }
 
     private boolean isIpAllowed(ProviderConfig config, String remoteAddr) {
-        if (config.getAllowedIps() == null || config.getAllowedIps().isEmpty()) {
+        if (config.allowedIps() == null || config.allowedIps().isEmpty()) {
             return true;
         }
         if (isBlank(remoteAddr)) {
             return false;
         }
-        return config.getAllowedIps().contains(remoteAddr);
+        return config.allowedIps().contains(remoteAddr);
     }
 
     private record ResolvedProvider(String name, ProviderConfig config) {

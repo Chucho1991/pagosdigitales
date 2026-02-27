@@ -1,18 +1,18 @@
-﻿# DocumentaciÃ³n tÃ©cnica â€” PagosDigitales
+# Documentación técnica — PagosDigitales
 
 ## 1. Arquitectura
 
-**Estilo:** Monolito Spring Boot con capas (API, Application, Domain, Infrastructure) y rutas dinÃ¡micas con Apache Camel.
+**Estilo:** Monolito Spring Boot con capas (API, Application, Domain, Infrastructure) y rutas dinámicas con Apache Camel.
 
 **Capas:**
 - **API:** Controladores REST expuestos en `com.femsa.gpf.pagosdigitales.api.controller`.
-- **Application:** Mappers y servicios de orquestaciÃ³n (`application.mapper`, `application.service`).
+- **Application:** Mappers y servicios de orquestación (`application.mapper`, `application.service`).
 - **Domain:** Servicios de negocio puros (`domain.service`).
-- **Infrastructure:** ConfiguraciÃ³n y adaptadores de integraciÃ³n (Camel Routes, properties).
+- **Infrastructure:** Configuración y adaptadores de integración (Camel Routes, properties).
 
-**JustificaciÃ³n:** la integraciÃ³n con proveedores externos se desacopla mediante rutas Camel y mapeos configurables, permitiendo agregar proveedores sin alterar la API pÃºblica.
+**Justificación:** la integración con proveedores externos se desacopla mediante rutas Camel y mapeos configurables, permitiendo agregar proveedores sin alterar la API pública.
 
-## 2. MÃ³dulos
+## 2. Módulos
 
 ### 2.1 API
 - **Controllers**: `BanksController`, `PaymentsController`, `DirectOnlinePaymentRequestsController`, `MerchantEventsController`, `SafetypayConfirmationController`, `PagosDigitalesController`.
@@ -23,37 +23,37 @@
 - **Servicios**: `SafetypayConfirmationService` y componentes de idempotencia/orden.
 
 ### 2.3 Domain
-- **ProvidersPayService**: resoluciÃ³n de nombre/cÃ³digo de proveedor.
-- **SignatureService**: firma y validaciÃ³n SHA-256 para SafetyPay.
+- **ProvidersPayService**: resolución de nombre/código de proveedor.
+- **SignatureService**: firma y validación SHA-256 para SafetyPay.
 
 ### 2.4 Infrastructure
-- **Camel Routes**: rutas dinÃ¡micas hacia proveedores (`Dynamic*Route`).
+- **Camel Routes**: rutas dinámicas hacia proveedores (`Dynamic*Route`).
 - **Persistencia de configuracion externa**: `GatewayWebServiceConfigService`, `ProviderHeaderService` y `GatewayWebServiceDefinitionService`.
-- **Properties**: configuraciÃ³n general (errores/safetypay); el mapeo funcional de payload se obtiene desde BD.
+- **Properties**: configuración general (errores/safetypay); el mapeo funcional de payload se obtiene desde BD.
 
 ## 3. Endpoints REST
 
-| MÃ©todo | Ruta | DescripciÃ³n | Content-Type | Respuesta |
+| Método | Ruta | Descripción | Content-Type | Respuesta |
 |---|---|---|---|---|
 | POST | `/api/v1/banks` | Consulta bancos por proveedor o todos | JSON | JSON |
 | POST | `/api/v1/payments` | Consulta pagos por `operation_id` | JSON (body) | JSON |
-| POST | `/api/v1/direct-online-payment-requests` | Solicitud de pago en lÃ­nea | JSON | JSON |
+| POST | `/api/v1/direct-online-payment-requests` | Solicitud de pago en línea | JSON | JSON |
 | POST | `/api/v1/payments/notifications/merchant-events` | Notificaciones de eventos del comercio | JSON | JSON |
 | POST | `/api/v1/safetypay/confirmation` | Webhook SafetyPay (CSV firmado) | `application/x-www-form-urlencoded` | `text/plain` |
-| GET | `/api/v1/pagos/test` | Health check | â€” | text/plain |
+| GET | `/api/v1/pagos/test` | Health check | — | text/plain |
 
 ## 4. Flujo de datos
 
 ### 4.1 Direct Online Payment Requests
 1. Controller valida proveedor.
 2. Mapper construye payload del proveedor con mappings.
-3. Mapper y Camel Route arman request dinÃ¡mico (URL/mÃ©todo desde `IN_PASARELA_WS`; headers desde `IN_PASARELA_HEADERS`; defaults/query desde `IN_PASARELA_WS_DEFS`; mapeo request/response desde `AD_MAPEO_SERVICIOS`).
+3. Mapper y Camel Route arman request dinámico (URL/método desde `IN_PASARELA_WS`; headers desde `IN_PASARELA_HEADERS`; defaults/query desde `IN_PASARELA_WS_DEFS`; mapeo request/response desde `AD_MAPEO_SERVICIOS`).
 4. Mapper normaliza la respuesta.
 
 ### 4.2 Payments/Banks/Merchant Events
-- **Payments**: controller â†’ Camel Route con query params â†’ respuesta normalizada.
-- **Banks**: controller â†’ Camel Route â†’ agregaciÃ³n por proveedor (si no se indica uno).
-- **Merchant Events**: controller â†’ mapper â†’ Camel Route.
+- **Payments**: controller → Camel Route con query params → respuesta normalizada.
+- **Banks**: controller → Camel Route → agregación por proveedor (si no se indica uno).
+- **Merchant Events**: controller → mapper → Camel Route.
 
 ### 4.3 SafetyPay Confirmation
 1. Controller mapea form-urlencoded a DTO.
@@ -61,9 +61,9 @@
 3. Idempotencia con store en memoria.
 4. Respuesta CSV firmada.
 
-## 5. ConfiguraciÃ³n
+## 5. Configuración
 
-UbicaciÃ³n: `src/main/resources/application.yaml`
+Ubicación: `src/main/resources/application.yaml`
 
 ### 5.1 Base
 - `server.port`
@@ -86,8 +86,8 @@ UbicaciÃ³n: `src/main/resources/application.yaml`
 - Fuente unica: `TUKUNAFUNC.AD_MAPEO_SERVICIOS` con `DIRECCION='ERROR'`
 
 ### 5.5 SafetyPay
-- `safetypay.confirmation.enabled`
-- `safetypay.confirmation.providers.*`
+- Fuente unica en BD:
+- `IN_SAFETYPAY_CFG` (`CODIGO_BILLETERA`, `ENABLED`, `API_KEY`, `SECRET`, `SIGNATURE_MODE`, `ALLOWED_IPS`, `ACTIVO`)
 
 ## 6. Despliegue con Docker
 
@@ -108,9 +108,9 @@ docker run -p 8080:8080 pagosdigitales
 ```
 
 ## 7. Seguridad
-- ValidaciÃ³n de firmas SHA-256 en confirmaciones SafetyPay.
-- ValidaciÃ³n de API Key y lista de IPs permitidas.
-- Headers de autenticaciÃ³n por proveedor desde `IN_PASARELA_HEADERS`.
+- Validación de firmas SHA-256 en confirmaciones SafetyPay.
+- Validación de API Key y lista de IPs permitidas.
+- Headers de autenticación por proveedor desde `IN_PASARELA_HEADERS`.
 - Mapeo de payload por proveedor/servicio desde `AD_MAPEO_SERVICIOS`.
 - Idempotencia para evitar reprocesamiento de notificaciones.
 

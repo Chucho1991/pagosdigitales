@@ -1,27 +1,27 @@
 package com.femsa.gpf.pagosdigitales;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import com.femsa.gpf.pagosdigitales.domain.service.SignatureService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.SafetypayConfirmationConfigService;
 
-@SpringBootTest(properties = {
-        "safetypay.confirmation.enabled=true",
-        "safetypay.confirmation.providers.paysafe.apiKey=test-api-key",
-        "safetypay.confirmation.providers.paysafe.secret=test-secret"
-})
+@SpringBootTest
 @AutoConfigureMockMvc
 class SafetypayConfirmationControllerTest {
 
@@ -30,6 +30,23 @@ class SafetypayConfirmationControllerTest {
 
     @Autowired
     private SignatureService signatureService;
+
+    @MockBean
+    private SafetypayConfirmationConfigService configService;
+
+    @BeforeEach
+    void setup() {
+        var provider = new SafetypayConfirmationConfigService.ProviderConfig(
+                235689,
+                "paysafe",
+                true,
+                "test-api-key",
+                "test-secret",
+                "SHA256",
+                java.util.List.of());
+        when(configService.isEnabled()).thenReturn(true);
+        when(configService.resolveProvider(org.mockito.ArgumentMatchers.anyString())).thenReturn(java.util.Optional.of(provider));
+    }
 
     @Test
     void confirmationOkAndIdempotent() throws Exception {
