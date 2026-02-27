@@ -21,9 +21,9 @@ import com.femsa.gpf.pagosdigitales.api.dto.PaymentsResponse;
 import com.femsa.gpf.pagosdigitales.application.mapper.PaymentsMap;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.ErrorMappingProperties;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.PaymentsProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
@@ -39,42 +39,43 @@ import lombok.extern.log4j.Log4j2;
 @RequestMapping("/api/v1")
 public class PaymentsController {
 
+    private static final String WS_KEY = "payments";
     private static final DateTimeFormatter REQUEST_DATETIME_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
     private final ProducerTemplate camel;
-    private final PaymentsProperties paymentsProperties;
     private final ProvidersPayService providersPayService;
     private final PaymentsMap paymentsMap;
     private final ObjectMapper objectMapper;
     private final ErrorMappingProperties errorMappingProperties;
     private final IntegrationLogService integrationLogService;
+    private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
 
     /**
      * Crea el controlador de pagos con sus dependencias.
      *
      * @param camel motor de envio a rutas Camel
-     * @param paymentsProperties configuracion de proveedores para pagos
      * @param providersPayService servicio de proveedores habilitados
      * @param paymentsMap mapeador de respuestas de pagos
      * @param objectMapper serializador de payloads
      * @param errorMappingProperties configuracion de mapeo de errores
      * @param integrationLogService servicio de auditoria de logs
+     * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
      */
     public PaymentsController(ProducerTemplate camel,
-            PaymentsProperties paymentsProperties,
             ProvidersPayService providersPayService,
             PaymentsMap paymentsMap,
             ObjectMapper objectMapper,
             ErrorMappingProperties errorMappingProperties,
-            IntegrationLogService integrationLogService) {
+            IntegrationLogService integrationLogService,
+            GatewayWebServiceConfigService gatewayWebServiceConfigService) {
         this.camel = camel;
-        this.paymentsProperties = paymentsProperties;
         this.providersPayService = providersPayService;
         this.paymentsMap = paymentsMap;
         this.objectMapper = objectMapper;
         this.errorMappingProperties = errorMappingProperties;
         this.integrationLogService = integrationLogService;
+        this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
     }
 
     /**
@@ -96,7 +97,8 @@ public class PaymentsController {
             proveedor = providersPayService.getProviderNameByCode(req.getPayment_provider_code());
             log.info("Nombre Proveedor: {}", proveedor);
 
-            if (proveedor.equals("without-provider") || paymentsProperties.getProviders().get(proveedor) == null) {
+            if (proveedor.equals("without-provider")
+                    || !gatewayWebServiceConfigService.isActive(req.getPayment_provider_code(), WS_KEY)) {
                 throw new IllegalArgumentException("Proveedor no configurado");
             }
 
@@ -133,14 +135,16 @@ public class PaymentsController {
                 int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
                 Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                         req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), providerError);
-                logExternal(req, camelHeaders, errorBody, proveedor, httpCode, "ERROR_PROVEEDOR", externalElapsedMs);
+                logExternal(req, camelHeaders, errorBody, req.getPayment_provider_code(), proveedor, httpCode,
+                        "ERROR_PROVEEDOR", externalElapsedMs);
                 logInternal(req, errorBody, httpCode, "ERROR_PROVEEDOR");
                 return ResponseEntity.status(httpCode).body(errorBody);
             }
 
             PaymentsResponse response = paymentsMap.mapProviderResponse(req, rawResp, proveedor);
             log.info("Response enviado al cliente payments: {}", response);
-            logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK", externalElapsedMs);
+            logExternal(req, camelHeaders, rawResp, req.getPayment_provider_code(), proveedor, 200, "OK",
+                    externalElapsedMs);
             logInternal(req, response, 200, "OK");
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
@@ -155,7 +159,8 @@ public class PaymentsController {
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             if (proveedor != null) {
-                logExternal(req, camelHeaders, errorBody, proveedor, 500, "ERROR_TECNICO", externalElapsedMs);
+                logExternal(req, camelHeaders, errorBody, req.getPayment_provider_code(), proveedor, 500,
+                        "ERROR_TECNICO", externalElapsedMs);
             }
             logInternal(req, errorBody, 500, "ERROR_INTERNO");
             return ResponseEntity.status(500).body(errorBody);
@@ -184,9 +189,9 @@ public class PaymentsController {
                 .build());
     }
 
-    private void logExternal(PaymentsRequest req, Object outboundBody, Object response, String providerName,
-            int status, String message, Integer externalElapsedMs) {
-        PaymentsProperties.ProviderConfig providerConfig = paymentsProperties.getProviders().get(providerName);
+    private void logExternal(PaymentsRequest req, Object outboundBody, Object response, Integer providerCode,
+            String providerName, int status, String message, Integer externalElapsedMs) {
+        var providerConfig = gatewayWebServiceConfigService.getActiveConfig(providerCode, WS_KEY).orElse(null);
         integrationLogService.logExternal(IntegrationLogRecord.builder()
                 .requestPayload(outboundBody)
                 .responsePayload(response)
@@ -200,8 +205,8 @@ public class PaymentsController {
                 .farmacia(req.getStore())
                 .cadena(req.getChain())
                 .pos(req.getPos())
-                .url(providerConfig == null ? null : providerConfig.getUrl())
-                .metodo(providerConfig == null ? null : providerConfig.getMethod())
+                .url(providerConfig == null ? null : providerConfig.uri())
+                .metodo(providerConfig == null ? null : providerConfig.method())
                 .cpVar1("payments")
                 .cpVar2(message)
                 .cpVar3(providerName)

@@ -4,7 +4,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.MerchantEventsProperties;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ProviderHeaderService;
 
 /**
@@ -13,22 +13,23 @@ import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ProviderHeaderSer
 @Component
 public class DynamicMerchantEventsRoute extends RouteBuilder {
 
-    private final MerchantEventsProperties props;
     private final ObjectMapper objectMapper;
     private final ProviderHeaderService providerHeaderService;
+    private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
 
     /**
      * Crea la ruta con la configuracion y el serializador.
      *
-     * @param props propiedades de eventos del comercio
      * @param objectMapper serializador de payloads
      * @param providerHeaderService servicio de headers por proveedor
+     * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
      */
-    public DynamicMerchantEventsRoute(MerchantEventsProperties props, ObjectMapper objectMapper,
-            ProviderHeaderService providerHeaderService) {
-        this.props = props;
+    public DynamicMerchantEventsRoute(ObjectMapper objectMapper,
+            ProviderHeaderService providerHeaderService,
+            GatewayWebServiceConfigService gatewayWebServiceConfigService) {
         this.objectMapper = objectMapper;
         this.providerHeaderService = providerHeaderService;
+        this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
     }
 
     /**
@@ -39,17 +40,17 @@ public class DynamicMerchantEventsRoute extends RouteBuilder {
         from("direct:merchant-events")
                 .routeId("dynamic-merchant-events-route")
                 .process(exchange -> {
-                    String proveedor = exchange.getIn().getHeader("merchant-events", String.class);
                     Integer providerCode = exchange.getIn().getHeader("payment_provider_code", Integer.class);
+                    String wsKey = "merchant-events";
 
-                    var cfg = props.getProviders().get(proveedor);
-                    if (cfg == null || !cfg.isEnabled()) {
-                        throw new IllegalArgumentException("Proveedor no habilitado: " + proveedor);
-                    }
+                    var cfg = gatewayWebServiceConfigService.getActiveConfig(providerCode, wsKey)
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "No hay configuracion activa en IN_PASARELA_WS para CODIGO_BILLETERA: "
+                                            + providerCode + ", WS_KEY: " + wsKey));
 
-                    String url = cfg.getUrl();
+                    String url = cfg.uri();
                     exchange.setProperty("url", url);
-                    exchange.setProperty("httpMethod", cfg.getMethod());
+                    exchange.setProperty("httpMethod", cfg.method());
                     exchange.setProperty("endpointSuffix", url.contains("?")
                             ? "&throwExceptionOnFailure=false"
                             : "?throwExceptionOnFailure=false");

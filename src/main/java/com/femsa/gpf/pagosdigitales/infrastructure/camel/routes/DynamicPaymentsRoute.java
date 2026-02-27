@@ -4,6 +4,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.springframework.stereotype.Component;
 
 import com.femsa.gpf.pagosdigitales.infrastructure.config.PaymentsProperties;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ProviderHeaderService;
 
 /**
@@ -14,16 +15,21 @@ public class DynamicPaymentsRoute extends RouteBuilder {
 
     private final PaymentsProperties props;
     private final ProviderHeaderService providerHeaderService;
+    private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
 
     /**
      * Crea la ruta con las propiedades de proveedores de pagos.
      *
      * @param props configuracion de proveedores
      * @param providerHeaderService servicio de headers por proveedor
+     * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
      */
-    public DynamicPaymentsRoute(PaymentsProperties props, ProviderHeaderService providerHeaderService) {
+    public DynamicPaymentsRoute(PaymentsProperties props,
+            ProviderHeaderService providerHeaderService,
+            GatewayWebServiceConfigService gatewayWebServiceConfigService) {
         this.props = props;
         this.providerHeaderService = providerHeaderService;
+        this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
     }
 
     /**
@@ -36,22 +42,23 @@ public class DynamicPaymentsRoute extends RouteBuilder {
                 .process(exchange -> {
                     String proveedor = exchange.getIn().getHeader("payments", String.class);
                     Integer providerCode = exchange.getIn().getHeader("payment_provider_code", Integer.class);
+                    String wsKey = "payments";
 
-                    var cfg = props.getProviders().get(proveedor);
-
-                    if (cfg == null || !cfg.isEnabled()) {
-                        throw new IllegalArgumentException("Proveedor no habilitado: " + proveedor);
-                    }
+                    var wsCfg = gatewayWebServiceConfigService.getActiveConfig(providerCode, wsKey)
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "No hay configuracion activa en IN_PASARELA_WS para CODIGO_BILLETERA: "
+                                            + providerCode + ", WS_KEY: " + wsKey));
 
                     String operationId = exchange.getIn().getHeader("operation_id", String.class);
                     String requestDatetime = exchange.getIn().getHeader("request_datetime", String.class);
 
-                    StringBuilder url = new StringBuilder(cfg.getUrl());
+                    StringBuilder url = new StringBuilder(wsCfg.uri());
+                    var providerCfg = props.getProviders() == null ? null : props.getProviders().get(proveedor);
 
-                    if (cfg.getQuery() != null && !cfg.getQuery().isEmpty()) {
-                        url.append("?");
+                    if (providerCfg != null && providerCfg.getQuery() != null && !providerCfg.getQuery().isEmpty()) {
+                        url.append(url.indexOf("?") >= 0 ? "&" : "?");
 
-                        cfg.getQuery().forEach((k, v) -> {
+                        providerCfg.getQuery().forEach((k, v) -> {
                             String value = v;
 
                             if (operationId != null) {
@@ -69,10 +76,15 @@ public class DynamicPaymentsRoute extends RouteBuilder {
                         });
 
                         url.deleteCharAt(url.length() - 1);
+                    } else {
+                        url.append(url.indexOf("?") >= 0 ? "&" : "?")
+                                .append("operation_id=").append(operationId == null ? "" : operationId)
+                                .append("&request_datetime=").append(requestDatetime == null ? "" : requestDatetime)
+                                .append("&limit=100");
                     }
 
                     exchange.setProperty("url", url.toString());
-                    exchange.setProperty("httpMethod", cfg.getMethod());
+                    exchange.setProperty("httpMethod", wsCfg.method());
                     exchange.setProperty("endpointSuffix", url.indexOf("?") >= 0
                             ? "&throwExceptionOnFailure=false"
                             : "?throwExceptionOnFailure=false");

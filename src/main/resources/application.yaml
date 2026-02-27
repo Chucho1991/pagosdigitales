@@ -45,8 +45,6 @@ direct-online-payment-requests:
     paysafe:
       enabled: true
       type: rest
-      method: ${DOPR_PAYSAFE_METHOD:POST}
-      url: ${DOPR_PAYSAFE_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/direct-online-payment-requests}
       defaults:
         payment_ok_url: ${DOPR_PAYSAFE_PAYMENT_OK_URL:https://www.safetypay.com/success.com}
         payment_error_url: ${DOPR_PAYSAFE_PAYMENT_ERROR_URL:https://www.safetypay.com/error.com}
@@ -144,8 +142,6 @@ merchant-events:
     paysafe:
       enabled: true
       type: rest
-      method: ${ME_PAYSAFE_METHOD:POST}
-      url: ${ME_PAYSAFE_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/payments/notifications/merchant-events}
   mapping:
     default:
       request:
@@ -167,8 +163,6 @@ payments:
     paysafe:
       enabled: true
       type: rest
-      method: ${PAYMENTS_PAYSAFE_METHOD:GET}
-      url: ${PAYMENTS_PAYSAFE_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/payments/}
       query:
         operation_id: ${operation_id}
         request_datetime: ${request_datetime}
@@ -190,23 +184,19 @@ getbanks:
     paysafe:
       enabled: true
       type: rest
-      method: ${GETBANKS_PAYSAFE_METHOD:GET}
-      url: ${GETBANKS_PAYSAFE_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/banks}
       query:
         country_code: ${country_code}
-        channel: ${GETBANKS_PAYSAFE_CHANNEL:1}
+        channel: ${GETBANKS_CHANNEL:1}
         request_datetime: ${now}
-        limit: ${GETBANKS_PAYSAFE_LIMIT:100}
+        limit: ${GETBANKS_LIMIT:100}
     pichincha:
       enabled: true
       type: rest
-      method: ${GETBANKS_PICHINCHA_METHOD:GET}
-      url: ${GETBANKS_PICHINCHA_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/banks}
       query:
         country_code: ${country_code}
-        channel: ${GETBANKS_PICHINCHA_CHANNEL:1}
+        channel: ${GETBANKS_CHANNEL:1}
         request_datetime: ${now}
-        limit: ${GETBANKS_PICHINCHA_LIMIT:100}
+        limit: ${GETBANKS_LIMIT:100}
   mapping:
     default:
       response:

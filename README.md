@@ -44,6 +44,9 @@ Notas:
 - Ajusta `spring.datasource.*` segun el entorno.
 - Ajusta el pool JDBC con `DB_POOL_MAX_SIZE`, `DB_POOL_MIN_IDLE`, `DB_POOL_CONNECTION_TIMEOUT_MS`, `DB_POOL_IDLE_TIMEOUT_MS`, `DB_POOL_MAX_LIFETIME_MS`.
 - Los proveedores de pago se leen desde `TUKUNAFUNC.AD_BILLETERAS_DIGITALES` (`CODIGO`, `NOMBRE_BILLETERA_DIGITAL`, `ACTIVA='S'`).
+- La configuracion de consumo de WS externos se lee desde `TUKUNAFUNC.IN_PASARELA_WS` por `CODIGO_BILLETERA` (request `payment_provider_code`) y `WS_KEY`.
+- Los headers de consumo externo se leen desde `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`.
+- Para `IN_PASARELA_WS` se consideran activos los registros con `ENABLED='S'`, `TIPO_CONEXION='REST'` y con `METODO_HTTP` + `URI` informados.
 - La validacion principal de bancos usa `AD_TIPO_PAGO` por cadena (`CADENA_FYB`, `CADENA_SANA`, `CADENA_OKI`, `CADENA_FR`).
 - La validacion por canal es un filtro adicional usando `AD_CANAL`, `AD_CANAL_TIPO_PAGO` y `AD_TIPO_PAGO`.
 - Las tablas `AD_BILLETERAS_DIGITALES`, `AD_CANAL`, `AD_CANAL_TIPO_PAGO` y `AD_TIPO_PAGO` se cargan en cache en memoria.
@@ -362,18 +365,25 @@ curl -X POST http://localhost:8080/api/v1/direct-online-payment-requests \
 
 ## Configuracion
 
+Configuracion externa (obligatoria en BD):
+- Tabla: `TUKUNAFUNC.IN_PASARELA_WS`
+- Clave funcional: `CODIGO_BILLETERA` (valor de `payment_provider_code`) + `WS_KEY='direct-online-payment-requests'`
+- Campos usados por el backend: `ENABLED`, `TIPO_CONEXION`, `METODO_HTTP`, `URI`
+
+Headers externos:
+- Tabla: `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`
+
+Configuracion interna en `application.yaml` (solo defaults de payload):
 ```yaml
 direct-online-payment-requests:
   providers:
     paysafe:
       enabled: true
       type: rest
-      method: POST
-      url: https://sandbox-mws.safetypay.com/mpi/api/v1/direct-online-payment-requests
-      headers:
-        X-Api-Key: ${API_KEY}
-        X-Version: 20200803
-        Content-Type: application/json
+      defaults:
+        payment_ok_url: ${DOPR_PAYSAFE_PAYMENT_OK_URL:https://www.safetypay.com/success.com}
+        payment_error_url: ${DOPR_PAYSAFE_PAYMENT_ERROR_URL:https://www.safetypay.com/error.com}
+        application_id: ${DOPR_PAYSAFE_APPLICATION_ID:7}
 ```
 
 ## Endpoint: Merchant Events
@@ -440,19 +450,13 @@ curl -X POST http://localhost:8080/api/v1/payments/notifications/merchant-events
 
 ## Configuracion
 
-```yaml
-merchant-events:
-  providers:
-    paysafe:
-      enabled: true
-      type: rest
-      method: POST
-      url: https://sandbox-mws.safetypay.com/mpi/api/v1/payments/notifications/merchant-events
-      headers:
-        X-Api-Key: ${API_KEY}
-        X-Version: 20200803
-        Content-Type: application/json
-```
+Configuracion externa (obligatoria en BD):
+- Tabla: `TUKUNAFUNC.IN_PASARELA_WS`
+- Clave funcional: `CODIGO_BILLETERA` (valor de `payment_provider_code`) + `WS_KEY='merchant-events'`
+- Campos usados por el backend: `ENABLED`, `TIPO_CONEXION`, `METODO_HTTP`, `URI`
+
+Headers externos:
+- Tabla: `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`
 
 ## Endpoint: Payments
 
@@ -525,16 +529,19 @@ payments:
     paysafe:
       enabled: true
       type: rest
-      method: GET
-      url: https://sandbox-mws.safetypay.com/mpi/api/v1/payments/
       query:
         operation_id: ${operation_id}
         request_datetime: ${request_datetime}
-        limit: 100
-      headers:
-        X-Api-Key: ${API_KEY}
-        X-Version: 20200803
+        limit: ${PAYMENTS_LIMIT:100}
 ```
+
+Configuracion externa (obligatoria en BD):
+- Tabla: `TUKUNAFUNC.IN_PASARELA_WS`
+- Clave funcional: `CODIGO_BILLETERA` (valor de `payment_provider_code`) + `WS_KEY='payments'`
+- Campos usados por el backend: `ENABLED`, `TIPO_CONEXION`, `METODO_HTTP`, `URI`
+
+Headers externos:
+- Tabla: `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`
 
 ## Endpoint: Banks
 
@@ -607,17 +614,20 @@ getbanks:
     paysafe:
       enabled: true
       type: rest
-      method: GET
-      url: https://sandbox-mws.safetypay.com/mpi/api/v1/banks
       query:
         country_code: ${country_code}
-        channel: 1
+        channel: ${GETBANKS_CHANNEL:1}
         request_datetime: ${now}
-        limit: 100
-      headers:
-        X-Api-Key: ${API_KEY}
-        X-Version: 20200803
+        limit: ${GETBANKS_LIMIT:100}
 ```
+
+Configuracion externa (obligatoria en BD):
+- Tabla: `TUKUNAFUNC.IN_PASARELA_WS`
+- Clave funcional: `CODIGO_BILLETERA` (valor de `payment_provider_code`) + `WS_KEY='getbanks'`
+- Campos usados por el backend: `ENABLED`, `TIPO_CONEXION`, `METODO_HTTP`, `URI`
+
+Headers externos:
+- Tabla: `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`
 
 ## Swagger / OpenAPI
 

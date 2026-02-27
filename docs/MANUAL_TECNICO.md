@@ -9,7 +9,7 @@ Este manual tÃ©cnico describe la operaciÃ³n interna del servicio PagosDigita
 - AplicaciÃ³n Spring Boot 3.x con Apache Camel.
 - API REST para pagos, bancos y notificaciones.
 - Confirmaciones SafetyPay con firma SHA-256.
-- ConfiguraciÃ³n por proveedor en `application.yaml`.
+- Configuracion de WS externos por proveedor en BD (`IN_PASARELA_WS` e `IN_PASARELA_HEADERS`).
 
 ## 3. Arquitectura
 
@@ -44,7 +44,7 @@ Este manual tÃ©cnico describe la operaciÃ³n interna del servicio PagosDigita
 ### 6.1 Pagos en lÃ­nea
 1. Controller valida proveedor y solicitud.
 2. Mapper crea payload del proveedor segÃºn mapping.
-3. Camel Route arma URL y headers dinÃ¡micamente.
+3. Camel Route arma URL y metodo desde `IN_PASARELA_WS` y headers desde `IN_PASARELA_HEADERS`.
 4. Respuesta normalizada hacia DTO interno.
 
 ### 6.2 Consulta de pagos
@@ -77,11 +77,10 @@ UbicaciÃ³n: `src/main/resources/application.yaml`
 - `spring.datasource.*`
 - `spring.jpa.*`
 
-### 7.2 Proveedores por endpoint
-- `direct-online-payment-requests.providers.*`
-- `merchant-events.providers.*`
-- `payments.providers.*`
-- `getbanks.providers.*`
+### 7.2 Proveedores por endpoint (BD)
+- `TUKUNAFUNC.AD_BILLETERAS_DIGITALES`: proveedores activos.
+- `TUKUNAFUNC.IN_PASARELA_WS`: configuracion de consumo externo por `CODIGO_BILLETERA` + `WS_KEY`.
+- `TUKUNAFUNC.IN_PASARELA_HEADERS`: headers externos por `CODIGO_BILLETERA`.
 
 ### 7.3 Mappings
 - `direct-online-payment-requests.mapping.*`
@@ -101,7 +100,7 @@ UbicaciÃ³n: `src/main/resources/application.yaml`
 
 - ValidaciÃ³n de firma SHA-256 y API Key en SafetyPay.
 - Lista opcional de IPs permitidas para confirmaciones.
-- Headers `X-Api-Key` y `X-Version` por proveedor configurados en YAML.
+- Headers por proveedor obtenidos de `IN_PASARELA_HEADERS`.
 
 ## 9. Despliegue
 
@@ -136,7 +135,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 - **Camel Route**: Ruta de Apache Camel que orquesta llamadas a proveedores externos.
 - **DTO**: Objeto de transferencia de datos usado en requests/responses.
 - **Idempotencia**: Capacidad de procesar la misma notificaciÃ³n sin duplicar efectos.
-- **Provider**: Proveedor externo de pagos configurado en `application.yaml`.
+- **Provider**: Proveedor externo de pagos configurado en tablas de BD.
 - **SafetyPay Confirmation**: Webhook firmado que confirma el estado de un pago.
 - **Signature**: Firma criptogrÃ¡fica SHA-256 usada para validar autenticidad.
 

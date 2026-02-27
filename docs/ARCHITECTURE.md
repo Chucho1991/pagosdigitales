@@ -28,7 +28,8 @@
 
 ### 2.4 Infrastructure
 - **Camel Routes**: rutas dinÃ¡micas hacia proveedores (`Dynamic*Route`).
-- **Properties**: configuraciÃ³n de endpoints, credenciales y mapeos.
+- **Persistencia de configuracion externa**: `GatewayWebServiceConfigService` y `ProviderHeaderService`.
+- **Properties**: configuraciÃ³n de mapeos y defaults internos.
 
 ## 3. Endpoints REST
 
@@ -46,7 +47,7 @@
 ### 4.1 Direct Online Payment Requests
 1. Controller valida proveedor.
 2. Mapper construye payload del proveedor con mappings.
-3. Camel Route arma request dinÃ¡mico (URL/mÃ©todo/headers).
+3. Camel Route arma request dinÃ¡mico (URL/mÃ©todo desde `IN_PASARELA_WS`; headers desde `IN_PASARELA_HEADERS`).
 4. Mapper normaliza la respuesta.
 
 ### 4.2 Payments/Banks/Merchant Events
@@ -70,11 +71,10 @@ UbicaciÃ³n: `src/main/resources/application.yaml`
 - `spring.jpa.*`
 - `camel.springboot.main-run-controller`
 
-### 5.2 Proveedores
-- `direct-online-payment-requests.providers.*`
-- `merchant-events.providers.*`
-- `payments.providers.*`
-- `getbanks.providers.*`
+### 5.2 Configuracion de proveedores externos (BD)
+- Tabla `TUKUNAFUNC.AD_BILLETERAS_DIGITALES`: catalogo de proveedores activos.
+- Tabla `TUKUNAFUNC.IN_PASARELA_WS`: URL y metodo HTTP por `CODIGO_BILLETERA` + `WS_KEY`.
+- Tabla `TUKUNAFUNC.IN_PASARELA_HEADERS`: headers por `CODIGO_BILLETERA`.
 
 ### 5.3 Mapeos
 - `direct-online-payment-requests.mapping.*`
@@ -111,7 +111,7 @@ docker run -p 8080:8080 pagosdigitales
 ## 7. Seguridad
 - ValidaciÃ³n de firmas SHA-256 en confirmaciones SafetyPay.
 - ValidaciÃ³n de API Key y lista de IPs permitidas.
-- Headers de autenticaciÃ³n por proveedor en la configuraciÃ³n.
+- Headers de autenticaciÃ³n por proveedor desde `IN_PASARELA_HEADERS`.
 - Idempotencia para evitar reprocesamiento de notificaciones.
 
 ## 8. Ejemplos de uso

@@ -13,6 +13,7 @@ Este archivo define lineamientos para trabajo de backend.
 - Validar entradas con `jakarta.validation`.
 - Exponer endpoints REST claros y consistentes (nombres, codigos HTTP, errores).
 - Aplicar seguridad por rol en cada endpoint nuevo o modificado.
+- Para consumo de servicios externos, resolver URL/metodo desde `TUKUNAFUNC.IN_PASARELA_WS` usando `payment_provider_code`; no usar configuracion de endpoint en `application.yaml`.
 - Usar soft delete por defecto cuando el modulo lo requiera.
 - Si el modulo define solo eliminacion logica, no implementar borrado fisico.
 - Documentar endpoints en Swagger/OpenAPI.

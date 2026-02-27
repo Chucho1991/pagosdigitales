@@ -25,10 +25,10 @@ import com.femsa.gpf.pagosdigitales.api.dto.ProviderItem;
 import com.femsa.gpf.pagosdigitales.application.mapper.BanksMap;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.ErrorMappingProperties;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.GetBanksProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.BanksCatalogService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
@@ -44,39 +44,42 @@ import lombok.extern.log4j.Log4j2;
 @RequestMapping("/api/v1")
 public class BanksController {
 
+    private static final String WS_KEY = "getbanks";
+
     private final ProducerTemplate camel;
-    private final GetBanksProperties getBanksprops;
     private final ProvidersPayService providersPayService;
     private final BanksMap banksMap;
     private final ObjectMapper objectMapper;
     private final ErrorMappingProperties errorMappingProperties;
     private final IntegrationLogService integrationLogService;
     private final BanksCatalogService banksCatalogService;
+    private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
 
     /**
      * Crea el controlador de bancos con sus dependencias.
      *
      * @param camel motor de envio a rutas Camel
-     * @param getBanksprops configuracion de proveedores para bancos
      * @param providersPayService servicio de proveedores habilitados
      * @param banksMap mapeador de respuestas de bancos
      * @param objectMapper serializador de payloads
      * @param errorMappingProperties configuracion de mapeo de errores
      * @param integrationLogService servicio de auditoria de logs
      * @param banksCatalogService servicio de catalogo de bancos por cadena
+     * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
      */
-    public BanksController(ProducerTemplate camel, GetBanksProperties getBanksprops,
+    public BanksController(ProducerTemplate camel,
             ProvidersPayService providersPayService, BanksMap banksMap, ObjectMapper objectMapper,
             ErrorMappingProperties errorMappingProperties, IntegrationLogService integrationLogService,
-            BanksCatalogService banksCatalogService) {
+            BanksCatalogService banksCatalogService,
+            GatewayWebServiceConfigService gatewayWebServiceConfigService) {
         this.camel = camel;
-        this.getBanksprops = getBanksprops;
         this.providersPayService = providersPayService;
         this.banksMap = banksMap;
         this.objectMapper = objectMapper;
         this.errorMappingProperties = errorMappingProperties;
         this.integrationLogService = integrationLogService;
         this.banksCatalogService = banksCatalogService;
+        this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
     }
 
     /**
@@ -105,7 +108,8 @@ public class BanksController {
 
                 log.info("Nombre Proveedor: {}", proveedor);
 
-                if (proveedor.equals("without-provider") || getBanksprops.getProviders().get(proveedor) == null) {
+                if (proveedor.equals("without-provider")
+                        || !gatewayWebServiceConfigService.isActive(req.getPayment_provider_code(), WS_KEY)) {
                     throw new IllegalArgumentException("Proveedor no configurado");
                 }
 
@@ -139,7 +143,8 @@ public class BanksController {
                     int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
                     Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                             req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), providerError);
-                    logExternal(req, camelHeaders, errorBody, proveedor, httpCode, "ERROR_PROVEEDOR",
+                    logExternal(req, camelHeaders, errorBody, req.getPayment_provider_code(), proveedor, httpCode,
+                            "ERROR_PROVEEDOR",
                             externalElapsedMs);
                     logInternal(req, errorBody, httpCode, "ERROR_PROVEEDOR");
                     return ResponseEntity.status(httpCode).body(errorBody);
@@ -148,7 +153,8 @@ public class BanksController {
                 BanksResponse response = banksMap.mapBanksByProviderResponse(req, rawResp, proveedor);
                 applyBanksFilter(response, req.getChain(), req.getChannel_POS());
                 log.info("Response enviado al cliente banks: {}", response);
-                logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK", externalElapsedMs);
+                logExternal(req, camelHeaders, rawResp, req.getPayment_provider_code(), proveedor, 200, "OK",
+                        externalElapsedMs);
                 logInternal(req, response, 200, "OK");
                 return ResponseEntity.ok(response);
 
@@ -167,7 +173,7 @@ public class BanksController {
                     String proveedor = entryProveedor.getKey();
                     Integer codProveedor = entryProveedor.getValue();
 
-                    if (getBanksprops.getProviders().get(proveedor) == null) {
+                    if (!gatewayWebServiceConfigService.isActive(codProveedor, WS_KEY)) {
                         log.warn("Proveedor no configurado: {}", proveedor);
                     } else {
 
@@ -188,20 +194,22 @@ public class BanksController {
                                             camelHeaders));
                             Integer providerElapsedMs = timedExecution.elapsedMs();
                             if (timedExecution.exception() != null) {
-                                if (timedExecution.exception() instanceof CamelExecutionException e) {
-                                    log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
-                                            proveedor, codProveedor, e.getMessage());
-                                    logExternal(req, null, "Error consultando proveedor: " + e.getMessage(), proveedor, 500,
-                                            "ERROR_CAMEL", providerElapsedMs);
-                                    continue;
-                                }
-                                throw timedExecution.exception();
+                                    if (timedExecution.exception() instanceof CamelExecutionException e) {
+                                        log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
+                                                proveedor, codProveedor, e.getMessage());
+                                        logExternal(req, null, "Error consultando proveedor: " + e.getMessage(),
+                                                codProveedor, proveedor, 500,
+                                                "ERROR_CAMEL", providerElapsedMs);
+                                        continue;
+                                    }
+                                    throw timedExecution.exception();
                             }
                             Object rawResp = timedExecution.value();
                             if (rawResp == null) {
                                 log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
                                         proveedor, codProveedor, "Respuesta vacia de proveedor");
-                                logExternal(req, null, "Error consultando proveedor: respuesta vacia", proveedor, 500,
+                                logExternal(req, null, "Error consultando proveedor: respuesta vacia", codProveedor,
+                                        proveedor, 500,
                                         "ERROR_CAMEL", providerElapsedMs);
                                 continue;
                             }
@@ -214,13 +222,14 @@ public class BanksController {
                             providerItem.setData(rawResp);
 
                             listProvidersData.add(providerItem);
-                            logExternal(req, camelHeaders, rawResp, proveedor, 200, "OK", providerElapsedMs);
+                            logExternal(req, camelHeaders, rawResp, codProveedor, proveedor, 200, "OK",
+                                    providerElapsedMs);
 
                         } catch (Exception e) {
                             log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
                                     proveedor, codProveedor, e.getMessage());
-                            logExternal(req, null, "Error consultando proveedor: " + e.getMessage(), proveedor, 500,
-                                    "ERROR_CAMEL", null);
+                            logExternal(req, null, "Error consultando proveedor: " + e.getMessage(), codProveedor,
+                                    proveedor, 500, "ERROR_CAMEL", null);
                         }
                     }
                 }
@@ -243,7 +252,8 @@ public class BanksController {
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             if (proveedorSeleccionado != null) {
-                logExternal(req, headersProveedor, errorBody, proveedorSeleccionado, 500, "ERROR_TECNICO",
+                logExternal(req, headersProveedor, errorBody, req.getPayment_provider_code(), proveedorSeleccionado, 500,
+                        "ERROR_TECNICO",
                         externalElapsedMs);
             }
             logInternal(req, errorBody, 500, "ERROR_INTERNO");
@@ -273,12 +283,9 @@ public class BanksController {
                 .build());
     }
 
-    private void logExternal(BanksRequest req, Object outboundBody, Object response, String providerName,
-            int status, String message, Integer externalElapsedMs) {
-        GetBanksProperties.ProviderConfig providerConfig = getBanksprops.getProviders().get(providerName);
-        String providerCode = req.getPayment_provider_code() == null
-                ? String.valueOf(providersPayService.getProviderCodeByName(providerName))
-                : req.getPayment_provider_code().toString();
+    private void logExternal(BanksRequest req, Object outboundBody, Object response, Integer providerCode,
+            String providerName, int status, String message, Integer externalElapsedMs) {
+        var providerConfig = gatewayWebServiceConfigService.getActiveConfig(providerCode, WS_KEY).orElse(null);
         integrationLogService.logExternal(IntegrationLogRecord.builder()
                 .requestPayload(outboundBody)
                 .responsePayload(response)
@@ -287,13 +294,13 @@ public class BanksController {
                 .origen(providerName)
                 .pais(req.getCountry_code())
                 .canal(req.getChannel_POS())
-                .codigoProvPago(providerCode)
+                .codigoProvPago(providerCode == null ? null : providerCode.toString())
                 .nombreFarmacia(req.getStore_name())
                 .farmacia(req.getStore())
                 .cadena(req.getChain())
                 .pos(req.getPos())
-                .url(providerConfig == null ? null : providerConfig.getUrl())
-                .metodo(providerConfig == null ? null : providerConfig.getMethod())
+                .url(providerConfig == null ? null : providerConfig.uri())
+                .metodo(providerConfig == null ? null : providerConfig.method())
                 .cpVar1("banks")
                 .cpVar2(message)
                 .cpVar3(providerName)

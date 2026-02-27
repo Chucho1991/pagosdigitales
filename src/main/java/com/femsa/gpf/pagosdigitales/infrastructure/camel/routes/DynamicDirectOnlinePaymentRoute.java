@@ -4,7 +4,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentProperties;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ProviderHeaderService;
 
 /**
@@ -13,22 +13,23 @@ import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ProviderHeaderSer
 @Component
 public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
 
-    private final DirectOnlinePaymentProperties props;
     private final ObjectMapper objectMapper;
     private final ProviderHeaderService providerHeaderService;
+    private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
 
     /**
      * Crea la ruta con configuracion y serializador.
      *
-     * @param props propiedades de proveedores de pago
      * @param objectMapper serializador de payloads
      * @param providerHeaderService servicio de headers por proveedor
+     * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
      */
-    public DynamicDirectOnlinePaymentRoute(DirectOnlinePaymentProperties props, ObjectMapper objectMapper,
-            ProviderHeaderService providerHeaderService) {
-        this.props = props;
+    public DynamicDirectOnlinePaymentRoute(ObjectMapper objectMapper,
+            ProviderHeaderService providerHeaderService,
+            GatewayWebServiceConfigService gatewayWebServiceConfigService) {
         this.objectMapper = objectMapper;
         this.providerHeaderService = providerHeaderService;
+        this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
     }
 
     /**
@@ -39,17 +40,17 @@ public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
         from("direct:direct-online-payment-requests")
                 .routeId("dynamic-direct-online-payment-requests-route")
                 .process(exchange -> {
-                    String proveedor = exchange.getIn().getHeader("direct-online-payment-requests", String.class);
                     Integer providerCode = exchange.getIn().getHeader("payment_provider_code", Integer.class);
+                    String wsKey = "direct-online-payment-requests";
 
-                    var cfg = props.getProviders().get(proveedor);
-                    if (cfg == null || !cfg.isEnabled()) {
-                        throw new IllegalArgumentException("Proveedor no habilitado: " + proveedor);
-                    }
+                    var cfg = gatewayWebServiceConfigService.getActiveConfig(providerCode, wsKey)
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "No hay configuracion activa en IN_PASARELA_WS para CODIGO_BILLETERA: "
+                                            + providerCode + ", WS_KEY: " + wsKey));
 
-                    String url = cfg.getUrl();
+                    String url = cfg.uri();
                     exchange.setProperty("url", url);
-                    exchange.setProperty("httpMethod", cfg.getMethod());
+                    exchange.setProperty("httpMethod", cfg.method());
                     exchange.setProperty("endpointSuffix", url.contains("?")
                             ? "&throwExceptionOnFailure=false"
                             : "?throwExceptionOnFailure=false");
@@ -66,7 +67,7 @@ public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
                         exchange.getIn().setBody(objectMapper.writeValueAsString(body));
                     }
 
-                    log.info("Request enviado a endpoint externo {}: {}", cfg.getUrl(), exchange.getIn().getBody());
+                    log.info("Request enviado a endpoint externo {}: {}", cfg.uri(), exchange.getIn().getBody());
                 })
                 .setHeader("CamelHttpMethod", exchangeProperty("httpMethod"))
                 .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}");
