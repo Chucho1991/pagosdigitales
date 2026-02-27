@@ -47,10 +47,6 @@ direct-online-payment-requests:
       type: rest
       method: ${DOPR_PAYSAFE_METHOD:POST}
       url: ${DOPR_PAYSAFE_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/direct-online-payment-requests}
-      headers:
-        X-Api-Key: ${DOPR_PAYSAFE_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
-        X-Version: ${DOPR_PAYSAFE_X_VERSION:20200803}
-        Content-Type: ${DOPR_PAYSAFE_CONTENT_TYPE:application/json}
       defaults:
         payment_ok_url: ${DOPR_PAYSAFE_PAYMENT_OK_URL:https://www.safetypay.com/success.com}
         payment_error_url: ${DOPR_PAYSAFE_PAYMENT_ERROR_URL:https://www.safetypay.com/error.com}
@@ -150,10 +146,6 @@ merchant-events:
       type: rest
       method: ${ME_PAYSAFE_METHOD:POST}
       url: ${ME_PAYSAFE_URL:https://sandbox-mws.safetypay.com/mpi/api/v1/payments/notifications/merchant-events}
-      headers:
-        X-Api-Key: ${ME_PAYSAFE_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
-        X-Version: ${ME_PAYSAFE_X_VERSION:20200803}
-        Content-Type: ${ME_PAYSAFE_CONTENT_TYPE:application/json}
   mapping:
     default:
       request:
@@ -181,9 +173,6 @@ payments:
         operation_id: ${operation_id}
         request_datetime: ${request_datetime}
         limit: ${PAYMENTS_LIMIT:100}
-      headers:
-        X-Api-Key: ${PAYMENTS_PAYSAFE_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
-        X-Version: ${PAYMENTS_PAYSAFE_X_VERSION:20200803}
   mapping:
     default:
       response:
@@ -208,9 +197,6 @@ getbanks:
         channel: ${GETBANKS_PAYSAFE_CHANNEL:1}
         request_datetime: ${now}
         limit: ${GETBANKS_PAYSAFE_LIMIT:100}
-      headers:
-        X-Api-Key: ${GETBANKS_PAYSAFE_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
-        X-Version: ${GETBANKS_PAYSAFE_X_VERSION:20200803}
     pichincha:
       enabled: true
       type: rest
@@ -221,9 +207,6 @@ getbanks:
         channel: ${GETBANKS_PICHINCHA_CHANNEL:1}
         request_datetime: ${now}
         limit: ${GETBANKS_PICHINCHA_LIMIT:100}
-      headers:
-        X-Api-Key: ${GETBANKS_PICHINCHA_API_KEY:c14e0ba4e1845e09ba08a4be0fba95e5}
-        X-Version: ${GETBANKS_PICHINCHA_X_VERSION:20200803}
   mapping:
     default:
       response:

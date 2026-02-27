@@ -112,7 +112,8 @@ public class BanksController {
                 Map<String, Object> camelHeaders = Map.of(
                         "country_code", req.getCountry_code(),
                         "now", LocalDateTime.now().toString(),
-                        "getbanks", proveedor
+                        "getbanks", proveedor,
+                        "payment_provider_code", req.getPayment_provider_code()
                 );
                 headersProveedor = camelHeaders;
 
@@ -176,7 +177,8 @@ public class BanksController {
                             Map<String, Object> camelHeaders = Map.of(
                                     "country_code", req.getCountry_code(),
                                     "now", LocalDateTime.now().toString(),
-                                    "getbanks", proveedor
+                                    "getbanks", proveedor,
+                                    "payment_provider_code", codProveedor
                             );
 
                             ExternalCallTimer.TimedExecution<Object> timedExecution = ExternalCallTimer.execute(

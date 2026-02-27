@@ -4,6 +4,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.springframework.stereotype.Component;
 
 import com.femsa.gpf.pagosdigitales.infrastructure.config.GetBanksProperties;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ProviderHeaderService;
 
 /**
  * Ruta Camel dinamica para consultar bancos por proveedor.
@@ -12,14 +13,17 @@ import com.femsa.gpf.pagosdigitales.infrastructure.config.GetBanksProperties;
 public class DynamicBankRoute extends RouteBuilder {
 
     private final GetBanksProperties props;
+    private final ProviderHeaderService providerHeaderService;
 
     /**
      * Crea la ruta con las propiedades de proveedores de bancos.
      *
      * @param props configuracion de proveedores
+     * @param providerHeaderService servicio de headers por proveedor
      */
-    public DynamicBankRoute(GetBanksProperties props) {
+    public DynamicBankRoute(GetBanksProperties props, ProviderHeaderService providerHeaderService) {
         this.props = props;
+        this.providerHeaderService = providerHeaderService;
     }
 
     /**
@@ -33,6 +37,7 @@ public class DynamicBankRoute extends RouteBuilder {
                 .process(exchange -> {
 
                     String proveedor = exchange.getIn().getHeader("getbanks", String.class);
+                    Integer providerCode = exchange.getIn().getHeader("payment_provider_code", Integer.class);
 
                     var cfg = props.getProviders().get(proveedor);
 
@@ -82,16 +87,16 @@ public class DynamicBankRoute extends RouteBuilder {
                             ? "&throwExceptionOnFailure=false"
                             : "?throwExceptionOnFailure=false");
 
-                    // INCLUIR HEADERS X-API-KEY Y X-VERSION DESDE YAML
-                    if (cfg.getHeaders() != null) {
-                        cfg.getHeaders().forEach((headerName, headerValue) -> {
-                            exchange.getIn().setHeader(headerName, headerValue);
-                        });
+                    var providerHeaders = providerHeaderService.getHeadersByProviderCode(providerCode);
+                    if (providerHeaders.isEmpty()) {
+                        throw new IllegalArgumentException(
+                                "No hay headers configurados para CODIGO_BILLETERA: " + providerCode);
                     }
+                    providerHeaders.forEach(exchange.getIn()::setHeader);
 
                     // Logging opcional para verificar
                     log.info("URL construida: {}", url);
-                    log.info("Headers enviados: {}", cfg.getHeaders());
+                    log.info("Headers enviados: {}", providerHeaders);
                 })
                 // Llamada dinámica REST
                 .setHeader("CamelHttpMethod", exchangeProperty("httpMethod"))

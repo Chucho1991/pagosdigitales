@@ -108,7 +108,8 @@ public class PaymentsController {
             camelHeaders = Map.of(
                     "payments", proveedor,
                     "operation_id", req.getOperation_id(),
-                    "request_datetime", requestDatetime
+                    "request_datetime", requestDatetime,
+                    "payment_provider_code", req.getPayment_provider_code()
             );
             final Map<String, Object> headersForProvider = camelHeaders;
 

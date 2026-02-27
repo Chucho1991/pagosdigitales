@@ -100,7 +100,8 @@ public class DirectOnlinePaymentRequestsController {
                     AppUtils.formatPayload(outboundBody, objectMapper));
 
             Map<String, Object> headers = Map.of(
-                    "direct-online-payment-requests", proveedor
+                    "direct-online-payment-requests", proveedor,
+                    "payment_provider_code", req.getPayment_provider_code()
             );
             final Map<String, Object> outboundBodyForProvider = outboundBody;
 

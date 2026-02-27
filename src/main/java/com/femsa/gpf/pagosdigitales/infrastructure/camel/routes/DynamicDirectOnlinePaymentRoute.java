@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentProperties;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ProviderHeaderService;
 
 /**
  * Ruta Camel dinamica para pagos en linea directos.
@@ -14,16 +15,20 @@ public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
 
     private final DirectOnlinePaymentProperties props;
     private final ObjectMapper objectMapper;
+    private final ProviderHeaderService providerHeaderService;
 
     /**
      * Crea la ruta con configuracion y serializador.
      *
      * @param props propiedades de proveedores de pago
      * @param objectMapper serializador de payloads
+     * @param providerHeaderService servicio de headers por proveedor
      */
-    public DynamicDirectOnlinePaymentRoute(DirectOnlinePaymentProperties props, ObjectMapper objectMapper) {
+    public DynamicDirectOnlinePaymentRoute(DirectOnlinePaymentProperties props, ObjectMapper objectMapper,
+            ProviderHeaderService providerHeaderService) {
         this.props = props;
         this.objectMapper = objectMapper;
+        this.providerHeaderService = providerHeaderService;
     }
 
     /**
@@ -35,6 +40,7 @@ public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
                 .routeId("dynamic-direct-online-payment-requests-route")
                 .process(exchange -> {
                     String proveedor = exchange.getIn().getHeader("direct-online-payment-requests", String.class);
+                    Integer providerCode = exchange.getIn().getHeader("payment_provider_code", Integer.class);
 
                     var cfg = props.getProviders().get(proveedor);
                     if (cfg == null || !cfg.isEnabled()) {
@@ -48,11 +54,12 @@ public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
                             ? "&throwExceptionOnFailure=false"
                             : "?throwExceptionOnFailure=false");
 
-                    if (cfg.getHeaders() != null) {
-                        cfg.getHeaders().forEach((headerName, headerValue) -> {
-                            exchange.getIn().setHeader(headerName, headerValue);
-                        });
+                    var providerHeaders = providerHeaderService.getHeadersByProviderCode(providerCode);
+                    if (providerHeaders.isEmpty()) {
+                        throw new IllegalArgumentException(
+                                "No hay headers configurados para CODIGO_BILLETERA: " + providerCode);
                     }
+                    providerHeaders.forEach(exchange.getIn()::setHeader);
 
                     Object body = exchange.getIn().getBody();
                     if (body != null && !(body instanceof String)) {
