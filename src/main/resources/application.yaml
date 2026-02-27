@@ -41,14 +41,6 @@ camel:
     main-run-controller: true
 
 direct-online-payment-requests:
-  providers:
-    paysafe:
-      enabled: true
-      type: rest
-      defaults:
-        payment_ok_url: ${DOPR_PAYSAFE_PAYMENT_OK_URL:https://www.safetypay.com/success.com}
-        payment_error_url: ${DOPR_PAYSAFE_PAYMENT_ERROR_URL:https://www.safetypay.com/error.com}
-        application_id: ${DOPR_PAYSAFE_APPLICATION_ID:7}
   mapping:
     default:
       request:
@@ -138,10 +130,6 @@ direct-online-payment-requests:
           step_instruction: step_instruction
 
 merchant-events:
-  providers:
-    paysafe:
-      enabled: true
-      type: rest
   mapping:
     default:
       request:
@@ -159,14 +147,6 @@ merchant-events:
         responseDatetime: response_datetime
 
 payments:
-  providers:
-    paysafe:
-      enabled: true
-      type: rest
-      query:
-        operation_id: ${operation_id}
-        request_datetime: ${request_datetime}
-        limit: ${PAYMENTS_LIMIT:100}
   mapping:
     default:
       response:
@@ -180,23 +160,6 @@ payments:
         paymentOperations: payment_operations
 
 getbanks:
-  providers:
-    paysafe:
-      enabled: true
-      type: rest
-      query:
-        country_code: ${country_code}
-        channel: ${GETBANKS_CHANNEL:1}
-        request_datetime: ${now}
-        limit: ${GETBANKS_LIMIT:100}
-    pichincha:
-      enabled: true
-      type: rest
-      query:
-        country_code: ${country_code}
-        channel: ${GETBANKS_CHANNEL:1}
-        request_datetime: ${now}
-        limit: ${GETBANKS_LIMIT:100}
   mapping:
     default:
       response:

@@ -9,7 +9,7 @@ Este manual tÃ©cnico describe la operaciÃ³n interna del servicio PagosDigita
 - AplicaciÃ³n Spring Boot 3.x con Apache Camel.
 - API REST para pagos, bancos y notificaciones.
 - Confirmaciones SafetyPay con firma SHA-256.
-- Configuracion de WS externos por proveedor en BD (`IN_PASARELA_WS` e `IN_PASARELA_HEADERS`).
+- Configuracion de WS externos por proveedor en BD (`IN_PASARELA_WS`, `IN_PASARELA_HEADERS` e `IN_PASARELA_WS_DEFS`).
 
 ## 3. Arquitectura
 
@@ -44,7 +44,7 @@ Este manual tÃ©cnico describe la operaciÃ³n interna del servicio PagosDigita
 ### 6.1 Pagos en lÃ­nea
 1. Controller valida proveedor y solicitud.
 2. Mapper crea payload del proveedor segÃºn mapping.
-3. Camel Route arma URL y metodo desde `IN_PASARELA_WS` y headers desde `IN_PASARELA_HEADERS`.
+3. Mapper/Camel Route resuelven URL y metodo desde `IN_PASARELA_WS`, headers desde `IN_PASARELA_HEADERS` y defaults/query desde `IN_PASARELA_WS_DEFS`.
 4. Respuesta normalizada hacia DTO interno.
 
 ### 6.2 Consulta de pagos
@@ -81,6 +81,7 @@ UbicaciÃ³n: `src/main/resources/application.yaml`
 - `TUKUNAFUNC.AD_BILLETERAS_DIGITALES`: proveedores activos.
 - `TUKUNAFUNC.IN_PASARELA_WS`: configuracion de consumo externo por `CODIGO_BILLETERA` + `WS_KEY`.
 - `TUKUNAFUNC.IN_PASARELA_HEADERS`: headers externos por `CODIGO_BILLETERA`.
+- `TUKUNAFUNC.IN_PASARELA_WS_DEFS`: definiciones de request por `ID_WS` con `TIPO_DEF` (`QUERY`/`DEFAULTS`).
 
 ### 7.3 Mappings
 - `direct-online-payment-requests.mapping.*`
@@ -101,6 +102,7 @@ UbicaciÃ³n: `src/main/resources/application.yaml`
 - ValidaciÃ³n de firma SHA-256 y API Key en SafetyPay.
 - Lista opcional de IPs permitidas para confirmaciones.
 - Headers por proveedor obtenidos de `IN_PASARELA_HEADERS`.
+- Parametros de request por proveedor obtenidos de `IN_PASARELA_WS_DEFS`.
 
 ## 9. Despliegue
 

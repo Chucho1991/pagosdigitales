@@ -46,6 +46,7 @@ Notas:
 - Los proveedores de pago se leen desde `TUKUNAFUNC.AD_BILLETERAS_DIGITALES` (`CODIGO`, `NOMBRE_BILLETERA_DIGITAL`, `ACTIVA='S'`).
 - La configuracion de consumo de WS externos se lee desde `TUKUNAFUNC.IN_PASARELA_WS` por `CODIGO_BILLETERA` (request `payment_provider_code`) y `WS_KEY`.
 - Los headers de consumo externo se leen desde `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`.
+- Los parametros de request y defaults de payload se leen desde `TUKUNAFUNC.IN_PASARELA_WS_DEFS` por `ID_WS` y `TIPO_DEF` (`QUERY`/`DEFAULTS`).
 - Para `IN_PASARELA_WS` se consideran activos los registros con `ENABLED='S'`, `TIPO_CONEXION='REST'` y con `METODO_HTTP` + `URI` informados.
 - La validacion principal de bancos usa `AD_TIPO_PAGO` por cadena (`CADENA_FYB`, `CADENA_SANA`, `CADENA_OKI`, `CADENA_FR`).
 - La validacion por canal es un filtro adicional usando `AD_CANAL`, `AD_CANAL_TIPO_PAGO` y `AD_TIPO_PAGO`.
@@ -373,18 +374,10 @@ Configuracion externa (obligatoria en BD):
 Headers externos:
 - Tabla: `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`
 
-Configuracion interna en `application.yaml` (solo defaults de payload):
-```yaml
-direct-online-payment-requests:
-  providers:
-    paysafe:
-      enabled: true
-      type: rest
-      defaults:
-        payment_ok_url: ${DOPR_PAYSAFE_PAYMENT_OK_URL:https://www.safetypay.com/success.com}
-        payment_error_url: ${DOPR_PAYSAFE_PAYMENT_ERROR_URL:https://www.safetypay.com/error.com}
-        application_id: ${DOPR_PAYSAFE_APPLICATION_ID:7}
-```
+Definiciones de payload por WS:
+- Tabla: `TUKUNAFUNC.IN_PASARELA_WS_DEFS`
+- Clave funcional: `ID_WS` (relacion con `IN_PASARELA_WS.ID_WS`) y `TIPO_DEF='DEFAULTS'`
+- Campos usados: `DEFAULT_CLAVE`, `DEFAULT_VALOR_TEXTO`, `DEFAULT_VALOR_NUM`, `DEFAULT_VALOR_FECHA`, `DEFAULT_VALOR_SISTEMA`
 
 ## Endpoint: Merchant Events
 
@@ -523,18 +516,6 @@ curl -X POST http://localhost:8080/api/v1/payments \
 
 ## Configuracion
 
-```yaml
-payments:
-  providers:
-    paysafe:
-      enabled: true
-      type: rest
-      query:
-        operation_id: ${operation_id}
-        request_datetime: ${request_datetime}
-        limit: ${PAYMENTS_LIMIT:100}
-```
-
 Configuracion externa (obligatoria en BD):
 - Tabla: `TUKUNAFUNC.IN_PASARELA_WS`
 - Clave funcional: `CODIGO_BILLETERA` (valor de `payment_provider_code`) + `WS_KEY='payments'`
@@ -542,6 +523,11 @@ Configuracion externa (obligatoria en BD):
 
 Headers externos:
 - Tabla: `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`
+
+Parametros de query:
+- Tabla: `TUKUNAFUNC.IN_PASARELA_WS_DEFS`
+- Clave funcional: `ID_WS` (relacion con `IN_PASARELA_WS.ID_WS`) y `TIPO_DEF='QUERY'`
+- Campos usados: `DEFAULT_CLAVE`, `DEFAULT_VALOR_TEXTO`, `DEFAULT_VALOR_NUM`, `DEFAULT_VALOR_FECHA`, `DEFAULT_VALOR_SISTEMA`
 
 ## Endpoint: Banks
 
@@ -608,19 +594,6 @@ curl -X POST http://localhost:8080/api/v1/banks \
 
 ## Configuracion
 
-```yaml
-getbanks:
-  providers:
-    paysafe:
-      enabled: true
-      type: rest
-      query:
-        country_code: ${country_code}
-        channel: ${GETBANKS_CHANNEL:1}
-        request_datetime: ${now}
-        limit: ${GETBANKS_LIMIT:100}
-```
-
 Configuracion externa (obligatoria en BD):
 - Tabla: `TUKUNAFUNC.IN_PASARELA_WS`
 - Clave funcional: `CODIGO_BILLETERA` (valor de `payment_provider_code`) + `WS_KEY='getbanks'`
@@ -628,6 +601,11 @@ Configuracion externa (obligatoria en BD):
 
 Headers externos:
 - Tabla: `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`
+
+Parametros de query:
+- Tabla: `TUKUNAFUNC.IN_PASARELA_WS_DEFS`
+- Clave funcional: `ID_WS` (relacion con `IN_PASARELA_WS.ID_WS`) y `TIPO_DEF='QUERY'`
+- Campos usados: `DEFAULT_CLAVE`, `DEFAULT_VALOR_TEXTO`, `DEFAULT_VALOR_NUM`, `DEFAULT_VALOR_FECHA`, `DEFAULT_VALOR_SISTEMA`
 
 ## Swagger / OpenAPI
 

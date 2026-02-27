@@ -4,7 +4,7 @@
 Aceptado
 
 ## Contexto
-PagosDigitales requiere exponer una API unificada de pagos y orquestar llamadas a proveedores externos con configuraciones variables (URL, metodo HTTP, headers y mapeos de campos). La conectividad externa se administra en BD por `payment_provider_code`, usando `IN_PASARELA_WS` (URL/metodo por `WS_KEY`) e `IN_PASARELA_HEADERS` (headers por proveedor).
+PagosDigitales requiere exponer una API unificada de pagos y orquestar llamadas a proveedores externos con configuraciones variables (URL, metodo HTTP, headers y mapeos de campos). La conectividad externa se administra en BD por `payment_provider_code`, usando `IN_PASARELA_WS` (URL/metodo por `WS_KEY`), `IN_PASARELA_HEADERS` (headers por proveedor) e `IN_PASARELA_WS_DEFS` (parametros/query/defaults por `ID_WS` y `TIPO_DEF`).
 
 ## Decision
 Adoptar una arquitectura en capas sobre Spring Boot con:

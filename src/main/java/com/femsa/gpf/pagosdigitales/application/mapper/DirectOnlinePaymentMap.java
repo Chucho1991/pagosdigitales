@@ -14,7 +14,7 @@ import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentResponse;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentMappingProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentMappingProperties.ResponseMapping;
-import com.femsa.gpf.pagosdigitales.infrastructure.config.DirectOnlinePaymentProperties;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceDefinitionService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.JsonPayloadUtils;
 
 /**
@@ -26,23 +26,24 @@ public class DirectOnlinePaymentMap {
     private static final DateTimeFormatter REQUEST_DATETIME_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+    private static final String WS_KEY = "direct-online-payment-requests";
 
     private final ObjectMapper mapper;
-    private final DirectOnlinePaymentProperties properties;
+    private final GatewayWebServiceDefinitionService gatewayWebServiceDefinitionService;
     private final DirectOnlinePaymentMappingProperties mappingProperties;
 
     /**
      * Crea el mapper con dependencias de mapeo y configuracion.
      *
      * @param mapper serializador de JSON
-     * @param properties configuracion de proveedores
+     * @param gatewayWebServiceDefinitionService servicio de definiciones por BD
      * @param mappingProperties configuracion de mapeo
      */
     public DirectOnlinePaymentMap(ObjectMapper mapper,
-            DirectOnlinePaymentProperties properties,
+            GatewayWebServiceDefinitionService gatewayWebServiceDefinitionService,
             DirectOnlinePaymentMappingProperties mappingProperties) {
         this.mapper = mapper;
-        this.properties = properties;
+        this.gatewayWebServiceDefinitionService = gatewayWebServiceDefinitionService;
         this.mappingProperties = mappingProperties;
     }
 
@@ -67,23 +68,16 @@ public class DirectOnlinePaymentMap {
             });
         }
 
-        DirectOnlinePaymentProperties.Defaults defaults = null;
-        if (properties.getProviders() != null && properties.getProviders().get(providerName) != null) {
-            defaults = properties.getProviders().get(providerName).getDefaults();
-        }
-        if (defaults != null) {
-            String applicationId = defaults.getApplication_id();
-            if (applicationId != null && !applicationId.isBlank()) {
-                body.put("application_id", applicationId);
-            }
-            String paymentOkUrl = defaults.getPayment_ok_url();
-            if (paymentOkUrl != null && !paymentOkUrl.isBlank()) {
-                body.put("payment_ok_url", paymentOkUrl);
-            }
-            String paymentErrorUrl = defaults.getPayment_error_url();
-            if (paymentErrorUrl != null && !paymentErrorUrl.isBlank()) {
-                body.put("payment_error_url", paymentErrorUrl);
-            }
+        var defaults = gatewayWebServiceDefinitionService.getDefaults(
+                req.getPayment_provider_code(),
+                WS_KEY,
+                Map.of("now", LocalDateTime.now().format(REQUEST_DATETIME_FORMAT)));
+        if (!defaults.isEmpty()) {
+            defaults.forEach((targetPath, value) -> {
+                if (value != null) {
+                    JsonPayloadUtils.setValueByPath(body, targetPath, value);
+                }
+            });
         }
 
         body.put("request_datetime", LocalDateTime.now().format(REQUEST_DATETIME_FORMAT));
