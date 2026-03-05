@@ -22,6 +22,7 @@ import com.femsa.gpf.pagosdigitales.application.mapper.PaymentsMap;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ErrorMappingCatalogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
@@ -48,6 +49,7 @@ public class PaymentsController {
     private final PaymentsMap paymentsMap;
     private final ObjectMapper objectMapper;
     private final ServiceMappingConfigService serviceMappingConfigService;
+    private final ErrorMappingCatalogService errorMappingCatalogService;
     private final IntegrationLogService integrationLogService;
     private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
 
@@ -59,6 +61,7 @@ public class PaymentsController {
      * @param paymentsMap mapeador de respuestas de pagos
      * @param objectMapper serializador de payloads
      * @param serviceMappingConfigService servicio de mapeo por BD
+     * @param errorMappingCatalogService servicio de catalogo de mapeo de errores
      * @param integrationLogService servicio de auditoria de logs
      * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
      */
@@ -67,6 +70,7 @@ public class PaymentsController {
             PaymentsMap paymentsMap,
             ObjectMapper objectMapper,
             ServiceMappingConfigService serviceMappingConfigService,
+            ErrorMappingCatalogService errorMappingCatalogService,
             IntegrationLogService integrationLogService,
             GatewayWebServiceConfigService gatewayWebServiceConfigService) {
         this.camel = camel;
@@ -74,6 +78,7 @@ public class PaymentsController {
         this.paymentsMap = paymentsMap;
         this.objectMapper = objectMapper;
         this.serviceMappingConfigService = serviceMappingConfigService;
+        this.errorMappingCatalogService = errorMappingCatalogService;
         this.integrationLogService = integrationLogService;
         this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
     }
@@ -135,6 +140,7 @@ public class PaymentsController {
                     proveedor);
             ErrorInfo providerError = ApiErrorUtils.extractProviderError(rawResp, objectMapper, errorPath);
             if (providerError != null) {
+                providerError = errorMappingCatalogService.mapProviderError(providerError);
                 int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
                 Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                         req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), providerError);

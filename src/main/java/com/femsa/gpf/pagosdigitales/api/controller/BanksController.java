@@ -27,6 +27,7 @@ import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.BanksCatalogService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ErrorMappingCatalogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
@@ -51,6 +52,7 @@ public class BanksController {
     private final BanksMap banksMap;
     private final ObjectMapper objectMapper;
     private final ServiceMappingConfigService serviceMappingConfigService;
+    private final ErrorMappingCatalogService errorMappingCatalogService;
     private final IntegrationLogService integrationLogService;
     private final BanksCatalogService banksCatalogService;
     private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
@@ -63,6 +65,7 @@ public class BanksController {
      * @param banksMap mapeador de respuestas de bancos
      * @param objectMapper serializador de payloads
      * @param serviceMappingConfigService servicio de mapeo por BD
+     * @param errorMappingCatalogService servicio de catalogo de mapeo de errores
      * @param integrationLogService servicio de auditoria de logs
      * @param banksCatalogService servicio de catalogo de bancos por cadena
      * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
@@ -70,6 +73,7 @@ public class BanksController {
     public BanksController(ProducerTemplate camel,
             ProvidersPayService providersPayService, BanksMap banksMap, ObjectMapper objectMapper,
             ServiceMappingConfigService serviceMappingConfigService, IntegrationLogService integrationLogService,
+            ErrorMappingCatalogService errorMappingCatalogService,
             BanksCatalogService banksCatalogService,
             GatewayWebServiceConfigService gatewayWebServiceConfigService) {
         this.camel = camel;
@@ -77,6 +81,7 @@ public class BanksController {
         this.banksMap = banksMap;
         this.objectMapper = objectMapper;
         this.serviceMappingConfigService = serviceMappingConfigService;
+        this.errorMappingCatalogService = errorMappingCatalogService;
         this.integrationLogService = integrationLogService;
         this.banksCatalogService = banksCatalogService;
         this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
@@ -143,6 +148,7 @@ public class BanksController {
                         proveedor);
                 ErrorInfo providerError = ApiErrorUtils.extractProviderError(rawResp, objectMapper, errorPath);
                 if (providerError != null) {
+                    providerError = errorMappingCatalogService.mapProviderError(providerError);
                     int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
                     Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                             req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), providerError);

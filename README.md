@@ -48,10 +48,12 @@ Notas:
 - Los headers de consumo externo se leen desde `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`.
 - Los parametros de request y defaults de payload se leen desde `TUKUNAFUNC.IN_PASARELA_WS_DEFS` por `ID_WS` y `TIPO_DEF` (`QUERY`/`DEFAULTS`).
 - Los mapeos request/response por proveedor/servicio se leen desde `TUKUNAFUNC.AD_MAPEO_SERVICIOS` por `CODIGO_BILLETERA`, `APP_SERVICE_KEY`, `APP_OPERATION` y `DIRECCION`.
+- El catalogo de control de errores se lee desde `TUKUNAFUNC.AD_MAPEO_ERRORES` (mensaje principal y `inner_details.field_message`).
 - Para `IN_PASARELA_WS` se consideran activos los registros con `ENABLED='S'`, `TIPO_CONEXION='REST'` y con `METODO_HTTP` + `URI` informados.
 - La validacion principal de bancos usa `AD_TIPO_PAGO` por cadena (`CADENA_FYB`, `CADENA_SANA`, `CADENA_OKI`, `CADENA_FR`).
 - La validacion por canal es un filtro adicional usando `AD_CANAL`, `AD_CANAL_TIPO_PAGO` y `AD_TIPO_PAGO`.
 - Las tablas `AD_BILLETERAS_DIGITALES`, `AD_CANAL`, `AD_CANAL_TIPO_PAGO` y `AD_TIPO_PAGO` se cargan en cache en memoria.
+- El catalogo `AD_MAPEO_ERRORES` se carga en cache en memoria para uso exclusivo de control de errores.
 - El refresco de cache se ejecuta al arranque y luego cada 6 horas (`00:00`, `06:00`, `12:00`, `18:00` del servidor).
 
 ## Despliegue con Docker (puerto 8080)
@@ -220,6 +222,12 @@ el path en `TUKUNAFUNC.AD_MAPEO_SERVICIOS` con:
 - `DIRECCION='ERROR'`
 - `SECCION_APP='BODY'`, `ATRIBUTO_APP='error'`
 - `SECCION_EXT='BODY'`, `ATRIBUTO_EXT='<path_error_proveedor>'`
+
+Luego de extraer el error del proveedor, la API aplica el catalogo `TUKUNAFUNC.AD_MAPEO_ERRORES`:
+
+- Prioridad de mensaje: espanol (`*_ES`) y, si no existe, ingles.
+- Si algun campo del catalogo no tiene valor, se conserva `null`.
+- El mapeo aplica solo al control de errores (no afecta respuestas exitosas).
 
 ## Parametros de entrada (form-urlencoded)
 
