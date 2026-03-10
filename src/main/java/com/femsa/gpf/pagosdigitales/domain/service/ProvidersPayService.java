@@ -102,7 +102,7 @@ public class ProvidersPayService {
 
     private Map<String, Integer> loadActiveProvidersFromDb() throws Exception {
         Map<String, Integer> providers = new LinkedHashMap<>();
-        databaseExecutor.withConnection(connection -> {
+        databaseExecutor.withConnection((DatabaseExecutor.ConnectionConsumer) connection -> {
             try (PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_WALLETS);
                     ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {

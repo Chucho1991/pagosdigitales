@@ -317,6 +317,11 @@ La firma es el hash SHA-256 del texto base, en hexadecimal mayuscula.
 - transaction_email
 - send_email_shopper
 
+Regla de negocio:
+- Antes de invocar al proveedor, el backend valida el minimo configurado en `TUKUNAFUNC.AD_TIPO_PAGO.MINIMO` usando `payment_provider_code` + `bank_id`.
+- Si ese minimo no se cumple, la API responde con la estructura generica de error y el mapeo configurado en `TUKUNAFUNC.AD_MAPEO_ERRORES` para `CURRENT_ERROR_CODE = 1004`.
+- Si el minimo de `AD_TIPO_PAGO` se cumple, se mantiene la validacion propia del proveedor de billetera cuando este controle minimos por servicio o atributos.
+
 ## Ejemplo de request
 
 ```bash

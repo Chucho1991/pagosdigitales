@@ -88,7 +88,7 @@ public class IntegrationLogService {
         DerivedLogValues derivedValues = deriveLogValues(record);
 
         try {
-            databaseExecutor.withConnection(connection -> {
+            databaseExecutor.withConnection((DatabaseExecutor.ConnectionConsumer) connection -> {
                 try (PreparedStatement ps = connection.prepareStatement(sql)) {
                     ps.setString(1, toJson(record.getRequestPayload()));
                     ps.setString(2, toJson(record.getResponsePayload()));

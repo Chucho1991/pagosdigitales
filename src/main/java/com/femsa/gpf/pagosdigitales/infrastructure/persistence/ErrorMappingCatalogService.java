@@ -94,6 +94,42 @@ public class ErrorMappingCatalogService {
         return mapped;
     }
 
+    /**
+     * Construye un error normalizado a partir del codigo actual configurado en catalogo.
+     *
+     * @param currentErrorCode codigo actual de error
+     * @return error normalizado si existe en catalogo
+     */
+    public ErrorInfo buildErrorByCurrentCode(long currentErrorCode) {
+        ErrorMappingEntry entry = catalog.findByCode(currentErrorCode);
+        if (entry == null) {
+            return null;
+        }
+
+        ErrorInfo error = new ErrorInfo();
+        error.setHttp_code(entry.httpStatus());
+        error.setCode(String.valueOf(entry.currentErrorCode()));
+        error.setCategory(entry.errorCategory());
+        error.setMessage(resolvePreferredValue(entry.currentErrorMessageEs(), entry.currentErrorMessageEn()));
+        error.setInformation_link(null);
+        error.setInner_details(buildDefaultInnerDetails(entry));
+        return error;
+    }
+
+    private List<ErrorInnerDetail> buildDefaultInnerDetails(ErrorMappingEntry entry) {
+        String fieldMessage = resolvePreferredValue(entry.innerDetailsMessageEs(), entry.innerDetailsMessageEn());
+        if (fieldMessage == null) {
+            return Collections.emptyList();
+        }
+
+        ErrorInnerDetail detail = new ErrorInnerDetail();
+        detail.setInner_code(entry.currentErrorCode() == null ? null : String.valueOf(entry.currentErrorCode()));
+        detail.setField(null);
+        detail.setField_value(null);
+        detail.setField_message(fieldMessage);
+        return List.of(detail);
+    }
+
     private List<ErrorInnerDetail> mapInnerDetails(List<ErrorInnerDetail> details, String category) {
         if (details == null) {
             return null;

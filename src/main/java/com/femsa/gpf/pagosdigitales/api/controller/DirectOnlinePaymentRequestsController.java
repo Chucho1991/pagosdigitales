@@ -1,5 +1,6 @@
 package com.femsa.gpf.pagosdigitales.api.controller;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 import jakarta.validation.Valid;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.femsa.gpf.pagosdigitales.api.dto.ApiErrorResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.ErrorInfo;
@@ -20,6 +22,7 @@ import com.femsa.gpf.pagosdigitales.application.mapper.DirectOnlinePaymentMap;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.BanksCatalogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ErrorMappingCatalogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
@@ -39,6 +42,7 @@ import lombok.extern.log4j.Log4j2;
 public class DirectOnlinePaymentRequestsController {
 
     private static final String WS_KEY = "direct-online-payment-requests";
+    private static final long MINIMUM_NOT_MET_ERROR_CODE = 1004L;
 
     private final ProducerTemplate camel;
     private final ProvidersPayService providersPayService;
@@ -48,6 +52,7 @@ public class DirectOnlinePaymentRequestsController {
     private final ErrorMappingCatalogService errorMappingCatalogService;
     private final IntegrationLogService integrationLogService;
     private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
+    private final BanksCatalogService banksCatalogService;
 
     /**
      * Crea el controlador de pagos en linea con sus dependencias.
@@ -60,6 +65,7 @@ public class DirectOnlinePaymentRequestsController {
      * @param errorMappingCatalogService servicio de catalogo de mapeo de errores
      * @param integrationLogService servicio de auditoria de logs
      * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
+     * @param banksCatalogService catalogo de bancos y minimos
      */
     public DirectOnlinePaymentRequestsController(ProducerTemplate camel,
             ProvidersPayService providersPayService,
@@ -68,7 +74,8 @@ public class DirectOnlinePaymentRequestsController {
             ServiceMappingConfigService serviceMappingConfigService,
             ErrorMappingCatalogService errorMappingCatalogService,
             IntegrationLogService integrationLogService,
-            GatewayWebServiceConfigService gatewayWebServiceConfigService) {
+            GatewayWebServiceConfigService gatewayWebServiceConfigService,
+            BanksCatalogService banksCatalogService) {
         this.camel = camel;
         this.providersPayService = providersPayService;
         this.directOnlinePaymentMap = directOnlinePaymentMap;
@@ -77,6 +84,7 @@ public class DirectOnlinePaymentRequestsController {
         this.errorMappingCatalogService = errorMappingCatalogService;
         this.integrationLogService = integrationLogService;
         this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
+        this.banksCatalogService = banksCatalogService;
     }
 
     /**
@@ -101,6 +109,11 @@ public class DirectOnlinePaymentRequestsController {
             if (proveedor.equals("without-provider")
                     || !gatewayWebServiceConfigService.isActive(req.getPayment_provider_code(), WS_KEY)) {
                 throw new IllegalArgumentException("Proveedor no configurado");
+            }
+
+            ResponseEntity<?> minimumValidationError = validateConfiguredMinimum(req);
+            if (minimumValidationError != null) {
+                return minimumValidationError;
             }
 
             outboundBody = directOnlinePaymentMap.mapProviderRequest(req, proveedor);
@@ -167,6 +180,49 @@ public class DirectOnlinePaymentRequestsController {
             logInternal(req, errorBody, 500, "ERROR_INTERNO");
             return ResponseEntity.status(500).body(errorBody);
         }
+    }
+
+    private ResponseEntity<?> validateConfiguredMinimum(DirectOnlinePaymentRequest req) {
+        BigDecimal salesAmount = readSalesAmount(req);
+        if (salesAmount == null) {
+            return null;
+        }
+
+        return banksCatalogService.findMinimum(req.getPayment_provider_code(), req.getBank_id())
+                .filter(configuredMinimum -> salesAmount.compareTo(configuredMinimum) < 0)
+                .map(configuredMinimum -> buildMinimumValidationError(req, configuredMinimum, salesAmount))
+                .orElse(null);
+    }
+
+    private ResponseEntity<ApiErrorResponse> buildMinimumValidationError(DirectOnlinePaymentRequest req,
+            BigDecimal configuredMinimum, BigDecimal salesAmount) {
+        ErrorInfo error = errorMappingCatalogService.buildErrorByCurrentCode(MINIMUM_NOT_MET_ERROR_CODE);
+        if (error == null) {
+            error = ApiErrorUtils.invalidRequest("El monto no cumple el minimo configurado.", null, null, null);
+        }
+
+        ApiErrorResponse errorBody = ApiErrorUtils.buildResponse(
+                req.getChain(),
+                req.getStore(),
+                req.getStore_name(),
+                req.getPos(),
+                req.getChannel_POS(),
+                req.getPayment_provider_code(),
+                error);
+        log.info("Monto {} menor al minimo configurado {} para provider {} y bank_id {}.",
+                salesAmount,
+                configuredMinimum,
+                req.getPayment_provider_code(),
+                req.getBank_id());
+        logInternal(req, errorBody, error.getHttp_code() == null ? 400 : error.getHttp_code(), "MINIMO_NO_CUMPLIDO");
+        return ResponseEntity.status(error.getHttp_code() == null ? 400 : error.getHttp_code()).body(errorBody);
+    }
+
+    private BigDecimal readSalesAmount(DirectOnlinePaymentRequest req) {
+        if (req == null || req.getSales_amount() == null) {
+            return null;
+        }
+        return req.getSales_amount().getValue();
     }
 
     private void logInternal(DirectOnlinePaymentRequest req, Object response, int status, String message) {

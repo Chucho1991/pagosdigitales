@@ -118,7 +118,7 @@ public class PaymentRegistryService {
 
         String cpVar1 = errorNumberDescription(errorNumber);
         try {
-            databaseExecutor.withConnection(connection -> {
+            databaseExecutor.withConnection((DatabaseExecutor.ConnectionConsumer) connection -> {
                 try (PreparedStatement ps = connection.prepareStatement(INSERT_MERCHANT_EVENT)) {
                     for (MerchantEvent event : events) {
                         ps.setObject(1, req.getChain());

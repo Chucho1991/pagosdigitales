@@ -39,12 +39,12 @@ class ErrorMappingCatalogServiceTest {
         when(resultSet.getString("INNER_DETAILS_FIELD_MESSAGE"))
                 .thenReturn("The country code is required.", "An error occurred when performing a SendEmail.");
         when(resultSet.getString("INNER_DETAILS_FIELD_MESSAGE_ES"))
-                .thenReturn("El codigo de pais es requerido.", null);
+                .thenReturn("El codigo de pais es requerido.", (String) null);
         when(resultSet.getObject("CURRENT_ERROR_CODE")).thenReturn(21517, 21514);
         when(resultSet.getString("CURRENT_ERROR_MESSAGE"))
                 .thenReturn("Transaction amount is required.", "An error occurred when performing a SendEmail.");
         when(resultSet.getString("CURRENT_ERROR_MESSAGE_ES"))
-                .thenReturn("El monto de la transaccion es requerido.", null);
+                .thenReturn("El monto de la transaccion es requerido.", (String) null);
 
         doAnswer(invocation -> {
             DatabaseExecutor.ConnectionConsumer callback = invocation.getArgument(0);
@@ -131,5 +131,52 @@ class ErrorMappingCatalogServiceTest {
         assertThat(mapped.getHttp_code()).isEqualTo(422);
         assertThat(mapped.getCode()).isEqualTo("21603");
         assertThat(mapped.getMessage()).isEqualTo("Token expirado.");
+    }
+
+    @Test
+    void buildErrorByCurrentCodeReturnsMappedApiError() throws Exception {
+        DatabaseExecutor databaseExecutor = mock(DatabaseExecutor.class);
+        Connection connection = mock(Connection.class);
+        PreparedStatement statement = mock(PreparedStatement.class);
+        ResultSet resultSet = mock(ResultSet.class);
+
+        when(connection.prepareStatement("SELECT HTTP_STATUS, ERROR_CATEGORY, "
+                + "INNER_DETAILS_FIELD_MESSAGE, INNER_DETAILS_FIELD_MESSAGE_ES, CURRENT_ERROR_CODE, "
+                + "CURRENT_ERROR_MESSAGE, CURRENT_ERROR_MESSAGE_ES "
+                + "FROM TUKUNAFUNC.AD_MAPEO_ERRORES")).thenReturn(statement);
+        when(statement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true, false);
+        when(resultSet.getObject("HTTP_STATUS")).thenReturn(400);
+        when(resultSet.getString("ERROR_CATEGORY")).thenReturn("INVALID_REQUEST_ERROR");
+        when(resultSet.getString("INNER_DETAILS_FIELD_MESSAGE"))
+                .thenReturn("Transaction amount is less than the minimum allowed in all payment methods.");
+        when(resultSet.getString("INNER_DETAILS_FIELD_MESSAGE_ES"))
+                .thenReturn("El monto de la transaccion es menor que el minimo permitido en todos los metodos de pago.");
+        when(resultSet.getObject("CURRENT_ERROR_CODE")).thenReturn(1004);
+        when(resultSet.getString("CURRENT_ERROR_MESSAGE")).thenReturn("Minimum amount not met.");
+        when(resultSet.getString("CURRENT_ERROR_MESSAGE_ES")).thenReturn("El monto no cumple el minimo.");
+
+        doAnswer(invocation -> {
+            DatabaseExecutor.ConnectionConsumer callback = invocation.getArgument(0);
+            callback.execute(connection);
+            return null;
+        }).when(databaseExecutor).withConnection(any(DatabaseExecutor.ConnectionConsumer.class));
+
+        ErrorMappingCatalogService service = new ErrorMappingCatalogService(databaseExecutor);
+        service.refreshCache();
+
+        ErrorInfo mapped = service.buildErrorByCurrentCode(1004L);
+
+        assertThat(mapped).isNotNull();
+        assertThat(mapped.getHttp_code()).isEqualTo(400);
+        assertThat(mapped.getCode()).isEqualTo("1004");
+        assertThat(mapped.getCategory()).isEqualTo("INVALID_REQUEST_ERROR");
+        assertThat(mapped.getMessage()).isEqualTo("El monto no cumple el minimo.");
+        assertThat(mapped.getInner_details()).hasSize(1);
+        assertThat(mapped.getInner_details().get(0).getInner_code()).isEqualTo("1004");
+        assertThat(mapped.getInner_details().get(0).getField()).isNull();
+        assertThat(mapped.getInner_details().get(0).getField_value()).isNull();
+        assertThat(mapped.getInner_details().get(0).getField_message())
+                .isEqualTo("El monto de la transaccion es menor que el minimo permitido en todos los metodos de pago.");
     }
 }

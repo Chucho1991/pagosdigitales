@@ -1,11 +1,13 @@
 package com.femsa.gpf.pagosdigitales.infrastructure.persistence;
 
+import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -22,7 +24,7 @@ import lombok.extern.log4j.Log4j2;
 @Service
 public class BanksCatalogService {
 
-    private static final String SELECT_ACTIVE_BANKS_BY_CHAIN = "SELECT CODIGO, CODIGO_BILLETERA_DIGITAL, "
+    private static final String SELECT_ACTIVE_BANKS_BY_CHAIN = "SELECT CODIGO, CODIGO_BILLETERA_DIGITAL, MINIMO, "
             + "NVL(CADENA_FYB, 'N') CADENA_FYB, NVL(CADENA_SANA, 'N') CADENA_SANA, "
             + "NVL(CADENA_OKI, 'N') CADENA_OKI, NVL(CADENA_FR, 'N') CADENA_FR "
             + "FROM TUKUNAFUNC.AD_TIPO_PAGO "
@@ -47,6 +49,7 @@ public class BanksCatalogService {
     private final Integer codGeoFr;
     private volatile Map<String, Set<String>> allowedBanksByProviderAndChain = Map.of();
     private volatile Map<String, Set<String>> allowedBanksByProviderAndChannel = Map.of();
+    private volatile Map<String, BigDecimal> minimumsByProviderAndBank = Map.of();
 
     /**
      * Crea el servicio con configuracion de BD y codigos de cadena.
@@ -85,6 +88,7 @@ public class BanksCatalogService {
         try {
             this.allowedBanksByProviderAndChain = Map.copyOf(loadAllowedBanksByChainFromDb());
             this.allowedBanksByProviderAndChannel = Map.copyOf(loadAllowedBanksByChannelFromDb());
+            this.minimumsByProviderAndBank = Map.copyOf(loadMinimumsFromDb());
             log.info("Cache AD_CANAL/AD_CANAL_TIPO_PAGO/AD_TIPO_PAGO actualizada. Combinaciones provider-canal: {}",
                     allowedBanksByProviderAndChannel.size());
         } catch (Exception e) {
@@ -117,9 +121,23 @@ public class BanksCatalogService {
         return Set.copyOf(intersection);
     }
 
+    /**
+     * Obtiene el monto minimo configurado para proveedor y banco.
+     *
+     * @param paymentProviderCode codigo del proveedor
+     * @param bankCode codigo de banco o tipo de pago
+     * @return monto minimo configurado si existe
+     */
+    public Optional<BigDecimal> findMinimum(Integer paymentProviderCode, String bankCode) {
+        if (paymentProviderCode == null || bankCode == null || bankCode.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(minimumsByProviderAndBank.get(keyByBank(paymentProviderCode, bankCode)));
+    }
+
     private Map<String, Set<String>> loadAllowedBanksByChainFromDb() throws Exception {
         Map<String, Set<String>> temp = new HashMap<>();
-        databaseExecutor.withConnection(connection -> {
+        databaseExecutor.withConnection((DatabaseExecutor.ConnectionConsumer) connection -> {
             try (PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_BANKS_BY_CHAIN);
                     ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -149,7 +167,7 @@ public class BanksCatalogService {
 
     private Map<String, Set<String>> loadAllowedBanksByChannelFromDb() throws Exception {
         Map<String, Set<String>> temp = new HashMap<>();
-        databaseExecutor.withConnection(connection -> {
+        databaseExecutor.withConnection((DatabaseExecutor.ConnectionConsumer) connection -> {
             try (PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_CHANNEL_BANKS);
                     ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -164,6 +182,25 @@ public class BanksCatalogService {
             }
         });
         return immutableCopy(temp);
+    }
+
+    private Map<String, BigDecimal> loadMinimumsFromDb() throws Exception {
+        Map<String, BigDecimal> temp = new HashMap<>();
+        databaseExecutor.withConnection((DatabaseExecutor.ConnectionConsumer) connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_BANKS_BY_CHAIN);
+                    ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String bankCode = rs.getString("CODIGO");
+                    Integer providerCode = rs.getInt("CODIGO_BILLETERA_DIGITAL");
+                    BigDecimal minimum = rs.getBigDecimal("MINIMO");
+                    if (providerCode == null || bankCode == null || bankCode.isBlank() || minimum == null) {
+                        continue;
+                    }
+                    temp.put(keyByBank(providerCode, bankCode), minimum);
+                }
+            }
+        });
+        return temp;
     }
 
     private Map<String, Set<String>> immutableCopy(Map<String, Set<String>> source) {
@@ -194,6 +231,10 @@ public class BanksCatalogService {
 
     private String keyByChain(Integer paymentProviderCode, Integer chain) {
         return paymentProviderCode + "|" + chain;
+    }
+
+    private String keyByBank(Integer paymentProviderCode, String bankCode) {
+        return paymentProviderCode + "|" + bankCode.trim();
     }
 
     private String normalizeChannel(String channel) {

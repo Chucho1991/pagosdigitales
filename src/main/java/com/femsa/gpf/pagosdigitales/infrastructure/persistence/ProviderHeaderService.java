@@ -71,7 +71,7 @@ public class ProviderHeaderService {
 
     private Map<Integer, Map<String, String>> loadHeadersFromDb() throws Exception {
         Map<Integer, Map<String, String>> temp = new HashMap<>();
-        databaseExecutor.withConnection(connection -> {
+        databaseExecutor.withConnection((DatabaseExecutor.ConnectionConsumer) connection -> {
             try (PreparedStatement ps = connection.prepareStatement(SELECT_HEADERS);
                     ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
