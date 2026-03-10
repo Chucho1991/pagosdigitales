@@ -1,4 +1,4 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: PagosDigitales API
   version: 0.0.1
@@ -9,6 +9,7 @@ paths:
   /api/v1/banks:
     post:
       summary: Consulta bancos por proveedor o todos los proveedores configurados.
+      description: Si `payment_provider_code` no se envía, el backend consulta todos los proveedores activos y consolida la respuesta.
       requestBody:
         required: true
         content:
@@ -22,9 +23,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BanksResponse'
+        '400':
+          description: Request inválido o proveedor no configurado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          description: Error interno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
   /api/v1/payments:
     post:
-      summary: Consulta pagos por operaciÃ³n.
+      summary: Consulta pagos por operación.
       requestBody:
         required: true
         content:
@@ -38,9 +51,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaymentsResponse'
+        '400':
+          description: Request inválido o proveedor no configurado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          description: Error interno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
   /api/v1/direct-online-payment-requests:
     post:
-      summary: Solicita un pago en lÃ­nea directo.
+      summary: Solicita un pago en línea directo.
       requestBody:
         required: true
         content:
@@ -49,11 +74,23 @@ paths:
               $ref: '#/components/schemas/DirectOnlinePaymentRequest'
       responses:
         '200':
-          description: Respuesta de pago en lÃ­nea.
+          description: Respuesta de pago en línea.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DirectOnlinePaymentResponse'
+        '400':
+          description: Request inválido, proveedor no configurado o validación de negocio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          description: Error interno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
   /api/v1/payments/notifications/merchant-events:
     post:
       summary: Recibe notificaciones de eventos del comercio y responde localmente.
@@ -239,6 +276,24 @@ components:
     DirectOnlinePaymentResponse:
       type: object
       description: Respuesta normalizada de pagos en lÃ­nea.
+    ApiErrorResponse:
+      type: object
+      properties:
+        chain:
+          type: integer
+        store:
+          type: integer
+        store_name:
+          type: string
+        pos:
+          type: integer
+        channel_POS:
+          type: string
+        payment_provider_code:
+          type: integer
+        error:
+          $ref: '#/components/schemas/ErrorInfo'
+
     MerchantEventsResponse:
       type: object
       description: Respuesta normalizada de merchant events.

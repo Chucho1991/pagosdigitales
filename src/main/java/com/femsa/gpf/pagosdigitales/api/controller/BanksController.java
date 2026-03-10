@@ -119,12 +119,7 @@ public class BanksController {
                     throw new IllegalArgumentException("Proveedor no configurado");
                 }
 
-                Map<String, Object> camelHeaders = Map.of(
-                        "country_code", req.getCountry_code(),
-                        "now", LocalDateTime.now().toString(),
-                        "getbanks", proveedor,
-                        "payment_provider_code", req.getPayment_provider_code()
-                );
+                Map<String, Object> camelHeaders = buildCamelHeaders(req, proveedor, req.getPayment_provider_code());
                 headersProveedor = camelHeaders;
 
                 log.info(camelHeaders);
@@ -190,57 +185,9 @@ public class BanksController {
 
                         log.info("Proveedor configurado: {} - Codigo: {}", proveedor, codProveedor);
 
-                        try {
-                            Map<String, Object> camelHeaders = Map.of(
-                                    "country_code", req.getCountry_code(),
-                                    "now", LocalDateTime.now().toString(),
-                                    "getbanks", proveedor,
-                                    "payment_provider_code", codProveedor
-                            );
-
-                            ExternalCallTimer.TimedExecution<Object> timedExecution = ExternalCallTimer.execute(
-                                    () -> camel.requestBodyAndHeaders(
-                                            "direct:getbanks",
-                                            null,
-                                            camelHeaders));
-                            Integer providerElapsedMs = timedExecution.elapsedMs();
-                            if (timedExecution.exception() != null) {
-                                    if (timedExecution.exception() instanceof CamelExecutionException e) {
-                                        log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
-                                                proveedor, codProveedor, e.getMessage());
-                                        logExternal(req, null, "Error consultando proveedor: " + e.getMessage(),
-                                                codProveedor, proveedor, 500,
-                                                "ERROR_CAMEL", providerElapsedMs);
-                                        continue;
-                                    }
-                                    throw timedExecution.exception();
-                            }
-                            Object rawResp = timedExecution.value();
-                            if (rawResp == null) {
-                                log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
-                                        proveedor, codProveedor, "Respuesta vacia de proveedor");
-                                logExternal(req, null, "Error consultando proveedor: respuesta vacia", codProveedor,
-                                        proveedor, 500,
-                                        "ERROR_CAMEL", providerElapsedMs);
-                                continue;
-                            }
-
-                            log.info("Response recibido de proveedor {}: {}", proveedor,
-                                    AppUtils.formatPayload(rawResp, objectMapper));
-
-                            ProviderItem providerItem = new ProviderItem();
-                            providerItem.setPayment_provider(entryProveedor);
-                            providerItem.setData(rawResp);
-
+                        ProviderItem providerItem = fetchProviderBanks(req, entryProveedor);
+                        if (providerItem != null) {
                             listProvidersData.add(providerItem);
-                            logExternal(req, camelHeaders, rawResp, codProveedor, proveedor, 200, "OK",
-                                    providerElapsedMs);
-
-                        } catch (Exception e) {
-                            log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
-                                    proveedor, codProveedor, e.getMessage());
-                            logExternal(req, null, "Error consultando proveedor: " + e.getMessage(), codProveedor,
-                                    proveedor, 500, "ERROR_CAMEL", null);
                         }
                     }
                 }
@@ -337,5 +284,75 @@ public class BanksController {
                     .collect(Collectors.toList());
             provider.setBanks(filtered);
         });
+    }
+
+    /**
+     * Construye los headers requeridos para la llamada dinámica de bancos.
+     *
+     * @param req request original
+     * @param providerName nombre del proveedor
+     * @param providerCode código del proveedor
+     * @return mapa de headers para Camel
+     */
+    private Map<String, Object> buildCamelHeaders(BanksRequest req, String providerName, Integer providerCode) {
+        return Map.of(
+                "country_code", req.getCountry_code(),
+                "now", LocalDateTime.now().toString(),
+                "getbanks", providerName,
+                "payment_provider_code", providerCode
+        );
+    }
+
+    /**
+     * Consulta bancos para un proveedor individual en flujo multi-proveedor.
+     *
+     * @param req request original
+     * @param providerEntry entrada proveedor->código
+     * @return item de proveedor con respuesta cruda o null si la consulta falla
+     */
+    private ProviderItem fetchProviderBanks(BanksRequest req, Map.Entry<String, Integer> providerEntry) {
+        String providerName = providerEntry.getKey();
+        Integer providerCode = providerEntry.getValue();
+        Map<String, Object> camelHeaders = buildCamelHeaders(req, providerName, providerCode);
+
+        try {
+            ExternalCallTimer.TimedExecution<Object> timedExecution = ExternalCallTimer.execute(
+                    () -> camel.requestBodyAndHeaders("direct:getbanks", null, camelHeaders));
+            Integer providerElapsedMs = timedExecution.elapsedMs();
+            if (timedExecution.exception() != null) {
+                if (timedExecution.exception() instanceof CamelExecutionException e) {
+                    log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
+                            providerName, providerCode, e.getMessage());
+                    logExternal(req, null, "Error consultando proveedor: " + e.getMessage(),
+                            providerCode, providerName, 500, "ERROR_CAMEL", providerElapsedMs);
+                    return null;
+                }
+                throw timedExecution.exception();
+            }
+
+            Object rawResp = timedExecution.value();
+            if (rawResp == null) {
+                log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
+                        providerName, providerCode, "Respuesta vacia de proveedor");
+                logExternal(req, null, "Error consultando proveedor: respuesta vacia", providerCode,
+                        providerName, 500, "ERROR_CAMEL", providerElapsedMs);
+                return null;
+            }
+
+            log.info("Response recibido de proveedor {}: {}", providerName,
+                    AppUtils.formatPayload(rawResp, objectMapper));
+            logExternal(req, camelHeaders, rawResp, providerCode, providerName, 200, "OK", providerElapsedMs);
+
+            ProviderItem providerItem = new ProviderItem();
+            providerItem.setPayment_provider(providerEntry);
+            providerItem.setData(rawResp);
+            return providerItem;
+        } catch (Exception e) {
+            log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
+                    providerName, providerCode, e.getMessage());
+            logExternal(req, null, "Error consultando proveedor: " + e.getMessage(), providerCode,
+                    providerName, 500, "ERROR_CAMEL", null);
+            return null;
+        }
     }
 }
