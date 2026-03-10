@@ -242,6 +242,12 @@ Luego de extraer el error del proveedor, la API aplica el catalogo `TUKUNAFUNC.A
 - Status
 - Signature
 
+## Codigos de respuesta
+
+- `200`: consulta procesada correctamente.
+- `400`: request invalido o proveedor no configurado.
+- `500`: error tecnico interno.
+
 ## Ejemplo de request
 
 ```bash
@@ -321,6 +327,12 @@ Regla de negocio:
 - Antes de invocar al proveedor, el backend valida el minimo configurado en `TUKUNAFUNC.AD_TIPO_PAGO.MINIMO` usando `payment_provider_code` + `bank_id`.
 - Si ese minimo no se cumple, la API responde con la estructura generica de error y el mapeo configurado en `TUKUNAFUNC.AD_MAPEO_ERRORES` para `CURRENT_ERROR_CODE = 1004`.
 - Si el minimo de `AD_TIPO_PAGO` se cumple, se mantiene la validacion propia del proveedor de billetera cuando este controle minimos por servicio o atributos.
+
+## Codigos de respuesta
+
+- `200`: consulta procesada correctamente.
+- `400`: request invalido o proveedor no configurado.
+- `500`: error tecnico interno.
 
 ## Ejemplo de request
 
@@ -411,6 +423,12 @@ Validaciones:
 - `merchant_events` es requerido.
 - `merchant_events[].merchant_sales_id` no puede ser nulo ni vacio.
 
+## Codigos de respuesta
+
+- `200`: consulta procesada correctamente.
+- `400`: request invalido o proveedor no configurado.
+- `500`: error tecnico interno.
+
 ## Ejemplo de request
 
 ```bash
@@ -479,6 +497,12 @@ Mapeo de campos request/response:
 - payment_provider_code
 - operation_id
 - request_datetime
+
+## Codigos de respuesta
+
+- `200`: consulta procesada correctamente.
+- `400`: request invalido o proveedor no configurado.
+- `500`: error tecnico interno.
 
 ## Ejemplo de request
 
@@ -564,6 +588,7 @@ Mapeo de campos response:
 - country_code
 
 Reglas de filtrado backend:
+- El flujo multi-proveedor fue optimizado para reutilizar un solo método de ejecución por proveedor (sin duplicar construcción de headers ni manejo de errores técnicos).
 - Se consume el servicio externo y luego se aplican dos filtros en interseccion.
 - Filtro 1 (principal por cadena): `AD_TIPO_PAGO` con `ACTIVO = 'S'` y bandera de cadena en `S`
 (`CADENA_FYB`/`CADENA_SANA`/`CADENA_OKI`/`CADENA_FR`) segun `chain`.
@@ -574,6 +599,12 @@ con `A.ACTIVO = 'S'`.
 `C.CODIGO_BILLETERA_DIGITAL -> payment_provider_code`.
 - Solo se devuelven bancos que cumplan ambos filtros.
 - Ambos catalogos se consultan desde cache en memoria (no por request).
+
+## Codigos de respuesta
+
+- `200`: consulta procesada correctamente.
+- `400`: request invalido o proveedor no configurado.
+- `500`: error tecnico interno.
 
 ## Ejemplo de request
 
