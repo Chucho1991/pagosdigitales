@@ -102,6 +102,7 @@ public class BanksController {
         String proveedorSeleccionado = null;
         Map<String, Object> headersProveedor = null;
         Integer externalElapsedMs = null;
+        Object externalResponse = null;
 
         try {
             if (req.getPayment_provider_code() != null) {
@@ -138,6 +139,7 @@ public class BanksController {
                     throw timedExecution.exception();
                 }
                 Object rawResp = timedExecution.value();
+                externalResponse = rawResp;
 
                 log.info("Response recibido de proveedor {}: {}", proveedor,
                         AppUtils.formatPayload(rawResp, objectMapper));
@@ -152,7 +154,7 @@ public class BanksController {
                     int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
                     Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                             req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), providerError);
-                    logExternal(req, camelHeaders, errorBody, req.getPayment_provider_code(), proveedor, httpCode,
+                    logExternal(req, camelHeaders, rawResp, req.getPayment_provider_code(), proveedor, httpCode,
                             "ERROR_PROVEEDOR",
                             externalElapsedMs);
                     logInternal(req, errorBody, httpCode, "ERROR_PROVEEDOR");
@@ -261,7 +263,8 @@ public class BanksController {
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             if (proveedorSeleccionado != null) {
-                logExternal(req, headersProveedor, errorBody, req.getPayment_provider_code(), proveedorSeleccionado, 500,
+                logExternal(req, headersProveedor, externalResponse == null ? errorBody : externalResponse,
+                        req.getPayment_provider_code(), proveedorSeleccionado, 500,
                         "ERROR_TECNICO",
                         externalElapsedMs);
             }

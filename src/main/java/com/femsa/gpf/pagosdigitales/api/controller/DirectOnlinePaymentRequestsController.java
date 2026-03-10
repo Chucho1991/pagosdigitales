@@ -102,6 +102,7 @@ public class DirectOnlinePaymentRequestsController {
         String proveedor = null;
         Map<String, Object> outboundBody = null;
         Integer externalElapsedMs = null;
+        Object externalResponse = null;
         try {
             proveedor = providersPayService.getProviderNameByCode(req.getPayment_provider_code());
             log.info("Nombre Proveedor: {}", proveedor);
@@ -136,6 +137,7 @@ public class DirectOnlinePaymentRequestsController {
                 throw timedExecution.exception();
             }
             Object rawResp = timedExecution.value();
+            externalResponse = rawResp;
 
             log.info("Response recibido de proveedor {}: {}", proveedor,
                     AppUtils.formatPayload(rawResp, objectMapper));
@@ -150,7 +152,7 @@ public class DirectOnlinePaymentRequestsController {
                 int httpCode = providerError.getHttp_code() == null ? 400 : providerError.getHttp_code();
                 Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                         req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), providerError);
-                logExternal(req, outboundBody, errorBody, req.getPayment_provider_code(), proveedor, httpCode,
+                logExternal(req, outboundBody, rawResp, req.getPayment_provider_code(), proveedor, httpCode,
                         "ERROR_PROVEEDOR", externalElapsedMs);
                 logInternal(req, errorBody, httpCode, "ERROR_PROVEEDOR");
                 return ResponseEntity.status(httpCode).body(errorBody);
@@ -174,7 +176,8 @@ public class DirectOnlinePaymentRequestsController {
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             if (proveedor != null) {
-                logExternal(req, outboundBody, errorBody, req.getPayment_provider_code(), proveedor, 500,
+                logExternal(req, outboundBody, externalResponse == null ? errorBody : externalResponse,
+                        req.getPayment_provider_code(), proveedor, 500,
                         "ERROR_TECNICO", externalElapsedMs);
             }
             logInternal(req, errorBody, 500, "ERROR_INTERNO");

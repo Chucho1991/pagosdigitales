@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -26,6 +27,7 @@ import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.ErrorInfo;
 import com.femsa.gpf.pagosdigitales.application.mapper.DirectOnlinePaymentMap;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
+import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.BanksCatalogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ErrorMappingCatalogService;
@@ -124,6 +126,53 @@ class DirectOnlinePaymentRequestsControllerTest {
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isSameAs(providerResponse);
         verify(camel).requestBodyAndHeaders(eq("direct:direct-online-payment-requests"), eq(Map.of("amount", 25)), anyMap());
+    }
+
+    @Test
+    void directOnlinePaymentRequestsLogsRawProviderResponseWhenProviderReturnsMappedError() {
+        ProducerTemplate camel = mock(ProducerTemplate.class);
+        ProvidersPayService providersPayService = mock(ProvidersPayService.class);
+        DirectOnlinePaymentMap directOnlinePaymentMap = mock(DirectOnlinePaymentMap.class);
+        ServiceMappingConfigService serviceMappingConfigService = mock(ServiceMappingConfigService.class);
+        ErrorMappingCatalogService errorMappingCatalogService = mock(ErrorMappingCatalogService.class);
+        IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
+        GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
+        BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+
+        Map<String, Object> providerRequest = Map.of("amount", 25);
+        Map<String, Object> rawProviderError = Map.of("error", Map.of("code", "EXT-1", "message", "declined"));
+
+        when(providersPayService.getProviderNameByCode(235689)).thenReturn("paysafe");
+        when(gatewayWebServiceConfigService.isActive(235689, "direct-online-payment-requests")).thenReturn(true);
+        when(banksCatalogService.findMinimum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("20.00")));
+        when(directOnlinePaymentMap.mapProviderRequest(any(), eq("paysafe"))).thenReturn(providerRequest);
+        when(camel.requestBodyAndHeaders(eq("direct:direct-online-payment-requests"), eq(providerRequest), anyMap()))
+                .thenReturn(rawProviderError);
+        when(serviceMappingConfigService.getErrorPath(235689, "direct-online-payment-requests", "paysafe"))
+                .thenReturn("error");
+
+        ErrorInfo mappedError = new ErrorInfo();
+        mappedError.setHttp_code(409);
+        mappedError.setCode("PD-409");
+        mappedError.setMessage("Mapped provider error");
+        when(errorMappingCatalogService.mapProviderError(any())).thenReturn(mappedError);
+
+        DirectOnlinePaymentRequestsController controller = new DirectOnlinePaymentRequestsController(
+                camel,
+                providersPayService,
+                directOnlinePaymentMap,
+                new ObjectMapper(),
+                serviceMappingConfigService,
+                errorMappingCatalogService,
+                integrationLogService,
+                gatewayWebServiceConfigService,
+                banksCatalogService);
+
+        ResponseEntity<?> response = controller.directOnlinePaymentRequests(buildRequest(new BigDecimal("25.00")));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(409);
+        verify(integrationLogService).logExternal(argThat((IntegrationLogRecord record) ->
+                rawProviderError.equals(record.getResponsePayload())));
     }
 
     private DirectOnlinePaymentRequest buildRequest(BigDecimal amount) {
