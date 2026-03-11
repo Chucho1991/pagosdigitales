@@ -27,7 +27,7 @@ class BanksCatalogServiceTest {
         ResultSet chainResultSet = mock(ResultSet.class);
         ResultSet channelResultSet = mock(ResultSet.class);
 
-        when(connection.prepareStatement("SELECT CODIGO, CODIGO_BILLETERA_DIGITAL, MINIMO, "
+        when(connection.prepareStatement("SELECT CODIGO, CODIGO_BILLETERA_DIGITAL, MINIMO, MAXIMO, "
                 + "NVL(CADENA_FYB, 'N') CADENA_FYB, NVL(CADENA_SANA, 'N') CADENA_SANA, "
                 + "NVL(CADENA_OKI, 'N') CADENA_OKI, NVL(CADENA_FR, 'N') CADENA_FR "
                 + "FROM TUKUNAFUNC.AD_TIPO_PAGO "
@@ -52,6 +52,8 @@ class BanksCatalogServiceTest {
         when(chainResultSet.getInt("CODIGO_BILLETERA_DIGITAL")).thenReturn(235689, 235689, 235689, 235689);
         when(chainResultSet.getBigDecimal("MINIMO"))
                 .thenReturn(new BigDecimal("25.00"), (BigDecimal) null, new BigDecimal("25.00"), (BigDecimal) null);
+        when(chainResultSet.getBigDecimal("MAXIMO"))
+                .thenReturn(new BigDecimal("200.00"), (BigDecimal) null, new BigDecimal("200.00"), (BigDecimal) null);
         when(chainResultSet.getString("CADENA_FYB")).thenReturn("S", "N", "S", "N");
         when(chainResultSet.getString("CADENA_SANA")).thenReturn("N", "N", "N", "N");
         when(chainResultSet.getString("CADENA_OKI")).thenReturn("N", "N", "N", "N");
@@ -71,5 +73,7 @@ class BanksCatalogServiceTest {
         assertThat(service.findMinimum(235689, "0123")).contains(new BigDecimal("25.00"));
         assertThat(service.findMinimum(235689, "0456")).isEmpty();
         assertThat(service.findMinimum(235689, "9999")).isEmpty();
+        assertThat(service.findMaximum(235689, "0123")).contains(new BigDecimal("200.00"));
+        assertThat(service.findMaximum(235689, "0456")).isEmpty();
     }
 }

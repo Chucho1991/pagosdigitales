@@ -24,7 +24,7 @@ import lombok.extern.log4j.Log4j2;
 @Service
 public class BanksCatalogService {
 
-    private static final String SELECT_ACTIVE_BANKS_BY_CHAIN = "SELECT CODIGO, CODIGO_BILLETERA_DIGITAL, MINIMO, "
+    private static final String SELECT_ACTIVE_BANKS_BY_CHAIN = "SELECT CODIGO, CODIGO_BILLETERA_DIGITAL, MINIMO, MAXIMO, "
             + "NVL(CADENA_FYB, 'N') CADENA_FYB, NVL(CADENA_SANA, 'N') CADENA_SANA, "
             + "NVL(CADENA_OKI, 'N') CADENA_OKI, NVL(CADENA_FR, 'N') CADENA_FR "
             + "FROM TUKUNAFUNC.AD_TIPO_PAGO "
@@ -50,6 +50,7 @@ public class BanksCatalogService {
     private volatile Map<String, Set<String>> allowedBanksByProviderAndChain = Map.of();
     private volatile Map<String, Set<String>> allowedBanksByProviderAndChannel = Map.of();
     private volatile Map<String, BigDecimal> minimumsByProviderAndBank = Map.of();
+    private volatile Map<String, BigDecimal> maximumsByProviderAndBank = Map.of();
 
     /**
      * Crea el servicio con configuracion de BD y codigos de cadena.
@@ -89,6 +90,7 @@ public class BanksCatalogService {
             this.allowedBanksByProviderAndChain = Map.copyOf(loadAllowedBanksByChainFromDb());
             this.allowedBanksByProviderAndChannel = Map.copyOf(loadAllowedBanksByChannelFromDb());
             this.minimumsByProviderAndBank = Map.copyOf(loadMinimumsFromDb());
+            this.maximumsByProviderAndBank = Map.copyOf(loadMaximumsFromDb());
             log.info("Cache AD_CANAL/AD_CANAL_TIPO_PAGO/AD_TIPO_PAGO actualizada. Combinaciones provider-canal: {}",
                     allowedBanksByProviderAndChannel.size());
         } catch (Exception e) {
@@ -133,6 +135,20 @@ public class BanksCatalogService {
             return Optional.empty();
         }
         return Optional.ofNullable(minimumsByProviderAndBank.get(keyByBank(paymentProviderCode, bankCode)));
+    }
+
+    /**
+     * Obtiene el monto maximo configurado para proveedor y banco.
+     *
+     * @param paymentProviderCode codigo del proveedor
+     * @param bankCode codigo de banco o tipo de pago
+     * @return monto maximo configurado si existe
+     */
+    public Optional<BigDecimal> findMaximum(Integer paymentProviderCode, String bankCode) {
+        if (paymentProviderCode == null || bankCode == null || bankCode.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(maximumsByProviderAndBank.get(keyByBank(paymentProviderCode, bankCode)));
     }
 
     private Map<String, Set<String>> loadAllowedBanksByChainFromDb() throws Exception {
@@ -197,6 +213,25 @@ public class BanksCatalogService {
                         continue;
                     }
                     temp.put(keyByBank(providerCode, bankCode), minimum);
+                }
+            }
+        });
+        return temp;
+    }
+
+    private Map<String, BigDecimal> loadMaximumsFromDb() throws Exception {
+        Map<String, BigDecimal> temp = new HashMap<>();
+        databaseExecutor.withConnection((DatabaseExecutor.ConnectionConsumer) connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_BANKS_BY_CHAIN);
+                    ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String bankCode = rs.getString("CODIGO");
+                    Integer providerCode = rs.getInt("CODIGO_BILLETERA_DIGITAL");
+                    BigDecimal maximum = rs.getBigDecimal("MAXIMO");
+                    if (providerCode == null || bankCode == null || bankCode.isBlank() || maximum == null) {
+                        continue;
+                    }
+                    temp.put(keyByBank(providerCode, bankCode), maximum);
                 }
             }
         });

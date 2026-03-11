@@ -43,6 +43,7 @@ public class DirectOnlinePaymentRequestsController {
 
     private static final String WS_KEY = "direct-online-payment-requests";
     private static final long MINIMUM_NOT_MET_ERROR_CODE = 1004L;
+    private static final long MAXIMUM_EXCEEDED_ERROR_CODE = 1005L;
 
     private final ProducerTemplate camel;
     private final ProvidersPayService providersPayService;
@@ -65,7 +66,7 @@ public class DirectOnlinePaymentRequestsController {
      * @param errorMappingCatalogService servicio de catalogo de mapeo de errores
      * @param integrationLogService servicio de auditoria de logs
      * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
-     * @param banksCatalogService catalogo de bancos y minimos
+     * @param banksCatalogService catalogo de bancos, minimos y maximos
      */
     public DirectOnlinePaymentRequestsController(ProducerTemplate camel,
             ProvidersPayService providersPayService,
@@ -115,6 +116,11 @@ public class DirectOnlinePaymentRequestsController {
             ResponseEntity<?> minimumValidationError = validateConfiguredMinimum(req);
             if (minimumValidationError != null) {
                 return minimumValidationError;
+            }
+
+            ResponseEntity<?> maximumValidationError = validateConfiguredMaximum(req);
+            if (maximumValidationError != null) {
+                return maximumValidationError;
             }
 
             outboundBody = directOnlinePaymentMap.mapProviderRequest(req, proveedor);
@@ -197,6 +203,18 @@ public class DirectOnlinePaymentRequestsController {
                 .orElse(null);
     }
 
+    private ResponseEntity<?> validateConfiguredMaximum(DirectOnlinePaymentRequest req) {
+        BigDecimal salesAmount = readSalesAmount(req);
+        if (salesAmount == null) {
+            return null;
+        }
+
+        return banksCatalogService.findMaximum(req.getPayment_provider_code(), req.getBank_id())
+                .filter(configuredMaximum -> salesAmount.compareTo(configuredMaximum) > 0)
+                .map(configuredMaximum -> buildMaximumValidationError(req, configuredMaximum, salesAmount))
+                .orElse(null);
+    }
+
     private ResponseEntity<ApiErrorResponse> buildMinimumValidationError(DirectOnlinePaymentRequest req,
             BigDecimal configuredMinimum, BigDecimal salesAmount) {
         ErrorInfo error = errorMappingCatalogService.buildErrorByCurrentCode(MINIMUM_NOT_MET_ERROR_CODE);
@@ -218,6 +236,30 @@ public class DirectOnlinePaymentRequestsController {
                 req.getPayment_provider_code(),
                 req.getBank_id());
         logInternal(req, errorBody, error.getHttp_code() == null ? 400 : error.getHttp_code(), "MINIMO_NO_CUMPLIDO");
+        return ResponseEntity.status(error.getHttp_code() == null ? 400 : error.getHttp_code()).body(errorBody);
+    }
+
+    private ResponseEntity<ApiErrorResponse> buildMaximumValidationError(DirectOnlinePaymentRequest req,
+            BigDecimal configuredMaximum, BigDecimal salesAmount) {
+        ErrorInfo error = errorMappingCatalogService.buildErrorByCurrentCode(MAXIMUM_EXCEEDED_ERROR_CODE);
+        if (error == null) {
+            error = ApiErrorUtils.invalidRequest("El monto excede el maximo configurado.", null, null, null);
+        }
+
+        ApiErrorResponse errorBody = ApiErrorUtils.buildResponse(
+                req.getChain(),
+                req.getStore(),
+                req.getStore_name(),
+                req.getPos(),
+                req.getChannel_POS(),
+                req.getPayment_provider_code(),
+                error);
+        log.info("Monto {} mayor al maximo configurado {} para provider {} y bank_id {}.",
+                salesAmount,
+                configuredMaximum,
+                req.getPayment_provider_code(),
+                req.getBank_id());
+        logInternal(req, errorBody, error.getHttp_code() == null ? 400 : error.getHttp_code(), "MAXIMO_EXCEDIDO");
         return ResponseEntity.status(error.getHttp_code() == null ? 400 : error.getHttp_code()).body(errorBody);
     }
 

@@ -326,7 +326,9 @@ La firma es el hash SHA-256 del texto base, en hexadecimal mayuscula.
 Regla de negocio:
 - Antes de invocar al proveedor, el backend valida el minimo configurado en `TUKUNAFUNC.AD_TIPO_PAGO.MINIMO` usando `payment_provider_code` + `bank_id`.
 - Si ese minimo no se cumple, la API responde con la estructura generica de error y el mapeo configurado en `TUKUNAFUNC.AD_MAPEO_ERRORES` para `CURRENT_ERROR_CODE = 1004`.
-- Si el minimo de `AD_TIPO_PAGO` se cumple, se mantiene la validacion propia del proveedor de billetera cuando este controle minimos por servicio o atributos.
+- Si el minimo configurado se cumple, el backend valida el maximo configurado en `TUKUNAFUNC.AD_TIPO_PAGO.MAXIMO` usando `payment_provider_code` + `bank_id`.
+- Si ese maximo se excede, la API responde con la estructura generica de error y el mapeo configurado en `TUKUNAFUNC.AD_MAPEO_ERRORES` para `CURRENT_ERROR_CODE = 1005`.
+- Si las validaciones de `AD_TIPO_PAGO` se cumplen, se mantiene la validacion propia del proveedor de billetera cuando este controle minimos o maximos por servicio o atributos.
 
 ## Codigos de respuesta
 

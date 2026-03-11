@@ -50,6 +50,7 @@ class DirectOnlinePaymentRequestsControllerTest {
         when(providersPayService.getProviderNameByCode(235689)).thenReturn("paysafe");
         when(gatewayWebServiceConfigService.isActive(235689, "direct-online-payment-requests")).thenReturn(true);
         when(banksCatalogService.findMinimum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("20.00")));
+        when(banksCatalogService.findMaximum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("100.00")));
 
         ErrorInfo mappedError = new ErrorInfo();
         mappedError.setHttp_code(400);
@@ -97,6 +98,7 @@ class DirectOnlinePaymentRequestsControllerTest {
         when(providersPayService.getProviderNameByCode(235689)).thenReturn("paysafe");
         when(gatewayWebServiceConfigService.isActive(235689, "direct-online-payment-requests")).thenReturn(true);
         when(banksCatalogService.findMinimum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("20.00")));
+        when(banksCatalogService.findMaximum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("100.00")));
         when(directOnlinePaymentMap.mapProviderRequest(any(), eq("paysafe"))).thenReturn(Map.of("amount", 25));
         when(camel.requestBodyAndHeaders(eq("direct:direct-online-payment-requests"), eq(Map.of("amount", 25)), anyMap()))
                 .thenReturn(Map.of("provider", "ok"));
@@ -145,6 +147,7 @@ class DirectOnlinePaymentRequestsControllerTest {
         when(providersPayService.getProviderNameByCode(235689)).thenReturn("paysafe");
         when(gatewayWebServiceConfigService.isActive(235689, "direct-online-payment-requests")).thenReturn(true);
         when(banksCatalogService.findMinimum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("20.00")));
+        when(banksCatalogService.findMaximum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("100.00")));
         when(directOnlinePaymentMap.mapProviderRequest(any(), eq("paysafe"))).thenReturn(providerRequest);
         when(camel.requestBodyAndHeaders(eq("direct:direct-online-payment-requests"), eq(providerRequest), anyMap()))
                 .thenReturn(rawProviderError);
@@ -173,6 +176,54 @@ class DirectOnlinePaymentRequestsControllerTest {
         assertThat(response.getStatusCode().value()).isEqualTo(409);
         verify(integrationLogService).logExternal(argThat((IntegrationLogRecord record) ->
                 rawProviderError.equals(record.getResponsePayload())));
+    }
+
+    @Test
+    void directOnlinePaymentRequestsReturnsMappedErrorWhenAmountExceedsConfiguredMaximum() {
+        ProducerTemplate camel = mock(ProducerTemplate.class);
+        ProvidersPayService providersPayService = mock(ProvidersPayService.class);
+        DirectOnlinePaymentMap directOnlinePaymentMap = mock(DirectOnlinePaymentMap.class);
+        ServiceMappingConfigService serviceMappingConfigService = mock(ServiceMappingConfigService.class);
+        ErrorMappingCatalogService errorMappingCatalogService = mock(ErrorMappingCatalogService.class);
+        IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
+        GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
+        BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+
+        when(providersPayService.getProviderNameByCode(235689)).thenReturn("paysafe");
+        when(gatewayWebServiceConfigService.isActive(235689, "direct-online-payment-requests")).thenReturn(true);
+        when(banksCatalogService.findMinimum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("20.00")));
+        when(banksCatalogService.findMaximum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("50.00")));
+
+        ErrorInfo mappedError = new ErrorInfo();
+        mappedError.setHttp_code(422);
+        mappedError.setCode("1005");
+        mappedError.setCategory("ERROR_CATEGORY");
+        mappedError.setMessage("El monto no cumple el maximo.");
+        mappedError.setInner_details(java.util.List.of());
+        when(errorMappingCatalogService.buildErrorByCurrentCode(1005L)).thenReturn(mappedError);
+
+        DirectOnlinePaymentRequestsController controller = new DirectOnlinePaymentRequestsController(
+                camel,
+                providersPayService,
+                directOnlinePaymentMap,
+                new ObjectMapper(),
+                serviceMappingConfigService,
+                errorMappingCatalogService,
+                integrationLogService,
+                gatewayWebServiceConfigService,
+                banksCatalogService);
+
+        DirectOnlinePaymentRequest request = buildRequest(new BigDecimal("60.00"));
+
+        ResponseEntity<?> response = controller.directOnlinePaymentRequests(request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(422);
+        assertThat(response.getBody()).isInstanceOf(ApiErrorResponse.class);
+        ApiErrorResponse body = (ApiErrorResponse) response.getBody();
+        assertThat(body.getError().getCode()).isEqualTo("1005");
+        assertThat(body.getError().getMessage()).isEqualTo("El monto no cumple el maximo.");
+        verify(camel, never()).requestBodyAndHeaders(anyString(), any(), anyMap());
+        verify(directOnlinePaymentMap, never()).mapProviderRequest(any(), any());
     }
 
     private DirectOnlinePaymentRequest buildRequest(BigDecimal amount) {

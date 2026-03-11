@@ -179,4 +179,49 @@ class ErrorMappingCatalogServiceTest {
         assertThat(mapped.getInner_details().get(0).getField_message())
                 .isEqualTo("El monto de la transaccion es menor que el minimo permitido en todos los metodos de pago.");
     }
+
+    @Test
+    void buildErrorByCurrentCodeReturnsMappedApiErrorForMaximumValidation() throws Exception {
+        DatabaseExecutor databaseExecutor = mock(DatabaseExecutor.class);
+        Connection connection = mock(Connection.class);
+        PreparedStatement statement = mock(PreparedStatement.class);
+        ResultSet resultSet = mock(ResultSet.class);
+
+        when(connection.prepareStatement("SELECT HTTP_STATUS, ERROR_CATEGORY, "
+                + "INNER_DETAILS_FIELD_MESSAGE, INNER_DETAILS_FIELD_MESSAGE_ES, CURRENT_ERROR_CODE, "
+                + "CURRENT_ERROR_MESSAGE, CURRENT_ERROR_MESSAGE_ES "
+                + "FROM TUKUNAFUNC.AD_MAPEO_ERRORES")).thenReturn(statement);
+        when(statement.executeQuery()).thenReturn(resultSet);
+        when(resultSet.next()).thenReturn(true, false);
+        when(resultSet.getObject("HTTP_STATUS")).thenReturn(422);
+        when(resultSet.getString("ERROR_CATEGORY")).thenReturn("ERROR_CATEGORY");
+        when(resultSet.getString("INNER_DETAILS_FIELD_MESSAGE"))
+                .thenReturn("Transaction amount is greater than the maximum allowed in all payment methods.");
+        when(resultSet.getString("INNER_DETAILS_FIELD_MESSAGE_ES"))
+                .thenReturn("El monto de la transaccion es mayor que el maximo permitido en todos los metodos de pago.");
+        when(resultSet.getObject("CURRENT_ERROR_CODE")).thenReturn(1005);
+        when(resultSet.getString("CURRENT_ERROR_MESSAGE")).thenReturn("Maximum amount exceeded.");
+        when(resultSet.getString("CURRENT_ERROR_MESSAGE_ES")).thenReturn("El monto no cumple el maximo.");
+
+        doAnswer(invocation -> {
+            DatabaseExecutor.ConnectionConsumer callback = invocation.getArgument(0);
+            callback.execute(connection);
+            return null;
+        }).when(databaseExecutor).withConnection(any(DatabaseExecutor.ConnectionConsumer.class));
+
+        ErrorMappingCatalogService service = new ErrorMappingCatalogService(databaseExecutor);
+        service.refreshCache();
+
+        ErrorInfo mapped = service.buildErrorByCurrentCode(1005L);
+
+        assertThat(mapped).isNotNull();
+        assertThat(mapped.getHttp_code()).isEqualTo(422);
+        assertThat(mapped.getCode()).isEqualTo("1005");
+        assertThat(mapped.getCategory()).isEqualTo("ERROR_CATEGORY");
+        assertThat(mapped.getMessage()).isEqualTo("El monto no cumple el maximo.");
+        assertThat(mapped.getInner_details()).hasSize(1);
+        assertThat(mapped.getInner_details().get(0).getInner_code()).isEqualTo("1005");
+        assertThat(mapped.getInner_details().get(0).getField_message())
+                .isEqualTo("El monto de la transaccion es mayor que el maximo permitido en todos los metodos de pago.");
+    }
 }
