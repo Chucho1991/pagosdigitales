@@ -16,6 +16,8 @@ import java.net.SocketTimeoutException;
 import java.util.Map;
 import java.util.Optional;
 
+import org.apache.camel.Exchange;
+import org.apache.camel.Message;
 import org.apache.camel.ProducerTemplate;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
@@ -101,8 +103,7 @@ class DirectOnlinePaymentRequestsControllerTest {
         when(banksCatalogService.findMinimum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("20.00")));
         when(banksCatalogService.findMaximum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("100.00")));
         when(directOnlinePaymentMap.mapProviderRequest(any(), eq("paysafe"))).thenReturn(Map.of("amount", 25));
-        when(camel.requestBodyAndHeaders(eq("direct:direct-online-payment-requests"), eq(Map.of("amount", 25)), anyMap()))
-                .thenReturn(Map.of("provider", "ok"));
+        mockCamelResponse(camel, Map.of("provider", "ok"), 200);
         when(serviceMappingConfigService.getErrorPath(235689, "direct-online-payment-requests", "paysafe"))
                 .thenReturn("error");
 
@@ -128,7 +129,7 @@ class DirectOnlinePaymentRequestsControllerTest {
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isSameAs(providerResponse);
-        verify(camel).requestBodyAndHeaders(eq("direct:direct-online-payment-requests"), eq(Map.of("amount", 25)), anyMap());
+        verify(camel).request(eq("direct:direct-online-payment-requests"), any());
     }
 
     @Test
@@ -150,8 +151,7 @@ class DirectOnlinePaymentRequestsControllerTest {
         when(banksCatalogService.findMinimum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("20.00")));
         when(banksCatalogService.findMaximum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("100.00")));
         when(directOnlinePaymentMap.mapProviderRequest(any(), eq("paysafe"))).thenReturn(providerRequest);
-        when(camel.requestBodyAndHeaders(eq("direct:direct-online-payment-requests"), eq(providerRequest), anyMap()))
-                .thenReturn(rawProviderError);
+        mockCamelResponse(camel, rawProviderError, 422);
         when(serviceMappingConfigService.getErrorPath(235689, "direct-online-payment-requests", "paysafe"))
                 .thenReturn("error");
 
@@ -265,6 +265,54 @@ class DirectOnlinePaymentRequestsControllerTest {
         assertThat(body.getError().getCode()).isEqualTo("GATEWAY_TIMEOUT");
         assertThat(body.getError().getMessage())
                 .isEqualTo("Se ha perdido la conexi\u00f3n con el proveedor de billetera de pago externo");
+    }
+
+    @Test
+    void directOnlinePaymentRequestsPropagatesUpstream422WhenBodyDoesNotMapAnError() {
+        ProducerTemplate camel = mock(ProducerTemplate.class);
+        ProvidersPayService providersPayService = mock(ProvidersPayService.class);
+        DirectOnlinePaymentMap directOnlinePaymentMap = mock(DirectOnlinePaymentMap.class);
+        ServiceMappingConfigService serviceMappingConfigService = mock(ServiceMappingConfigService.class);
+        ErrorMappingCatalogService errorMappingCatalogService = mock(ErrorMappingCatalogService.class);
+        IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
+        GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
+        BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+
+        when(providersPayService.getProviderNameByCode(235689)).thenReturn("paysafe");
+        when(gatewayWebServiceConfigService.isActive(235689, "direct-online-payment-requests")).thenReturn(true);
+        when(banksCatalogService.findMinimum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("20.00")));
+        when(banksCatalogService.findMaximum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("100.00")));
+        when(directOnlinePaymentMap.mapProviderRequest(any(), eq("paysafe"))).thenReturn(Map.of("amount", 25));
+        Map<String, Object> rawProviderError = Map.of("message", "validation failed");
+        mockCamelResponse(camel, rawProviderError, 422);
+        when(serviceMappingConfigService.getErrorPath(235689, "direct-online-payment-requests", "paysafe"))
+                .thenReturn("error.inexistente");
+
+        DirectOnlinePaymentRequestsController controller = new DirectOnlinePaymentRequestsController(
+                camel,
+                providersPayService,
+                directOnlinePaymentMap,
+                new ObjectMapper(),
+                serviceMappingConfigService,
+                errorMappingCatalogService,
+                integrationLogService,
+                gatewayWebServiceConfigService,
+                banksCatalogService);
+
+        ResponseEntity<?> response = controller.directOnlinePaymentRequests(buildRequest(new BigDecimal("25.00")));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(422);
+        assertThat(response.getBody()).isEqualTo(rawProviderError);
+        verify(directOnlinePaymentMap, never()).mapProviderResponse(any(), any(), any());
+    }
+
+    private void mockCamelResponse(ProducerTemplate camel, Object body, Integer httpStatus) {
+        Exchange exchange = mock(Exchange.class);
+        Message message = mock(Message.class);
+        when(camel.request(eq("direct:direct-online-payment-requests"), any())).thenReturn(exchange);
+        when(exchange.getMessage()).thenReturn(message);
+        when(message.getBody()).thenReturn(body);
+        when(message.getHeader(Exchange.HTTP_RESPONSE_CODE, Integer.class)).thenReturn(httpStatus);
     }
 
     private DirectOnlinePaymentRequest buildRequest(BigDecimal amount) {
