@@ -43,6 +43,7 @@ providers:
 Notas:
 - Ajusta `spring.datasource.*` segun el entorno.
 - Ajusta el pool JDBC con `DB_POOL_MAX_SIZE`, `DB_POOL_MIN_IDLE`, `DB_POOL_CONNECTION_TIMEOUT_MS`, `DB_POOL_IDLE_TIMEOUT_MS`, `DB_POOL_MAX_LIFETIME_MS`.
+- Ajusta el timeout HTTP externo con `integration.external-http.timeout` o la variable `EXTERNAL_HTTP_TIMEOUT_MS` (por defecto `30000` ms; puede heredarse desde `.env`).
 - Los proveedores de pago se leen desde `TUKUNAFUNC.AD_BILLETERAS_DIGITALES` (`CODIGO`, `NOMBRE_BILLETERA_DIGITAL`, `ACTIVA='S'`).
 - La configuracion de consumo de WS externos se lee desde `TUKUNAFUNC.IN_PASARELA_WS` por `CODIGO_BILLETERA` (request `payment_provider_code`) y `WS_KEY`.
 - Los headers de consumo externo se leen desde `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`.
@@ -180,7 +181,7 @@ Comportamiento de `OrderNo` en CSV de confirmation:
 - Tasa de errores p99: <= 0.5%.
 - Ventanas de mantenimiento y contacto NOC: definir por entorno.
 - Politica de reintentos: exponencial (100ms, 500ms, 2s; max 3).
-- Timeout maximo por request: 2s.
+- Timeout HTTP externo por defecto: `30000` ms, configurable con `integration.external-http.timeout` o `EXTERNAL_HTTP_TIMEOUT_MS`.
 
 ## Estructura de errores (excepto SafetyPay)
 
@@ -246,6 +247,7 @@ Luego de extraer el error del proveedor, la API aplica el catalogo `TUKUNAFUNC.A
 
 - `200`: consulta procesada correctamente.
 - `400`: request invalido o proveedor no configurado.
+- `504`: el proveedor externo excedio el timeout configurado.
 - `500`: error tecnico interno.
 
 ## Ejemplo de request
@@ -334,6 +336,7 @@ Regla de negocio:
 
 - `200`: consulta procesada correctamente.
 - `400`: request invalido o proveedor no configurado.
+- `504`: el proveedor externo excedio el timeout configurado.
 - `500`: error tecnico interno.
 
 ## Ejemplo de request
@@ -429,6 +432,7 @@ Validaciones:
 
 - `200`: consulta procesada correctamente.
 - `400`: request invalido o proveedor no configurado.
+- `504`: el proveedor externo excedio el timeout configurado.
 - `500`: error tecnico interno.
 
 ## Ejemplo de request

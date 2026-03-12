@@ -4,6 +4,7 @@ import org.apache.camel.builder.RouteBuilder;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.femsa.gpf.pagosdigitales.infrastructure.config.ExternalServiceHttpProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ProviderHeaderService;
 
@@ -16,6 +17,7 @@ public class DynamicMerchantEventsRoute extends RouteBuilder {
     private final ObjectMapper objectMapper;
     private final ProviderHeaderService providerHeaderService;
     private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
+    private final ExternalServiceHttpProperties externalServiceHttpProperties;
 
     /**
      * Crea la ruta con la configuracion y el serializador.
@@ -23,13 +25,16 @@ public class DynamicMerchantEventsRoute extends RouteBuilder {
      * @param objectMapper serializador de payloads
      * @param providerHeaderService servicio de headers por proveedor
      * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
+     * @param externalServiceHttpProperties propiedades de timeout HTTP externo
      */
     public DynamicMerchantEventsRoute(ObjectMapper objectMapper,
             ProviderHeaderService providerHeaderService,
-            GatewayWebServiceConfigService gatewayWebServiceConfigService) {
+            GatewayWebServiceConfigService gatewayWebServiceConfigService,
+            ExternalServiceHttpProperties externalServiceHttpProperties) {
         this.objectMapper = objectMapper;
         this.providerHeaderService = providerHeaderService;
         this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
+        this.externalServiceHttpProperties = externalServiceHttpProperties;
     }
 
     /**
@@ -51,9 +56,7 @@ public class DynamicMerchantEventsRoute extends RouteBuilder {
                     String url = cfg.uri();
                     exchange.setProperty("url", url);
                     exchange.setProperty("httpMethod", cfg.method());
-                    exchange.setProperty("endpointSuffix", url.contains("?")
-                            ? "&throwExceptionOnFailure=false"
-                            : "?throwExceptionOnFailure=false");
+                    exchange.setProperty("endpointSuffix", externalServiceHttpProperties.buildEndpointSuffix(url));
 
                     var providerHeaders = providerHeaderService.getHeadersByProviderCode(providerCode);
                     if (providerHeaders.isEmpty()) {

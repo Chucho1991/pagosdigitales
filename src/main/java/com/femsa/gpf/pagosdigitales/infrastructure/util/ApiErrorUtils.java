@@ -16,6 +16,8 @@ import com.femsa.gpf.pagosdigitales.api.dto.ErrorInnerDetail;
 public final class ApiErrorUtils {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+    private static final String EXTERNAL_TIMEOUT_MESSAGE =
+            "Se ha perdido la conexi\u00f3n con el proveedor de billetera de pago externo";
 
     private ApiErrorUtils() {
     }
@@ -115,6 +117,23 @@ public final class ApiErrorUtils {
         error.setCode("INTERNAL_ERROR");
         error.setCategory("INTERNAL_SERVER_ERROR");
         error.setMessage(message);
+        error.setInformation_link(null);
+        error.setInner_details(Collections.emptyList());
+        return error;
+    }
+
+    /**
+     * Construye un error para timeout de proveedor externo.
+     *
+     * @param message mensaje principal
+     * @return estructura de error
+     */
+    public static ErrorInfo gatewayTimeout(String message) {
+        ErrorInfo error = new ErrorInfo();
+        error.setHttp_code(504);
+        error.setCode("GATEWAY_TIMEOUT");
+        error.setCategory("TIMEOUT_ERROR");
+        error.setMessage(message == null || message.isBlank() ? EXTERNAL_TIMEOUT_MESSAGE : message);
         error.setInformation_link(null);
         error.setInner_details(Collections.emptyList());
         return error;

@@ -3,6 +3,7 @@ package com.femsa.gpf.pagosdigitales.infrastructure.camel.routes;
 import org.apache.camel.builder.RouteBuilder;
 import org.springframework.stereotype.Component;
 
+import com.femsa.gpf.pagosdigitales.infrastructure.config.ExternalServiceHttpProperties;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceDefinitionService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ProviderHeaderService;
@@ -16,6 +17,7 @@ public class DynamicPaymentsRoute extends RouteBuilder {
     private final GatewayWebServiceDefinitionService gatewayWebServiceDefinitionService;
     private final ProviderHeaderService providerHeaderService;
     private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
+    private final ExternalServiceHttpProperties externalServiceHttpProperties;
 
     /**
      * Crea la ruta con las propiedades de proveedores de pagos.
@@ -23,13 +25,16 @@ public class DynamicPaymentsRoute extends RouteBuilder {
      * @param gatewayWebServiceDefinitionService servicio de definiciones por BD
      * @param providerHeaderService servicio de headers por proveedor
      * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
+     * @param externalServiceHttpProperties propiedades de timeout HTTP externo
      */
     public DynamicPaymentsRoute(GatewayWebServiceDefinitionService gatewayWebServiceDefinitionService,
             ProviderHeaderService providerHeaderService,
-            GatewayWebServiceConfigService gatewayWebServiceConfigService) {
+            GatewayWebServiceConfigService gatewayWebServiceConfigService,
+            ExternalServiceHttpProperties externalServiceHttpProperties) {
         this.gatewayWebServiceDefinitionService = gatewayWebServiceDefinitionService;
         this.providerHeaderService = providerHeaderService;
         this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
+        this.externalServiceHttpProperties = externalServiceHttpProperties;
     }
 
     /**
@@ -68,11 +73,10 @@ public class DynamicPaymentsRoute extends RouteBuilder {
                     queryParams.forEach((k, v) -> url.append(k).append("=").append(v).append("&"));
                     url.deleteCharAt(url.length() - 1);
 
-                    exchange.setProperty("url", url.toString());
+                    String resolvedUrl = url.toString();
+                    exchange.setProperty("url", resolvedUrl);
                     exchange.setProperty("httpMethod", wsCfg.method());
-                    exchange.setProperty("endpointSuffix", url.indexOf("?") >= 0
-                            ? "&throwExceptionOnFailure=false"
-                            : "?throwExceptionOnFailure=false");
+                    exchange.setProperty("endpointSuffix", externalServiceHttpProperties.buildEndpointSuffix(resolvedUrl));
 
                     var providerHeaders = providerHeaderService.getHeadersByProviderCode(providerCode);
                     if (providerHeaders.isEmpty()) {

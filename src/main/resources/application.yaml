@@ -47,6 +47,10 @@ camel:
 providers:
   dynamic-routes-enabled: true
 
+integration:
+  external-http:
+    timeout: ${EXTERNAL_HTTP_TIMEOUT_MS:30000}
+
 safetypay:
   confirmation:
     # Configuracion resuelta desde BD:

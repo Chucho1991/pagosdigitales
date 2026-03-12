@@ -34,6 +34,7 @@ import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ExternalCallTimer;
+import com.femsa.gpf.pagosdigitales.infrastructure.util.ExternalServiceExceptionUtils;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -169,6 +170,8 @@ public class BanksController {
 
                 Map<String, Integer> listProveedores = providersPayService.getAllProviders();
                 List<ProviderItem> listProvidersData = new ArrayList<>();
+                boolean attemptedProvider = false;
+                boolean timeoutDetected = false;
 
                 if (listProveedores == null || listProveedores.isEmpty()) {
                     throw new IllegalArgumentException("Proveedores no configurados");
@@ -182,14 +185,36 @@ public class BanksController {
                     if (!gatewayWebServiceConfigService.isActive(codProveedor, WS_KEY)) {
                         log.warn("Proveedor no configurado: {}", proveedor);
                     } else {
+                        attemptedProvider = true;
 
                         log.info("Proveedor configurado: {} - Codigo: {}", proveedor, codProveedor);
 
-                        ProviderItem providerItem = fetchProviderBanks(req, entryProveedor);
-                        if (providerItem != null) {
-                            listProvidersData.add(providerItem);
+                        ProviderFetchResult providerFetchResult = fetchProviderBanks(req, entryProveedor);
+                        if (providerFetchResult.timeout()) {
+                            timeoutDetected = true;
+                        }
+                        if (providerFetchResult.providerItem() != null) {
+                            listProvidersData.add(providerFetchResult.providerItem());
                         }
                     }
+                }
+
+                if (listProvidersData.isEmpty() && attemptedProvider) {
+                    if (timeoutDetected) {
+                        ErrorInfo error = ApiErrorUtils.gatewayTimeout(null);
+                        Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(),
+                                req.getStore_name(), req.getPos(), req.getChannel_POS(),
+                                req.getPayment_provider_code(), error);
+                        logInternal(req, errorBody, 504, "ERROR_TIMEOUT");
+                        return ResponseEntity.status(504).body(errorBody);
+                    }
+
+                    ErrorInfo error = ApiErrorUtils.genericError(500, "Internal error");
+                    Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(),
+                            req.getStore_name(), req.getPos(), req.getChannel_POS(),
+                            req.getPayment_provider_code(), error);
+                    logInternal(req, errorBody, 500, "ERROR_INTERNO");
+                    return ResponseEntity.status(500).body(errorBody);
                 }
 
                 BanksResponse response = banksMap.mapAllBanksResponse(req, listProvidersData);
@@ -206,17 +231,23 @@ public class BanksController {
             return ResponseEntity.status(400).body(errorBody);
         } catch (Exception e) {
             log.error("Error procesando banks", e);
-            ErrorInfo error = ApiErrorUtils.genericError(500, "Internal error");
+            boolean timeout = ExternalServiceExceptionUtils.isTimeoutException(e);
+            int httpCode = timeout ? 504 : 500;
+            String message = timeout
+                    ? "Se ha perdido la conexi\u00f3n con el proveedor de billetera de pago externo"
+                    : "Internal error";
+            String logMessage = timeout ? "ERROR_TIMEOUT" : "ERROR_TECNICO";
+            ErrorInfo error = timeout ? ApiErrorUtils.gatewayTimeout(message) : ApiErrorUtils.genericError(500, message);
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             if (proveedorSeleccionado != null) {
                 logExternal(req, headersProveedor, externalResponse == null ? errorBody : externalResponse,
-                        req.getPayment_provider_code(), proveedorSeleccionado, 500,
-                        "ERROR_TECNICO",
+                        req.getPayment_provider_code(), proveedorSeleccionado, httpCode,
+                        logMessage,
                         externalElapsedMs);
             }
-            logInternal(req, errorBody, 500, "ERROR_INTERNO");
-            return ResponseEntity.status(500).body(errorBody);
+            logInternal(req, errorBody, httpCode, timeout ? "ERROR_TIMEOUT" : "ERROR_INTERNO");
+            return ResponseEntity.status(httpCode).body(errorBody);
         }
     }
 
@@ -310,7 +341,7 @@ public class BanksController {
      * @param providerEntry entrada proveedor->código
      * @return item de proveedor con respuesta cruda o null si la consulta falla
      */
-    private ProviderItem fetchProviderBanks(BanksRequest req, Map.Entry<String, Integer> providerEntry) {
+    private ProviderFetchResult fetchProviderBanks(BanksRequest req, Map.Entry<String, Integer> providerEntry) {
         String providerName = providerEntry.getKey();
         Integer providerCode = providerEntry.getValue();
         Map<String, Object> camelHeaders = buildCamelHeaders(req, providerName, providerCode);
@@ -325,7 +356,7 @@ public class BanksController {
                             providerName, providerCode, e.getMessage());
                     logExternal(req, null, "Error consultando proveedor: " + e.getMessage(),
                             providerCode, providerName, 500, "ERROR_CAMEL", providerElapsedMs);
-                    return null;
+                    return new ProviderFetchResult(null, false);
                 }
                 throw timedExecution.exception();
             }
@@ -336,9 +367,8 @@ public class BanksController {
                         providerName, providerCode, "Respuesta vacia de proveedor");
                 logExternal(req, null, "Error consultando proveedor: respuesta vacia", providerCode,
                         providerName, 500, "ERROR_CAMEL", providerElapsedMs);
-                return null;
+                return new ProviderFetchResult(null, false);
             }
-
             log.info("Response recibido de proveedor {}: {}", providerName,
                     AppUtils.formatPayload(rawResp, objectMapper));
             logExternal(req, camelHeaders, rawResp, providerCode, providerName, 200, "OK", providerElapsedMs);
@@ -346,13 +376,18 @@ public class BanksController {
             ProviderItem providerItem = new ProviderItem();
             providerItem.setPayment_provider(providerEntry);
             providerItem.setData(rawResp);
-            return providerItem;
+            return new ProviderFetchResult(providerItem, false);
         } catch (Exception e) {
+            int status = ExternalServiceExceptionUtils.isTimeoutException(e) ? 504 : 500;
+            String logMessage = status == 504 ? "ERROR_TIMEOUT" : "ERROR_CAMEL";
             log.error("Error consultando proveedor {} ({}). Continuando con el siguiente. Error: {}",
                     providerName, providerCode, e.getMessage());
             logExternal(req, null, "Error consultando proveedor: " + e.getMessage(), providerCode,
-                    providerName, 500, "ERROR_CAMEL", null);
-            return null;
+                    providerName, status, logMessage, null);
+            return new ProviderFetchResult(null, status == 504);
         }
+    }
+
+    private record ProviderFetchResult(ProviderItem providerItem, boolean timeout) {
     }
 }

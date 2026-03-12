@@ -29,6 +29,7 @@ import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ExternalCallTimer;
+import com.femsa.gpf.pagosdigitales.infrastructure.util.ExternalServiceExceptionUtils;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -166,16 +167,22 @@ public class PaymentsController {
             return ResponseEntity.status(400).body(errorBody);
         } catch (Exception e) {
             log.error("Error procesando payments", e);
-            ErrorInfo error = ApiErrorUtils.genericError(500, "Internal error");
+            boolean timeout = ExternalServiceExceptionUtils.isTimeoutException(e);
+            int httpCode = timeout ? 504 : 500;
+            String message = timeout
+                    ? "Se ha perdido la conexi\u00f3n con el proveedor de billetera de pago externo"
+                    : "Internal error";
+            String logMessage = timeout ? "ERROR_TIMEOUT" : "ERROR_TECNICO";
+            ErrorInfo error = timeout ? ApiErrorUtils.gatewayTimeout(message) : ApiErrorUtils.genericError(500, message);
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
             if (proveedor != null) {
                 logExternal(req, camelHeaders, externalResponse == null ? errorBody : externalResponse,
-                        req.getPayment_provider_code(), proveedor, 500,
-                        "ERROR_TECNICO", externalElapsedMs);
+                        req.getPayment_provider_code(), proveedor, httpCode,
+                        logMessage, externalElapsedMs);
             }
-            logInternal(req, errorBody, 500, "ERROR_INTERNO");
-            return ResponseEntity.status(500).body(errorBody);
+            logInternal(req, errorBody, httpCode, timeout ? "ERROR_TIMEOUT" : "ERROR_INTERNO");
+            return ResponseEntity.status(httpCode).body(errorBody);
         }
     }
 

@@ -2,14 +2,14 @@ openapi: 3.0.3
 info:
   title: PagosDigitales API
   version: 0.0.1
-  description: API unificada para Pagos Digitales con rutas dinÃ¡micas y SafetyPay Confirmation.
+  description: API unificada para Pagos Digitales con rutas dinamicas y SafetyPay Confirmation.
 servers:
   - url: http://localhost:8080
 paths:
   /api/v1/banks:
     post:
       summary: Consulta bancos por proveedor o todos los proveedores configurados.
-      description: Si `payment_provider_code` no se envía, el backend consulta todos los proveedores activos y consolida la respuesta.
+      description: Si `payment_provider_code` no se envia, el backend consulta todos los proveedores activos y consolida la respuesta.
       requestBody:
         required: true
         content:
@@ -24,7 +24,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/BanksResponse'
         '400':
-          description: Request inválido o proveedor no configurado.
+          description: Request invalido o proveedor no configurado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '504':
+          description: El proveedor externo excedio el timeout configurado.
           content:
             application/json:
               schema:
@@ -37,7 +43,7 @@ paths:
                 $ref: '#/components/schemas/ApiErrorResponse'
   /api/v1/payments:
     post:
-      summary: Consulta pagos por operación.
+      summary: Consulta pagos por operacion.
       requestBody:
         required: true
         content:
@@ -52,7 +58,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaymentsResponse'
         '400':
-          description: Request inválido o proveedor no configurado.
+          description: Request invalido o proveedor no configurado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '504':
+          description: El proveedor externo excedio el timeout configurado.
           content:
             application/json:
               schema:
@@ -65,7 +77,7 @@ paths:
                 $ref: '#/components/schemas/ApiErrorResponse'
   /api/v1/direct-online-payment-requests:
     post:
-      summary: Solicita un pago en línea directo.
+      summary: Solicita un pago en linea directo.
       requestBody:
         required: true
         content:
@@ -74,13 +86,19 @@ paths:
               $ref: '#/components/schemas/DirectOnlinePaymentRequest'
       responses:
         '200':
-          description: Respuesta de pago en línea.
+          description: Respuesta de pago en linea.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/DirectOnlinePaymentResponse'
         '400':
-          description: Request inválido, proveedor no configurado o validación de negocio.
+          description: Request invalido, proveedor no configurado o validacion de negocio.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '504':
+          description: El proveedor externo excedio el timeout configurado.
           content:
             application/json:
               schema:
@@ -275,7 +293,7 @@ components:
       description: Respuesta normalizada de pagos.
     DirectOnlinePaymentResponse:
       type: object
-      description: Respuesta normalizada de pagos en lÃ­nea.
+      description: Respuesta normalizada de pagos en linea.
     ApiErrorResponse:
       type: object
       properties:
@@ -293,8 +311,6 @@ components:
           type: integer
         error:
           $ref: '#/components/schemas/ErrorInfo'
-
     MerchantEventsResponse:
       type: object
       description: Respuesta normalizada de merchant events.
-

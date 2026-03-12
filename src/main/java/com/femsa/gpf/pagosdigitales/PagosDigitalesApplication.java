@@ -5,11 +5,13 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import com.femsa.gpf.pagosdigitales.infrastructure.config.ExternalServiceHttpProperties;
+
 /**
  * Punto de entrada de la aplicacion Pagos Digitales.
  */
 @SpringBootApplication
-@EnableConfigurationProperties
+@EnableConfigurationProperties(ExternalServiceHttpProperties.class)
 @EnableScheduling
 public class PagosDigitalesApplication {
 

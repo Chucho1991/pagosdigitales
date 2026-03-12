@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.net.SocketTimeoutException;
 import java.util.Map;
 import java.util.Optional;
 
@@ -224,6 +225,46 @@ class DirectOnlinePaymentRequestsControllerTest {
         assertThat(body.getError().getMessage()).isEqualTo("El monto no cumple el maximo.");
         verify(camel, never()).requestBodyAndHeaders(anyString(), any(), anyMap());
         verify(directOnlinePaymentMap, never()).mapProviderRequest(any(), any());
+    }
+
+    @Test
+    void directOnlinePaymentRequestsReturnsGatewayTimeoutWhenProviderCallExpires() {
+        ProducerTemplate camel = mock(ProducerTemplate.class);
+        ProvidersPayService providersPayService = mock(ProvidersPayService.class);
+        DirectOnlinePaymentMap directOnlinePaymentMap = mock(DirectOnlinePaymentMap.class);
+        ServiceMappingConfigService serviceMappingConfigService = mock(ServiceMappingConfigService.class);
+        ErrorMappingCatalogService errorMappingCatalogService = mock(ErrorMappingCatalogService.class);
+        IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
+        GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
+        BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+
+        when(providersPayService.getProviderNameByCode(235689)).thenReturn("paysafe");
+        when(gatewayWebServiceConfigService.isActive(235689, "direct-online-payment-requests")).thenReturn(true);
+        when(banksCatalogService.findMinimum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("20.00")));
+        when(banksCatalogService.findMaximum(235689, "0123")).thenReturn(Optional.of(new BigDecimal("100.00")));
+        when(directOnlinePaymentMap.mapProviderRequest(any(), eq("paysafe"))).thenReturn(Map.of("amount", 25));
+        when(camel.requestBodyAndHeaders(eq("direct:direct-online-payment-requests"), eq(Map.of("amount", 25)), anyMap()))
+                .thenThrow(new RuntimeException(new SocketTimeoutException("Read timed out")));
+
+        DirectOnlinePaymentRequestsController controller = new DirectOnlinePaymentRequestsController(
+                camel,
+                providersPayService,
+                directOnlinePaymentMap,
+                new ObjectMapper(),
+                serviceMappingConfigService,
+                errorMappingCatalogService,
+                integrationLogService,
+                gatewayWebServiceConfigService,
+                banksCatalogService);
+
+        ResponseEntity<?> response = controller.directOnlinePaymentRequests(buildRequest(new BigDecimal("25.00")));
+
+        assertThat(response.getStatusCode().value()).isEqualTo(504);
+        assertThat(response.getBody()).isInstanceOf(ApiErrorResponse.class);
+        ApiErrorResponse body = (ApiErrorResponse) response.getBody();
+        assertThat(body.getError().getCode()).isEqualTo("GATEWAY_TIMEOUT");
+        assertThat(body.getError().getMessage())
+                .isEqualTo("Se ha perdido la conexi\u00f3n con el proveedor de billetera de pago externo");
     }
 
     private DirectOnlinePaymentRequest buildRequest(BigDecimal amount) {
