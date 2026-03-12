@@ -27,7 +27,6 @@ import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebService
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
-import com.femsa.gpf.pagosdigitales.infrastructure.util.CamelHttpResponseUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ChannelPosUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ExternalCallTimer;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ExternalServiceExceptionUtils;
@@ -123,21 +122,17 @@ public class PaymentsController {
             );
             final Map<String, Object> headersForProvider = camelHeaders;
 
-            ExternalCallTimer.TimedExecution<CamelHttpResponseUtils.CamelHttpResponse> timedExecution =
-                    ExternalCallTimer.execute(
-                            () -> CamelHttpResponseUtils.request(
-                                    camel,
-                                    "direct:payments",
-                                    null,
-                                    headersForProvider));
+            ExternalCallTimer.TimedExecution<Object> timedExecution = ExternalCallTimer.execute(
+                    () -> camel.requestBodyAndHeaders(
+                            "direct:payments",
+                            null,
+                            headersForProvider));
             externalElapsedMs = timedExecution.elapsedMs();
             if (timedExecution.exception() != null) {
                 throw timedExecution.exception();
             }
-            CamelHttpResponseUtils.CamelHttpResponse upstreamResponse = timedExecution.value();
-            Object rawResp = upstreamResponse.body();
+            Object rawResp = timedExecution.value();
             externalResponse = rawResp;
-            Integer upstreamHttpStatus = upstreamResponse.httpStatus();
 
             log.info("Response recibido de proveedor {}: {}", proveedor,
                     AppUtils.formatPayload(rawResp, objectMapper));
@@ -157,20 +152,13 @@ public class PaymentsController {
                 logInternal(req, errorBody, httpCode, "ERROR_PROVEEDOR");
                 return ResponseEntity.status(httpCode).body(errorBody);
             }
-            if (CamelHttpResponseUtils.isErrorStatus(upstreamHttpStatus)) {
-                logExternal(req, camelHeaders, rawResp, req.getPayment_provider_code(), proveedor, upstreamHttpStatus,
-                        "ERROR_PROVEEDOR_HTTP", externalElapsedMs);
-                logInternal(req, rawResp, upstreamHttpStatus, "ERROR_PROVEEDOR_HTTP");
-                return ResponseEntity.status(upstreamHttpStatus).body(rawResp);
-            }
 
             PaymentsResponse response = paymentsMap.mapProviderResponse(req, rawResp, proveedor);
             log.info("Response enviado al cliente payments: {}", response);
-            int httpStatus = upstreamHttpStatus == null ? 200 : upstreamHttpStatus;
-            logExternal(req, camelHeaders, rawResp, req.getPayment_provider_code(), proveedor, httpStatus, "OK",
+            logExternal(req, camelHeaders, rawResp, req.getPayment_provider_code(), proveedor, 200, "OK",
                     externalElapsedMs);
-            logInternal(req, response, httpStatus, "OK");
-            return ResponseEntity.status(httpStatus).body(response);
+            logInternal(req, response, 200, "OK");
+            return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             ErrorInfo error = ApiErrorUtils.invalidRequest(e.getMessage(), null, null, null);
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
