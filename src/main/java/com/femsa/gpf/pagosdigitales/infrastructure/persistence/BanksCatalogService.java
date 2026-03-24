@@ -24,7 +24,7 @@ import lombok.extern.log4j.Log4j2;
 @Service
 public class BanksCatalogService {
 
-    private static final String SELECT_ACTIVE_BANKS_BY_CHAIN = "SELECT CODIGO, CODIGO_BILLETERA_DIGITAL, MINIMO, MAXIMO, "
+    private static final String SELECT_ACTIVE_BANKS_BY_CHAIN = "SELECT CODIGO_ESTABLECIMIENTO AS CODIGO, CODIGO_BILLETERA_DIGITAL, MINIMO, MAXIMO, "
             + "NVL(CADENA_FYB, 'N') CADENA_FYB, NVL(CADENA_SANA, 'N') CADENA_SANA, "
             + "NVL(CADENA_OKI, 'N') CADENA_OKI, NVL(CADENA_FR, 'N') CADENA_FR "
             + "FROM TUKUNAFUNC.AD_TIPO_PAGO "
@@ -33,7 +33,7 @@ public class BanksCatalogService {
     private static final String SELECT_ACTIVE_CHANNEL_BANKS = "SELECT "
             + "A.DESCRIPCION AS CANAL, "
             + "A.ACTIVO AS ESTADO, "
-            + "B.CODIGO_TIPOPAGO AS ID_BANCO, "
+            + "C.CODIGO_ESTABLECIMIENTO AS ID_BANCO, "
             + "C.CODIGO_BILLETERA_DIGITAL AS ID_PROVEEDOR_PAGO "
             + "FROM TUKUNAFUNC.AD_CANAL A, "
             + "TUKUNAFUNC.AD_CANAL_TIPO_PAGO B, "

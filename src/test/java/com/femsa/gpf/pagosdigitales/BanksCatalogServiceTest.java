@@ -1,17 +1,16 @@
 package com.femsa.gpf.pagosdigitales;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.BanksCatalogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.DatabaseExecutor;
@@ -27,7 +26,7 @@ class BanksCatalogServiceTest {
         ResultSet chainResultSet = mock(ResultSet.class);
         ResultSet channelResultSet = mock(ResultSet.class);
 
-        when(connection.prepareStatement("SELECT CODIGO, CODIGO_BILLETERA_DIGITAL, MINIMO, MAXIMO, "
+        when(connection.prepareStatement("SELECT CODIGO_ESTABLECIMIENTO AS CODIGO, CODIGO_BILLETERA_DIGITAL, MINIMO, MAXIMO, "
                 + "NVL(CADENA_FYB, 'N') CADENA_FYB, NVL(CADENA_SANA, 'N') CADENA_SANA, "
                 + "NVL(CADENA_OKI, 'N') CADENA_OKI, NVL(CADENA_FR, 'N') CADENA_FR "
                 + "FROM TUKUNAFUNC.AD_TIPO_PAGO "
