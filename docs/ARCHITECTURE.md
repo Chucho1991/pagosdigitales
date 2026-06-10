@@ -67,9 +67,12 @@ Ubicación: `src/main/resources/application.yaml`
 
 ### 5.1 Base
 - `server.port`
-- `spring.datasource.*`
+- `database.primary-name`
+- `database.connections.*`
 - `spring.jpa.*`
 - `camel.springboot.main-run-controller`
+
+La conexion `database.primary-name` se expone como `dataSource` primario para los servicios existentes. Conexiones adicionales, como `appdfm`, se resuelven por nombre desde `DatabaseConnectionRegistry`.
 
 ### 5.2 Configuracion de proveedores externos (BD)
 - Tabla `TUKUNAFUNC.AD_BILLETERAS_DIGITALES`: catalogo de proveedores activos.

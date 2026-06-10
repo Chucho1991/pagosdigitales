@@ -22,15 +22,36 @@ cod_GEO_FR: ${COD_CADENA_GEO_FR:70}
 spring:
   application:
     name: pagosDigitales
-  datasource:
-    url: jdbc:oracle:thin:@localhost:1521/XEPDB1
-    username: GPF
-    password: GPF123
-    driver-class-name: oracle.jdbc.OracleDriver
   jpa:
     show-sql: false
     hibernate:
       ddl-auto: none
+
+database:
+  primary-name: default
+  connections:
+    default:
+      url: ${DB_URL:jdbc:oracle:thin:@localhost:1521/XEPDB1}
+      username: ${DB_USERNAME:GPF}
+      password: ${DB_PASSWORD:GPF123}
+      driver-class-name: ${DB_DRIVER:oracle.jdbc.OracleDriver}
+      pool:
+        maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+        minimum-idle: ${DB_POOL_MIN_IDLE:5}
+        connection-timeout: ${DB_POOL_CONNECTION_TIMEOUT_MS:2000}
+        idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:300000}
+        max-lifetime: ${DB_POOL_MAX_LIFETIME_MS:1800000}
+    appdfm:
+      url: ${DB_APPDFM_URL:jdbc:oracle:thin:@localhost:1521/APPTEST}
+      username: ${DB_APPDFM_USERNAME:TRX3}
+      password: ${DB_APPDFM_PASSWORD:secret}
+      driver-class-name: ${DB_APPDFM_DRIVER:oracle.jdbc.OracleDriver}
+      pool:
+        maximum-pool-size: ${DB_APPDFM_POOL_MAX_SIZE:20}
+        minimum-idle: ${DB_APPDFM_POOL_MIN_IDLE:5}
+        connection-timeout: ${DB_APPDFM_POOL_CONNECTION_TIMEOUT_MS:2000}
+        idle-timeout: ${DB_APPDFM_POOL_IDLE_TIMEOUT_MS:300000}
+        max-lifetime: ${DB_APPDFM_POOL_MAX_LIFETIME_MS:1800000}
 
 camel:
   springboot:
@@ -41,8 +62,10 @@ providers:
 ```
 
 Notas:
-- Ajusta `spring.datasource.*` segun el entorno.
-- Ajusta el pool JDBC con `DB_POOL_MAX_SIZE`, `DB_POOL_MIN_IDLE`, `DB_POOL_CONNECTION_TIMEOUT_MS`, `DB_POOL_IDLE_TIMEOUT_MS`, `DB_POOL_MAX_LIFETIME_MS`.
+- Ajusta `database.connections.default.*` segun el entorno. Esta conexion se expone como `dataSource` primario y mantiene compatibilidad con los servicios existentes.
+- Para agregar otra BDD, crea un bloque `database.connections.<nombre>` con sus variables de URL, credenciales, driver y pool. La conexion se obtiene desde `DatabaseConnectionRegistry` por nombre.
+- Ajusta el pool JDBC principal con `DB_POOL_MAX_SIZE`, `DB_POOL_MIN_IDLE`, `DB_POOL_CONNECTION_TIMEOUT_MS`, `DB_POOL_IDLE_TIMEOUT_MS`, `DB_POOL_MAX_LIFETIME_MS`.
+- Ajusta el pool JDBC APPDFM con `DB_APPDFM_POOL_MAX_SIZE`, `DB_APPDFM_POOL_MIN_IDLE`, `DB_APPDFM_POOL_CONNECTION_TIMEOUT_MS`, `DB_APPDFM_POOL_IDLE_TIMEOUT_MS`, `DB_APPDFM_POOL_MAX_LIFETIME_MS`.
 - Ajusta el timeout HTTP externo con `integration.external-http.timeout` o la variable `EXTERNAL_HTTP_TIMEOUT_MS` (por defecto `30000` ms; puede heredarse desde `.env`).
 - Los proveedores de pago se leen desde `TUKUNAFUNC.AD_BILLETERAS_DIGITALES` (`CODIGO`, `NOMBRE_BILLETERA_DIGITAL`, `ACTIVA='S'`).
 - La configuracion de consumo de WS externos se lee desde `TUKUNAFUNC.IN_PASARELA_WS` por `CODIGO_BILLETERA` (request `payment_provider_code`) y `WS_KEY`.

@@ -74,8 +74,11 @@ Ubicación: `src/main/resources/application.yaml`
 
 ### 7.1 Base
 - `server.port`
-- `spring.datasource.*`
+- `database.primary-name`
+- `database.connections.*`
 - `spring.jpa.*`
+
+La conexion primaria se mantiene disponible como `dataSource`. Las conexiones adicionales se consultan por nombre desde `DatabaseConnectionRegistry`.
 
 ### 7.2 Proveedores por endpoint (BD)
 - `TUKUNAFUNC.AD_BILLETERAS_DIGITALES`: proveedores activos.
