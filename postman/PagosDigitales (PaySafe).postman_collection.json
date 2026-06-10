@@ -262,6 +262,74 @@
       "response": []
     },
     {
+      "name": "IssuerCommissions_GET",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/issuer-commissions?codigo_establecimiento=1069",
+          "protocol": "{{PROTOCOLO}}",
+          "host": [
+            "{{IP}}"
+          ],
+          "port": "{{PUERTO}}",
+          "path": [
+            "api",
+            "v1",
+            "issuer-commissions"
+          ],
+          "query": [
+            {
+              "key": "codigo_establecimiento",
+              "value": "1069",
+              "description": "Filtro opcional por codigo de establecimiento."
+            }
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Issuer commissions ejemplo",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/issuer-commissions?codigo_establecimiento=1069",
+              "protocol": "{{PROTOCOLO}}",
+              "host": [
+                "{{IP}}"
+              ],
+              "port": "{{PUERTO}}",
+              "path": [
+                "api",
+                "v1",
+                "issuer-commissions"
+              ],
+              "query": [
+                {
+                  "key": "codigo_establecimiento",
+                  "value": "1069",
+                  "description": "Filtro opcional por codigo de establecimiento."
+                }
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"codigo_establecimiento\": \"1069\",\n  \"total\": 1,\n  \"commissions\": [\n    {\n      \"codigo_establecimiento\": \"1069\",\n      \"nombre\": \"Banco ejemplo\",\n      \"monto_minimo\": 1.00,\n      \"comision_fija\": 0.50,\n      \"comision_variable\": 0.10\n    }\n  ]\n}"
+        }
+      ],
+      "description": "Consulta la tabla TRX3.FEMSA_EMISOR_COMISION. El query param codigo_establecimiento es opcional; si se elimina, retorna todos los registros."
+    },
+    {
       "name": "Health Check",
       "request": {
         "method": "GET",

@@ -118,6 +118,7 @@ Nota TLS saliente:
 - `POST /api/v1/safetypay/confirmation`: webhook de confirmaciones SafetyPay (form-urlencoded, respuesta CSV firmada).
 - `POST /api/v1/direct-online-payment-requests`: crea pagos en linea con proveedor.
 - `POST /api/v1/payments/notifications/merchant-events`: notificaciones de eventos del comercio con respuesta generica local (sin consumo externo).
+- `GET /api/v1/issuer-commissions`: consulta `TRX3.FEMSA_EMISOR_COMISION`; permite filtrar con `codigo_establecimiento`.
 - `POST /api/v1/payments`: consulta de pagos por `operation_id`.
 - `POST /api/v1/banks`: consulta de bancos por proveedor o todos.
 

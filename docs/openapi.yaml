@@ -141,6 +141,36 @@ paths:
             text/plain:
               schema:
                 type: string
+  /api/v1/issuer-commissions:
+    get:
+      summary: Consulta comisiones emisoras.
+      description: Consulta registros de `TRX3.FEMSA_EMISOR_COMISION` y permite filtrar por `codigo_establecimiento`.
+      parameters:
+        - name: codigo_establecimiento
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Codigo de establecimiento a consultar.
+      responses:
+        '200':
+          description: Comisiones emisoras encontradas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuerCommissionResponse'
+        '400':
+          description: Filtro invalido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
+        '500':
+          description: Error interno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
   /api/v1/pagos/test:
     get:
       summary: Health check de la API.
@@ -294,6 +324,31 @@ components:
     DirectOnlinePaymentResponse:
       type: object
       description: Respuesta normalizada de pagos en linea.
+    IssuerCommissionResponse:
+      type: object
+      properties:
+        codigo_establecimiento:
+          type: string
+          nullable: true
+        total:
+          type: integer
+        commissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/IssuerCommissionItem'
+    IssuerCommissionItem:
+      type: object
+      properties:
+        codigo_establecimiento:
+          type: string
+        nombre:
+          type: string
+        monto_minimo:
+          type: number
+        comision_fija:
+          type: number
+        comision_variable:
+          type: number
     ApiErrorResponse:
       type: object
       properties:
