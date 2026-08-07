@@ -71,6 +71,7 @@ public class DynamicMerchantEventsRoute extends RouteBuilder {
                     }
                 })
                 .setHeader("CamelHttpMethod", exchangeProperty("httpMethod"))
-                .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}");
+                .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}")
+                .convertBodyTo(String.class);
     }
 }

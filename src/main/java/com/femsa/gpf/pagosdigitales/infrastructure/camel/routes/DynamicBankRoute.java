@@ -90,6 +90,7 @@ public class DynamicBankRoute extends RouteBuilder {
                     log.info("Headers enviados: {}", providerHeaders);
                 })
                 .setHeader("CamelHttpMethod", exchangeProperty("httpMethod"))
-                .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}");
+                .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}")
+                .convertBodyTo(String.class);
     }
 }

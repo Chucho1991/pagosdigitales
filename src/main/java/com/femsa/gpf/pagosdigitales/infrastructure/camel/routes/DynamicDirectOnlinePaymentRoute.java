@@ -73,6 +73,7 @@ public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
                     log.info("Request enviado a endpoint externo {}: {}", cfg.uri(), exchange.getIn().getBody());
                 })
                 .setHeader("CamelHttpMethod", exchangeProperty("httpMethod"))
-                .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}");
+                .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}")
+                .convertBodyTo(String.class);
     }
 }
