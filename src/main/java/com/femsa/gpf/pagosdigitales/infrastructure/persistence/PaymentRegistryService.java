@@ -13,11 +13,13 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
+import com.femsa.gpf.pagosdigitales.application.ports.out.GeneratedPaymentRegistryPort;
 import com.femsa.gpf.pagosdigitales.api.dto.DeunaConfirmationRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.JepConfirmationRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEvent;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEventsRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.SafetypayConfirmationRequest;
+import com.femsa.gpf.pagosdigitales.domain.model.GeneratedPayment;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -26,7 +28,18 @@ import lombok.extern.log4j.Log4j2;
  */
 @Log4j2
 @Service
-public class PaymentRegistryService {
+public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
+
+    private static final String INSERT_GENERATED_PAYMENT = """
+            INSERT INTO TUKUNAFUNC.IN_REGISTRO_PAGOS (
+                CADENA, FARMACIA, NOMBRE_FARMACIA, POS,
+                FECHA_REGISTRO, CANAL, CODIGO_PROV_PAGO,
+                FOLIO, ID_OPERACION_EXTERNO, ID_INTERNO_VENTA,
+                CP_VAR1, CP_NUMBER1
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            """;
 
     private static final String INSERT_MERCHANT_EVENT = """
             INSERT INTO TUKUNAFUNC.IN_REGISTRO_PAGOS (
@@ -37,6 +50,22 @@ public class PaymentRegistryService {
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
+            """;
+
+    private static final String UPDATE_MERCHANT_EVENT = """
+            UPDATE TUKUNAFUNC.IN_REGISTRO_PAGOS
+            SET CADENA = ?,
+                FARMACIA = ?,
+                NOMBRE_FARMACIA = ?,
+                POS = ?,
+                FECHA_REGISTRO = ?,
+                CANAL = ?,
+                CODIGO_PROV_PAGO = ?,
+                FOLIO = ?,
+                ID_INTERNO_VENTA = ?,
+                CP_VAR1 = ?,
+                CP_NUMBER1 = ?
+            WHERE ID_OPERACION_EXTERNO = ?
             """;
 
     private static final String SELECT_CONFIRMATION_TARGET = """
@@ -67,6 +96,10 @@ public class PaymentRegistryService {
                 SELECT ID_OPERACION_EXTERNO
                 FROM TUKUNAFUNC.IN_REGISTRO_PAGOS
                 WHERE ID_OPERACION_EXTERNO = ?
+                  AND (
+                      NVL(ID_INTERNO_VENTA, ' ') <> NVL(?, ' ')
+                      OR NVL(FARMACIA, -1) <> NVL(?, -1)
+                  )
             )
             WHERE ROWNUM = 1
             """;
@@ -78,6 +111,7 @@ public class PaymentRegistryService {
                 FROM TUKUNAFUNC.IN_REGISTRO_PAGOS
                 WHERE NVL(ID_INTERNO_VENTA, ' ') = NVL(?, ' ')
                   AND NVL(FARMACIA, -1) = NVL(?, -1)
+                  AND NVL(ID_OPERACION_EXTERNO, ' ') <> NVL(?, ' ')
             )
             WHERE ROWNUM = 1
             """;
@@ -149,7 +183,43 @@ public class PaymentRegistryService {
     }
 
     /**
-     * Inserta un registro por cada evento recibido en merchant-events.
+     * Registra una forma de pago generada por direct-online-payment-requests.
+     *
+     * @param payment datos normalizados de la forma de pago
+     */
+    @Override
+    public void save(GeneratedPayment payment) {
+        if (payment == null) {
+            return;
+        }
+
+        try {
+            databaseExecutor.withConnection((DatabaseExecutor.ConnectionConsumer) connection -> {
+                try (PreparedStatement ps = connection.prepareStatement(INSERT_GENERATED_PAYMENT)) {
+                    ps.setObject(1, payment.chain());
+                    ps.setObject(2, payment.store());
+                    ps.setString(3, payment.storeName());
+                    ps.setObject(4, payment.pos());
+                    setDate(ps, 5, payment.registrationDate());
+                    ps.setString(6, payment.channel());
+                    ps.setString(7, payment.paymentProviderCode() == null
+                            ? null
+                            : payment.paymentProviderCode().toString());
+                    ps.setString(8, payment.folio());
+                    ps.setString(9, payment.externalOperationId());
+                    ps.setString(10, payment.internalSaleId());
+                    ps.setString(11, errorNumberDescription(0));
+                    ps.setObject(12, 0, java.sql.Types.NUMERIC);
+                    ps.executeUpdate();
+                }
+            });
+        } catch (Exception e) {
+            log.error("No fue posible registrar la forma de pago en IN_REGISTRO_PAGOS: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Actualiza el registro del mismo operation_id o inserta uno nuevo cuando no existe.
      *
      * @param req request de merchant-events
      */
@@ -165,24 +235,42 @@ public class PaymentRegistryService {
         String cpVar1 = errorNumberDescription(errorNumber);
         try {
             databaseExecutor.withConnection((DatabaseExecutor.ConnectionConsumer) connection -> {
-                try (PreparedStatement ps = connection.prepareStatement(INSERT_MERCHANT_EVENT)) {
+                try (PreparedStatement update = connection.prepareStatement(UPDATE_MERCHANT_EVENT);
+                        PreparedStatement insert = connection.prepareStatement(INSERT_MERCHANT_EVENT)) {
                     for (MerchantEvent event : events) {
-                        ps.setObject(1, req.getChain());
-                        ps.setObject(2, req.getStore());
-                        ps.setString(3, req.getStore_name());
-                        ps.setObject(4, req.getPos());
-                        setDate(ps, 5, parseDateTime(event.getCreation_datetime()));
-                        ps.setString(6, req.getChannel_POS());
-                        ps.setString(7,
+                        update.setObject(1, req.getChain());
+                        update.setObject(2, req.getStore());
+                        update.setString(3, req.getStore_name());
+                        update.setObject(4, req.getPos());
+                        setDate(update, 5, parseDateTime(event.getCreation_datetime()));
+                        update.setString(6, req.getChannel_POS());
+                        update.setString(7,
                                 req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString());
-                        ps.setString(8, event.getMerchant_sales_id());
-                        ps.setString(9, event.getOperation_id());
-                        ps.setString(10, event.getMerchant_sales_id());
-                        ps.setString(11, cpVar1);
-                        ps.setObject(12, errorNumber, java.sql.Types.NUMERIC);
-                        ps.addBatch();
+                        update.setString(8, event.getMerchant_sales_id());
+                        update.setString(9, event.getMerchant_sales_id());
+                        update.setString(10, cpVar1);
+                        update.setObject(11, errorNumber, java.sql.Types.NUMERIC);
+                        update.setString(12, event.getOperation_id());
+
+                        if (update.executeUpdate() > 0) {
+                            continue;
+                        }
+
+                        insert.setObject(1, req.getChain());
+                        insert.setObject(2, req.getStore());
+                        insert.setString(3, req.getStore_name());
+                        insert.setObject(4, req.getPos());
+                        setDate(insert, 5, parseDateTime(event.getCreation_datetime()));
+                        insert.setString(6, req.getChannel_POS());
+                        insert.setString(7,
+                                req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString());
+                        insert.setString(8, event.getMerchant_sales_id());
+                        insert.setString(9, event.getOperation_id());
+                        insert.setString(10, event.getMerchant_sales_id());
+                        insert.setString(11, cpVar1);
+                        insert.setObject(12, errorNumber, java.sql.Types.NUMERIC);
+                        insert.executeUpdate();
                     }
-                    ps.executeBatch();
                 }
             });
         } catch (Exception e) {
@@ -209,6 +297,8 @@ public class PaymentRegistryService {
                             continue;
                         }
                         ps.setString(1, event.getOperation_id());
+                        ps.setString(2, event.getMerchant_sales_id());
+                        ps.setObject(3, req.getStore());
                         try (ResultSet rs = ps.executeQuery()) {
                             if (rs.next()) {
                                 return "operation_id " + event.getOperation_id()
@@ -245,6 +335,7 @@ public class PaymentRegistryService {
                         }
                         ps.setString(1, event.getMerchant_sales_id());
                         ps.setObject(2, req.getStore());
+                        ps.setString(3, event.getOperation_id());
                         try (ResultSet rs = ps.executeQuery()) {
                             if (rs.next()) {
                                 return "folio " + event.getMerchant_sales_id()

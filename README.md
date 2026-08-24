@@ -152,8 +152,9 @@ Campos principales poblados por flujo:
 
 Se incorporo persistencia de datos operativos en `TUKUNAFUNC.IN_REGISTRO_PAGOS`:
 
-1. Endpoint `POST /api/v1/payments/notifications/merchant-events`:
-- Inserta un registro por cada item de `merchant_events`.
+1. Endpoints de generacion y notificacion:
+- `POST /api/v1/direct-online-payment-requests` inserta el registro inicial cuando el proveedor genera exitosamente la forma de pago.
+- `POST /api/v1/payments/notifications/merchant-events` actualiza el registro cuando ya existe el mismo `operation_id`; solo inserta una fila cuando no existe.
 - Mapeo:
 `CADENA <- chain`,
 `FARMACIA <- store`,
@@ -165,13 +166,13 @@ Se incorporo persistencia de datos operativos en `TUKUNAFUNC.IN_REGISTRO_PAGOS`:
 `ID_OPERACION_EXTERNO <- merchant_events[].operation_id`,
 `ID_INTERNO_VENTA <- merchant_events[].merchant_sales_id`.
 
-En `merchant-events`, `CP_VAR1` y `CP_NUMBER1` se registran en `NULL`.
-Los valores de esos campos se manejan unicamente en el flujo de `confirmation`.
+En una generacion o notificacion exitosa, `CP_VAR1` se registra como `No error` y
+`CP_NUMBER1` como `0`; los endpoints de confirmacion pueden actualizar estos campos.
 
 Regla de validacion para `merchant-events`:
-- Antes de registrar, se valida que la combinacion `ID_INTERNO_VENTA-farmacia` (`merchant_sales_id` + `store`) no exista previamente en `IN_REGISTRO_PAGOS`.
-- Antes de registrar, se valida que `operation_id` no exista previamente en `IN_REGISTRO_PAGOS` (unicidad global).
-- Si el request llega con la misma combinacion `ID_INTERNO_VENTA + ID_OPERACION_EXTERNO + FARMACIA` ya registrada, el endpoint responde `200 OK` con la respuesta generica (idempotencia) y no reinserta.
+- La combinacion `ID_INTERNO_VENTA-farmacia` (`merchant_sales_id` + `store`) no puede estar asociada a otro `operation_id`.
+- Un `operation_id` existente solo puede actualizarse cuando pertenece al mismo `merchant_sales_id` y `store`; si pertenece a otra venta, se responde con conflicto.
+- Si el request llega con la misma combinacion `ID_INTERNO_VENTA + ID_OPERACION_EXTERNO + FARMACIA` ya registrada, el endpoint actualiza esa fila y responde `200 OK`, sin crear duplicados.
 - Si existe conflicto, el endpoint responde error `400` y no registra el evento como exitoso.
 - Si el endpoint retorna cualquier error (`400/500`), no se inserta registro en `IN_REGISTRO_PAGOS`.
 

@@ -27,6 +27,7 @@ import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.ErrorInfo;
 import com.femsa.gpf.pagosdigitales.application.mapper.DirectOnlinePaymentMap;
+import com.femsa.gpf.pagosdigitales.application.ports.in.RegisterGeneratedPaymentUseCase;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
@@ -47,6 +48,7 @@ class DirectOnlinePaymentRequestsControllerTest {
         IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
         GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
         BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+        RegisterGeneratedPaymentUseCase registerGeneratedPaymentUseCase = mock(RegisterGeneratedPaymentUseCase.class);
 
         when(providersPayService.getProviderNameByCode(300002)).thenReturn("deuna");
         when(gatewayWebServiceConfigService.isActive(300002, "direct-online-payment-requests")).thenReturn(true);
@@ -66,7 +68,8 @@ class DirectOnlinePaymentRequestsControllerTest {
                 errorMappingCatalogService,
                 integrationLogService,
                 gatewayWebServiceConfigService,
-                banksCatalogService);
+                banksCatalogService,
+                registerGeneratedPaymentUseCase);
 
         DirectOnlinePaymentRequest request = buildRequest(new BigDecimal("25.00"));
         request.setPayment_provider_code(300002);
@@ -92,6 +95,7 @@ class DirectOnlinePaymentRequestsControllerTest {
         IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
         GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
         BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+        RegisterGeneratedPaymentUseCase registerGeneratedPaymentUseCase = mock(RegisterGeneratedPaymentUseCase.class);
 
         when(providersPayService.getProviderNameByCode(235689)).thenReturn("paysafe");
         when(gatewayWebServiceConfigService.isActive(235689, "direct-online-payment-requests")).thenReturn(true);
@@ -115,7 +119,8 @@ class DirectOnlinePaymentRequestsControllerTest {
                 errorMappingCatalogService,
                 integrationLogService,
                 gatewayWebServiceConfigService,
-                banksCatalogService);
+                banksCatalogService,
+                registerGeneratedPaymentUseCase);
 
         DirectOnlinePaymentRequest request = buildRequest(new BigDecimal("10.00"));
 
@@ -140,6 +145,7 @@ class DirectOnlinePaymentRequestsControllerTest {
         IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
         GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
         BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+        RegisterGeneratedPaymentUseCase registerGeneratedPaymentUseCase = mock(RegisterGeneratedPaymentUseCase.class);
 
         when(providersPayService.getProviderNameByCode(235689)).thenReturn("paysafe");
         when(gatewayWebServiceConfigService.isActive(235689, "direct-online-payment-requests")).thenReturn(true);
@@ -165,7 +171,8 @@ class DirectOnlinePaymentRequestsControllerTest {
                 errorMappingCatalogService,
                 integrationLogService,
                 gatewayWebServiceConfigService,
-                banksCatalogService);
+                banksCatalogService,
+                registerGeneratedPaymentUseCase);
 
         DirectOnlinePaymentRequest request = buildRequest(new BigDecimal("25.00"));
 
@@ -174,6 +181,10 @@ class DirectOnlinePaymentRequestsControllerTest {
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isSameAs(providerResponse);
         verify(camel).requestBodyAndHeaders(eq("direct:direct-online-payment-requests"), eq(Map.of("amount", 25)), anyMap());
+        verify(registerGeneratedPaymentUseCase).register(argThat(payment ->
+                "Prueba1".equals(payment.folio())
+                        && "OP-1".equals(payment.externalOperationId())
+                        && Integer.valueOf(235689).equals(payment.paymentProviderCode())));
     }
 
     @Test
@@ -186,6 +197,7 @@ class DirectOnlinePaymentRequestsControllerTest {
         IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
         GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
         BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+        RegisterGeneratedPaymentUseCase registerGeneratedPaymentUseCase = mock(RegisterGeneratedPaymentUseCase.class);
 
         Map<String, Object> providerRequest = Map.of("amount", 25);
         Map<String, Object> rawProviderError = Map.of("error", Map.of("code", "EXT-1", "message", "declined"));
@@ -215,11 +227,13 @@ class DirectOnlinePaymentRequestsControllerTest {
                 errorMappingCatalogService,
                 integrationLogService,
                 gatewayWebServiceConfigService,
-                banksCatalogService);
+                banksCatalogService,
+                registerGeneratedPaymentUseCase);
 
         ResponseEntity<?> response = controller.directOnlinePaymentRequests(buildRequest(new BigDecimal("25.00")));
 
         assertThat(response.getStatusCode().value()).isEqualTo(409);
+        verify(registerGeneratedPaymentUseCase, never()).register(any());
         verify(integrationLogService).logExternal(argThat((IntegrationLogRecord record) ->
                 rawProviderError.equals(record.getResponsePayload())));
     }
@@ -234,6 +248,7 @@ class DirectOnlinePaymentRequestsControllerTest {
         IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
         GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
         BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+        RegisterGeneratedPaymentUseCase registerGeneratedPaymentUseCase = mock(RegisterGeneratedPaymentUseCase.class);
 
         when(providersPayService.getProviderNameByCode(235689)).thenReturn("paysafe");
         when(gatewayWebServiceConfigService.isActive(235689, "direct-online-payment-requests")).thenReturn(true);
@@ -257,7 +272,8 @@ class DirectOnlinePaymentRequestsControllerTest {
                 errorMappingCatalogService,
                 integrationLogService,
                 gatewayWebServiceConfigService,
-                banksCatalogService);
+                banksCatalogService,
+                registerGeneratedPaymentUseCase);
 
         DirectOnlinePaymentRequest request = buildRequest(new BigDecimal("60.00"));
 
@@ -282,6 +298,7 @@ class DirectOnlinePaymentRequestsControllerTest {
         IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
         GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
         BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+        RegisterGeneratedPaymentUseCase registerGeneratedPaymentUseCase = mock(RegisterGeneratedPaymentUseCase.class);
 
         when(providersPayService.getProviderNameByCode(235689)).thenReturn("paysafe");
         when(gatewayWebServiceConfigService.isActive(235689, "direct-online-payment-requests")).thenReturn(true);
@@ -300,7 +317,8 @@ class DirectOnlinePaymentRequestsControllerTest {
                 errorMappingCatalogService,
                 integrationLogService,
                 gatewayWebServiceConfigService,
-                banksCatalogService);
+                banksCatalogService,
+                registerGeneratedPaymentUseCase);
 
         ResponseEntity<?> response = controller.directOnlinePaymentRequests(buildRequest(new BigDecimal("25.00")));
 

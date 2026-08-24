@@ -1,6 +1,7 @@
 package com.femsa.gpf.pagosdigitales.api.controller;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Map;
 
 import jakarta.validation.Valid;
@@ -19,6 +20,8 @@ import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.ErrorInfo;
 import com.femsa.gpf.pagosdigitales.application.mapper.DirectOnlinePaymentMap;
+import com.femsa.gpf.pagosdigitales.application.ports.in.RegisterGeneratedPaymentUseCase;
+import com.femsa.gpf.pagosdigitales.domain.model.GeneratedPayment;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
@@ -56,6 +59,7 @@ public class DirectOnlinePaymentRequestsController {
     private final IntegrationLogService integrationLogService;
     private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
     private final BanksCatalogService banksCatalogService;
+    private final RegisterGeneratedPaymentUseCase registerGeneratedPaymentUseCase;
 
     /**
      * Crea el controlador de pagos en linea con sus dependencias.
@@ -69,6 +73,7 @@ public class DirectOnlinePaymentRequestsController {
      * @param integrationLogService servicio de auditoria de logs
      * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
      * @param banksCatalogService catalogo de bancos, minimos y maximos
+     * @param registerGeneratedPaymentUseCase caso de uso de registro de formas de pago
      */
     public DirectOnlinePaymentRequestsController(ProducerTemplate camel,
             ProvidersPayService providersPayService,
@@ -78,7 +83,8 @@ public class DirectOnlinePaymentRequestsController {
             ErrorMappingCatalogService errorMappingCatalogService,
             IntegrationLogService integrationLogService,
             GatewayWebServiceConfigService gatewayWebServiceConfigService,
-            BanksCatalogService banksCatalogService) {
+            BanksCatalogService banksCatalogService,
+            RegisterGeneratedPaymentUseCase registerGeneratedPaymentUseCase) {
         this.camel = camel;
         this.providersPayService = providersPayService;
         this.directOnlinePaymentMap = directOnlinePaymentMap;
@@ -88,6 +94,7 @@ public class DirectOnlinePaymentRequestsController {
         this.integrationLogService = integrationLogService;
         this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
         this.banksCatalogService = banksCatalogService;
+        this.registerGeneratedPaymentUseCase = registerGeneratedPaymentUseCase;
     }
 
     /**
@@ -166,6 +173,7 @@ public class DirectOnlinePaymentRequestsController {
             }
 
             DirectOnlinePaymentResponse response = directOnlinePaymentMap.mapProviderResponse(req, rawResp, proveedor);
+            registerGeneratedPayment(req, response);
             log.info("Response enviado al cliente direct-online-payment-requests: {}", response);
             logExternal(req, outboundBody, rawResp, req.getPayment_provider_code(), proveedor, 200, "OK",
                     externalElapsedMs);
@@ -276,6 +284,20 @@ public class DirectOnlinePaymentRequestsController {
             return null;
         }
         return req.getSales_amount().getValue();
+    }
+
+    private void registerGeneratedPayment(DirectOnlinePaymentRequest req, DirectOnlinePaymentResponse response) {
+        registerGeneratedPaymentUseCase.register(new GeneratedPayment(
+                req.getChain(),
+                req.getStore(),
+                req.getStore_name(),
+                req.getPos(),
+                LocalDateTime.now(),
+                req.getChannel_POS(),
+                req.getPayment_provider_code(),
+                req.getMerchant_sales_id(),
+                response.getOperation_id(),
+                req.getMerchant_sales_id()));
     }
 
     private void logInternal(DirectOnlinePaymentRequest req, Object response, int status, String message) {
