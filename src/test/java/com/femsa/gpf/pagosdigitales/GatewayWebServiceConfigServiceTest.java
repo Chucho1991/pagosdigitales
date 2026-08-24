@@ -17,6 +17,14 @@ import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebService
 class GatewayWebServiceConfigServiceTest {
 
     @Test
+    void webServiceConfigRecognizesInternalUri() {
+        var config = new GatewayWebServiceConfigService.WebServiceConfig(
+                300001, "payments", true, "REST", "GET", "PARAMETROS", "INTERNO");
+
+        assertThat(config.internal()).isTrue();
+    }
+
+    @Test
     void refreshCacheLoadsActiveRestConfigByProviderAndWsKey() throws Exception {
         DatabaseExecutor databaseExecutor = mock(DatabaseExecutor.class);
         Connection connection = mock(Connection.class);

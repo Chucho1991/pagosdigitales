@@ -72,6 +72,7 @@ Notas:
 - Los headers de consumo externo se leen desde `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`.
 - Los parametros de request y defaults de payload se leen desde `TUKUNAFUNC.IN_PASARELA_WS_DEFS` por `ID_WS` y `TIPO_DEF` (`QUERY`/`DEFAULTS`).
 - Los mapeos request/response por proveedor/servicio se leen desde `TUKUNAFUNC.AD_MAPEO_SERVICIOS` por `CODIGO_BILLETERA`, `APP_SERVICE_KEY`, `APP_OPERATION` y `DIRECCION`.
+- Para DEUNA, `pointOfSale` se consulta en `TUKUNAFUNC.IN_PASARELA_PUNTO_VENTA` usando `payment_provider_code + chain + store + pos`; si la combinacion no existe o esta inactiva, no se invoca al proveedor y el endpoint responde `400`.
 - El catalogo de control de errores se lee desde `TUKUNAFUNC.AD_MAPEO_ERRORES` (mensaje principal y `inner_details.field_message`).
 - Para `IN_PASARELA_WS` se consideran activos los registros con `ENABLED='S'`, `TIPO_CONEXION='REST'` y con `METODO_HTTP` + `URI` informados.
 - La validacion principal de bancos usa `AD_TIPO_PAGO` por cadena (`CADENA_FYB`, `CADENA_SANA`, `CADENA_OKI`, `CADENA_FR`).
@@ -118,6 +119,7 @@ Nota TLS saliente:
 - `POST /api/v1/safetypay/confirmation`: webhook de confirmaciones SafetyPay (form-urlencoded, respuesta CSV firmada).
 - `POST /api/v1/direct-online-payment-requests`: crea pagos en linea con proveedor.
 - `POST /api/v1/payments/notifications/merchant-events`: notificaciones de eventos del comercio con respuesta generica local (sin consumo externo).
+- `POST /api/v1/jep/notifyPayment`: webhook JSON consumido por JEPFaster; confirma el pago QR y responde `{"status":"OK"}`.
 - `GET /api/v1/issuer-commissions`: consulta `TRX3.FEMSA_EMISOR_COMISION`; permite filtrar con `codigo_establecimiento`.
 - `POST /api/v1/payments`: consulta de pagos por `operation_id`.
 - `POST /api/v1/banks`: consulta de bancos por proveedor o todos.
@@ -532,6 +534,7 @@ Mapeo de campos request/response:
 
 - `200`: consulta procesada correctamente.
 - `400`: request invalido o proveedor no configurado.
+- `404`: no existe un pago interno para el proveedor y `operation_id` solicitados.
 - `500`: error tecnico interno.
 
 ## Ejemplo de request
@@ -582,20 +585,26 @@ curl -X POST http://localhost:8080/api/v1/payments \
 
 ## Configuracion
 
-Configuracion externa (obligatoria en BD):
+Configuracion del servicio en BD:
 - Tabla: `TUKUNAFUNC.IN_PASARELA_WS`
 - Clave funcional: `CODIGO_BILLETERA` (valor de `payment_provider_code`) + `WS_KEY='payments'`
 - Campos usados por el backend: `ENABLED`, `TIPO_CONEXION`, `METODO_HTTP`, `URI`
+- Cuando `URI`/`URL = 'INTERNO'`, no se invoca Camel ni una URL externa. El estado se consulta en
+  `TUKUNAFUNC.IN_REGISTRO_PAGOS` por `ID_OPERACION_EXTERNO` y `CODIGO_PROV_PAGO`.
+- Para servicios con URL externa se conserva el flujo HTTP existente.
+- Con `TIPO_REQUEST='PARAMETROS'`, las definiciones `QUERY` se envian en la URL.
+- Con `TIPO_REQUEST='JSON'`, el body se construye con los mapeos `REQUEST` de
+  `AD_MAPEO_SERVICIOS` y los `DEFAULTS` de `IN_PASARELA_WS_DEFS`.
 
-Headers externos:
+Headers externos (solo cuando existe URL externa):
 - Tabla: `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`
 
-Parametros de query:
+Parametros de query (solo para `TIPO_REQUEST='PARAMETROS'`):
 - Tabla: `TUKUNAFUNC.IN_PASARELA_WS_DEFS`
 - Clave funcional: `ID_WS` (relacion con `IN_PASARELA_WS.ID_WS`) y `TIPO_DEF='QUERY'`
 - Campos usados: `DEFAULT_CLAVE`, `DEFAULT_VALOR_TEXTO`, `DEFAULT_VALOR_NUM`, `DEFAULT_VALOR_FECHA`, `DEFAULT_VALOR_SISTEMA`
 
-Mapeo de campos response:
+Mapeo de campos request/response (solo cuando existe URL externa):
 - Tabla: `TUKUNAFUNC.AD_MAPEO_SERVICIOS`
 - Clave funcional: `CODIGO_BILLETERA` + `APP_SERVICE_KEY='payments'` + `APP_OPERATION` + `DIRECCION='RESPONSE'`
 - Campos usados: `SECCION_APP`, `ATRIBUTO_APP`, `SECCION_EXT`, `ATRIBUTO_EXT`, `ORDEN_APLICACION`, `ACTIVO`

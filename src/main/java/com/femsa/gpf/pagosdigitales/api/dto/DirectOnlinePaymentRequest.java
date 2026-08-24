@@ -1,6 +1,7 @@
 package com.femsa.gpf.pagosdigitales.api.dto;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -30,6 +31,13 @@ public class DirectOnlinePaymentRequest {
     private String requested_payment_type;
     private String transaction_email;
     private Boolean send_email_shopper;
+
+    private String city;
+    private String store_address;
+    
+    private Optional<String> member_id;
+    private Optional<String> session_id;
+
 
     /**
      * DTO con el monto de venta y la moneda.

@@ -9,9 +9,12 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
+import com.femsa.gpf.pagosdigitales.api.dto.DeunaConfirmationRequest;
+import com.femsa.gpf.pagosdigitales.api.dto.JepConfirmationRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEvent;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEventsRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.SafetypayConfirmationRequest;
@@ -87,6 +90,49 @@ public class PaymentRegistryService {
                 WHERE ID_INTERNO_VENTA = ?
                   AND ID_OPERACION_EXTERNO = ?
                   AND NVL(FARMACIA, -1) = NVL(?, -1)
+            )
+            WHERE ROWNUM = 1
+            """;
+
+    private static final String UPDATE_JEP_CONFIRMATION = """
+            UPDATE TUKUNAFUNC.IN_REGISTRO_PAGOS
+            SET FECHA_AUTORIZACION_PROV = ?,
+                NO_REFERENCIA = ?,
+                COD_ESTADO_PAGO = ?,
+                CP_VAR1 = ?,
+                CP_NUMBER1 = ?
+            WHERE ID_OPERACION_EXTERNO = ?
+            """;
+
+    private static final String UPDATE_DEUNA_CONFIRMATION = """
+            UPDATE TUKUNAFUNC.IN_REGISTRO_PAGOS
+            SET FECHA_AUTORIZACION_PROV = ?,
+                NO_REFERENCIA = ?,
+                MONTO = ?,
+                MONEDA = ?,
+                COD_ESTADO_PAGO = ?,
+                CP_VAR1 = ?,
+                CP_NUMBER1 = ?
+            WHERE ID_OPERACION_EXTERNO = ?
+            """;
+
+    private static final String SELECT_PAYMENT_STATUS = """
+            SELECT *
+            FROM (
+                SELECT FECHA_REGISTRO,
+                       FECHA_AUTORIZACION_PROV,
+                       FOLIO,
+                       ID_OPERACION_EXTERNO,
+                       ID_INTERNO_VENTA,
+                       NO_REFERENCIA,
+                       MONTO,
+                       MONEDA,
+                       COD_ESTADO_PAGO,
+                       CP_VAR1
+                FROM TUKUNAFUNC.IN_REGISTRO_PAGOS
+                WHERE ID_OPERACION_EXTERNO = ?
+                  AND CODIGO_PROV_PAGO = ?
+                ORDER BY NVL(FECHA_AUTORIZACION_PROV, FECHA_REGISTRO) DESC
             )
             WHERE ROWNUM = 1
             """;
@@ -254,6 +300,38 @@ public class PaymentRegistryService {
     }
 
     /**
+     * Actualiza el registro de pago asociado a una confirmacion de JEPFaster.
+     *
+     * <p>Busca por ID_OPERACION_EXTERNO (idtransaccion del QR generado) y actualiza
+     * la fecha de autorizacion, numero de comprobante y estado.</p>
+     *
+     * @param req request de confirmacion JEP
+     * @return true cuando se encontro y actualizo el registro; false en caso contrario
+     */
+    public boolean updateFromJepConfirmation(JepConfirmationRequest req) {
+        if (req == null || isBlank(req.getIdtransaccion())) {
+            return false;
+        }
+
+        try {
+            return databaseExecutor.withConnection(connection -> {
+                try (PreparedStatement ps = connection.prepareStatement(UPDATE_JEP_CONFIRMATION)) {
+                    setDate(ps, 1, LocalDateTime.now());
+                    ps.setString(2, req.getNummensaje());
+                    ps.setString(3, req.getEstado());
+                    ps.setString(4, "JEP_CONFIRMATION_OK");
+                    ps.setObject(5, 0, java.sql.Types.NUMERIC);
+                    ps.setString(6, req.getIdtransaccion());
+                    return ps.executeUpdate() > 0;
+                }
+            });
+        } catch (Exception e) {
+            log.error("No fue posible actualizar confirmacion JEPFaster en IN_REGISTRO_PAGOS: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Verifica si todos los eventos del request ya fueron registrados por la llave
      * ID_INTERNO_VENTA + ID_OPERACION_EXTERNO + FARMACIA.
      *
@@ -307,6 +385,116 @@ public class PaymentRegistryService {
             log.error("No fue posible validar existencia para confirmation en IN_REGISTRO_PAGOS: {}", e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * Actualiza el registro de pago asociado a una confirmacion Deuna.
+     *
+     * <p>Busca por ID_OPERACION_EXTERNO (idTransaction de Deuna) y actualiza
+     * la fecha de autorizacion, numero de transferencia, monto, moneda y estado.</p>
+     *
+     * @param req request de confirmacion Deuna
+     * @return true cuando se encontro y actualizo el registro; false en caso contrario
+     */
+    public boolean updateFromDeunaConfirmation(DeunaConfirmationRequest req) {
+        if (req == null || isBlank(req.getIdTransaction())) {
+            return false;
+        }
+
+        try {
+            return databaseExecutor.withConnection(connection -> {
+                try (PreparedStatement ps = connection.prepareStatement(UPDATE_DEUNA_CONFIRMATION)) {
+                    setDate(ps, 1, LocalDateTime.now());
+                    ps.setString(2, req.getTransferNumber());
+                    if (req.getAmount() != null) {
+                        ps.setBigDecimal(3, req.getAmount());
+                    } else {
+                        ps.setNull(3, java.sql.Types.NUMERIC);
+                    }
+                    ps.setString(4, req.getCurrency());
+                    ps.setString(5, req.getStatus());
+                    ps.setString(6, "DEUNA_CONFIRMATION_OK");
+                    ps.setObject(7, 0, java.sql.Types.NUMERIC);
+                    ps.setString(8, req.getIdTransaction());
+                    return ps.executeUpdate() > 0;
+                }
+            });
+        } catch (Exception e) {
+            log.error("No fue posible actualizar confirmacion Deuna en IN_REGISTRO_PAGOS: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Consulta el ultimo estado registrado para una operacion y proveedor.
+     *
+     * @param operationId identificador externo de la operacion
+     * @param providerCode codigo del proveedor de pago
+     * @return pago registrado cuando existe
+     * @throws IllegalStateException cuando no es posible consultar la base de datos
+     */
+    public Optional<RegisteredPayment> findPaymentStatus(String operationId, Integer providerCode) {
+        if (isBlank(operationId) || providerCode == null) {
+            return Optional.empty();
+        }
+
+        try {
+            return databaseExecutor.withConnection(connection -> {
+                try (PreparedStatement ps = connection.prepareStatement(SELECT_PAYMENT_STATUS)) {
+                    ps.setString(1, operationId);
+                    ps.setString(2, providerCode.toString());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (!rs.next()) {
+                            return Optional.empty();
+                        }
+
+                        Timestamp registrationTimestamp = rs.getTimestamp("FECHA_REGISTRO");
+                        Timestamp authorizationTimestamp = rs.getTimestamp("FECHA_AUTORIZACION_PROV");
+                        return Optional.of(new RegisteredPayment(
+                                registrationTimestamp == null ? null : registrationTimestamp.toLocalDateTime(),
+                                authorizationTimestamp == null ? null : authorizationTimestamp.toLocalDateTime(),
+                                rs.getString("FOLIO"),
+                                rs.getString("ID_OPERACION_EXTERNO"),
+                                rs.getString("ID_INTERNO_VENTA"),
+                                rs.getString("NO_REFERENCIA"),
+                                rs.getBigDecimal("MONTO"),
+                                rs.getString("MONEDA"),
+                                rs.getString("COD_ESTADO_PAGO"),
+                                rs.getString("CP_VAR1")));
+                    }
+                }
+            });
+        } catch (Exception e) {
+            log.error("No fue posible consultar el estado del pago en IN_REGISTRO_PAGOS: {}", e.getMessage());
+            throw new IllegalStateException("No fue posible consultar el estado del pago", e);
+        }
+    }
+
+    /**
+     * Datos normalizados de un pago almacenado en IN_REGISTRO_PAGOS.
+     *
+     * @param registrationDatetime fecha de registro
+     * @param authorizationDatetime fecha de autorizacion del proveedor
+     * @param folio folio del comercio
+     * @param operationId identificador externo
+     * @param internalSaleId identificador interno de venta
+     * @param referenceNumber numero de referencia
+     * @param amount monto registrado
+     * @param currency moneda registrada
+     * @param paymentStatus estado del pago
+     * @param statusDetail detalle interno del resultado
+     */
+    public record RegisteredPayment(
+            LocalDateTime registrationDatetime,
+            LocalDateTime authorizationDatetime,
+            String folio,
+            String operationId,
+            String internalSaleId,
+            String referenceNumber,
+            BigDecimal amount,
+            String currency,
+            String paymentStatus,
+            String statusDetail) {
     }
 
     private boolean existsTargetRecord(Connection connection, String idInternoVenta, String idOperacionExterno)

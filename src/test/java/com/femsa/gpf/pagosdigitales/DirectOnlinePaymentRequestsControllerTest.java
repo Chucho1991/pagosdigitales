@@ -38,6 +38,51 @@ import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingCon
 class DirectOnlinePaymentRequestsControllerTest {
 
     @Test
+    void directOnlinePaymentRequestsReturnsBadRequestWhenDeunaPointOfSaleIsMissing() {
+        ProducerTemplate camel = mock(ProducerTemplate.class);
+        ProvidersPayService providersPayService = mock(ProvidersPayService.class);
+        DirectOnlinePaymentMap directOnlinePaymentMap = mock(DirectOnlinePaymentMap.class);
+        ServiceMappingConfigService serviceMappingConfigService = mock(ServiceMappingConfigService.class);
+        ErrorMappingCatalogService errorMappingCatalogService = mock(ErrorMappingCatalogService.class);
+        IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
+        GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
+        BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+
+        when(providersPayService.getProviderNameByCode(300002)).thenReturn("deuna");
+        when(gatewayWebServiceConfigService.isActive(300002, "direct-online-payment-requests")).thenReturn(true);
+        when(banksCatalogService.findMinimum(300002, "0123")).thenReturn(Optional.empty());
+        when(banksCatalogService.findMaximum(300002, "0123")).thenReturn(Optional.empty());
+        when(directOnlinePaymentMap.mapProviderRequest(any(), eq("deuna")))
+                .thenThrow(new IllegalArgumentException(
+                        "No se ha configurado punto de venta para el local solicitado "
+                                + "(chain=1, store=148, pos=90)"));
+
+        DirectOnlinePaymentRequestsController controller = new DirectOnlinePaymentRequestsController(
+                camel,
+                providersPayService,
+                directOnlinePaymentMap,
+                new ObjectMapper(),
+                serviceMappingConfigService,
+                errorMappingCatalogService,
+                integrationLogService,
+                gatewayWebServiceConfigService,
+                banksCatalogService);
+
+        DirectOnlinePaymentRequest request = buildRequest(new BigDecimal("25.00"));
+        request.setPayment_provider_code(300002);
+
+        ResponseEntity<?> response = controller.directOnlinePaymentRequests(request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(400);
+        assertThat(response.getBody()).isInstanceOf(ApiErrorResponse.class);
+        ApiErrorResponse body = (ApiErrorResponse) response.getBody();
+        assertThat(body.getError().getMessage())
+                .isEqualTo("No se ha configurado punto de venta para el local solicitado "
+                        + "(chain=1, store=148, pos=90)");
+        verify(camel, never()).requestBodyAndHeaders(anyString(), any(), anyMap());
+    }
+
+    @Test
     void directOnlinePaymentRequestsReturnsMappedErrorWhenAmountIsBelowConfiguredMinimum() {
         ProducerTemplate camel = mock(ProducerTemplate.class);
         ProvidersPayService providersPayService = mock(ProvidersPayService.class);

@@ -1,5 +1,6 @@
 package com.femsa.gpf.pagosdigitales.infrastructure.camel.routes;
 
+import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.springframework.stereotype.Component;
 
@@ -54,6 +55,7 @@ public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
                                             + providerCode + ", WS_KEY: " + wsKey));
 
                     String url = cfg.uri();
+                    exchange.setProperty("providerCode", providerCode);
                     exchange.setProperty("url", url);
                     exchange.setProperty("httpMethod", cfg.method());
                     exchange.setProperty("endpointSuffix", externalServiceHttpProperties.buildEndpointSuffix(url));
@@ -70,10 +72,26 @@ public class DynamicDirectOnlinePaymentRoute extends RouteBuilder {
                         exchange.getIn().setBody(objectMapper.writeValueAsString(body));
                     }
 
-                    log.info("Request enviado a endpoint externo {}: {}", cfg.uri(), exchange.getIn().getBody());
+                    log.info("Request enviado a endpoint externo {} con metodo {} y Content-Type {}: {}",
+                            cfg.uri(), cfg.method(), exchange.getIn().getHeader(Exchange.CONTENT_TYPE),
+                            exchange.getIn().getBody());
                 })
                 .setHeader("CamelHttpMethod", exchangeProperty("httpMethod"))
                 .toD("${exchangeProperty.url}${exchangeProperty.endpointSuffix}")
-                .convertBodyTo(String.class);
+                .convertBodyTo(String.class)
+                .process(exchange -> {
+                    Integer providerCode = exchange.getProperty("providerCode", Integer.class);
+                    Integer httpCode = exchange.getMessage().getHeader(Exchange.HTTP_RESPONSE_CODE, Integer.class);
+                    String responseBody = exchange.getMessage().getBody(String.class);
+
+                    log.info("Respuesta de endpoint externo para proveedor {}: HTTP {}, longitud={}",
+                            providerCode, httpCode, responseBody == null ? 0 : responseBody.length());
+
+                    if (responseBody == null || responseBody.isBlank()) {
+                        throw new IllegalStateException("El proveedor " + providerCode
+                                + " devolvio HTTP " + (httpCode == null ? "desconocido" : httpCode)
+                                + " sin contenido");
+                    }
+                });
     }
 }

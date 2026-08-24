@@ -43,6 +43,7 @@ import lombok.extern.log4j.Log4j2;
 public class DirectOnlinePaymentRequestsController {
 
     private static final String WS_KEY = "direct-online-payment-requests";
+
     private static final long MINIMUM_NOT_MET_ERROR_CODE = 1004L;
     private static final long MAXIMUM_EXCEEDED_ERROR_CODE = 1005L;
 
@@ -133,7 +134,6 @@ public class DirectOnlinePaymentRequestsController {
                     "payment_provider_code", req.getPayment_provider_code()
             );
             final Map<String, Object> outboundBodyForProvider = outboundBody;
-
             ExternalCallTimer.TimedExecution<Object> timedExecution = ExternalCallTimer.execute(
                     () -> camel.requestBodyAndHeaders(
                             "direct:direct-online-payment-requests",
@@ -178,12 +178,13 @@ public class DirectOnlinePaymentRequestsController {
             logInternal(req, errorBody, 400, e.getMessage());
             return ResponseEntity.status(400).body(errorBody);
         } catch (Exception e) {
-            log.error("Error procesando direct-online-payment-requests", e);
+            log.error("Error procesando direct-online-payment-requests: {}", e.getMessage(), e);
             boolean timeout = ExternalServiceExceptionUtils.isTimeoutException(e);
             int httpCode = timeout ? 504 : 500;
+            String rootCause = extractRootCauseMessage(e);
             String message = timeout
                     ? "Se ha perdido la conexi\u00f3n con el proveedor de billetera de pago externo"
-                    : "Internal error";
+                    : "Internal error: " + rootCause;
             String logMessage = timeout ? "ERROR_TIMEOUT" : "ERROR_TECNICO";
             ErrorInfo error = timeout ? ApiErrorUtils.gatewayTimeout(message) : ApiErrorUtils.genericError(500, message);
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
@@ -325,5 +326,20 @@ public class DirectOnlinePaymentRequestsController {
                 .cpNumber1(status)
                 .cpNumber2(externalElapsedMs)
                 .build());
+    }
+
+    /**
+     * Extrae el mensaje de la causa raiz de una excepcion.
+     *
+     * @param e excepcion original
+     * @return mensaje de la causa mas profunda
+     */
+    private String extractRootCauseMessage(Exception e) {
+        Throwable cause = e;
+        while (cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        String msg = cause.getMessage();
+        return msg == null || msg.isBlank() ? cause.getClass().getSimpleName() : msg;
     }
 }

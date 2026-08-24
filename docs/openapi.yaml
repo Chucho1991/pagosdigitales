@@ -63,6 +63,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiErrorResponse'
+        '404':
+          description: No existe el pago solicitado en el registro interno.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorResponse'
         '504':
           description: El proveedor externo excedio el timeout configurado.
           content:
@@ -125,6 +131,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MerchantEventsResponse'
+  /api/v1/jep/notifyPayment:
+    post:
+      summary: Recibe la notificacion de pago exitoso de JEPFaster.
+      description: Webhook consumido por Cooperativa JEP cuando el pago QR finaliza exitosamente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JepNotifyPaymentRequest'
+      responses:
+        '200':
+          description: Pago confirmado y actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JepNotifyPaymentResponse'
+        '400':
+          description: Trama invalida, estado diferente de PAGADO o error diferente de cero.
+        '404':
+          description: No existe el pago identificado por idtransaccion.
+        '500':
+          description: Error interno al procesar la notificacion.
   /api/v1/safetypay/confirmation:
     post:
       summary: Webhook de confirmaciones SafetyPay.
@@ -315,6 +344,42 @@ components:
           type: string
         Signature:
           type: string
+    JepNotifyPaymentRequest:
+      type: object
+      properties:
+        idtransaccion:
+          type: string
+          description: Identificador generado al crear el QR.
+        estado:
+          type: string
+          enum: [PAGADO]
+        mensaje:
+          type: string
+          description: Mensaje del estado de la transaccion.
+        identificadorsesion:
+          type: string
+          nullable: true
+          description: Identificador de sesion opcional enviado al generar el QR.
+        nummensaje:
+          type: string
+          description: Numero de comprobante o documento del pago.
+        error:
+          type: string
+          enum: ['0']
+      required:
+        - idtransaccion
+        - estado
+        - mensaje
+        - nummensaje
+        - error
+    JepNotifyPaymentResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: OK
+      required:
+        - status
     BanksResponse:
       type: object
       description: Respuesta normalizada de bancos.

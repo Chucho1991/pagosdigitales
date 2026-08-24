@@ -26,7 +26,7 @@ public class ServiceMappingConfigService {
 
     private static final String SELECT_SERVICE_MAPPINGS = "SELECT ID_MAPEO_SERVICIO, CODIGO_BILLETERA, "
             + "APP_SERVICE_KEY, APP_OPERATION, DIRECCION, SECCION_APP, ATRIBUTO_APP, "
-            + "SECCION_EXT, ATRIBUTO_EXT, ORDEN_APLICACION, ACTIVO "
+            + "SECCION_EXT, ATRIBUTO_EXT, TIPO_DATO, ORDEN_APLICACION, ACTIVO "
             + "FROM TUKUNAFUNC.AD_MAPEO_SERVICIOS";
     private static final String DEFAULT_OPERATION = "DEFAULT";
     private static final String DIRECTION_REQUEST = "REQUEST";
@@ -83,6 +83,23 @@ public class ServiceMappingConfigService {
         entries.stream()
                 .filter(entry -> SECTION_BODY.equals(entry.appSection()) && SECTION_BODY.equals(entry.externalSection()))
                 .forEach(entry -> result.put(entry.externalAttribute(), entry.appAttribute()));
+        return Collections.unmodifiableMap(result);
+    }
+
+    /**
+     * Obtiene el tipo de dato configurado para cada atributo externo del request.
+     *
+     * @param providerCode codigo de billetera
+     * @param wsKey identificador del servicio
+     * @param providerName nombre del proveedor para resolver operacion
+     * @return mapa de atributo externo a tipo de dato configurado
+     */
+    public Map<String, String> getRequestBodyDataTypes(Integer providerCode, String wsKey, String providerName) {
+        List<ServiceMapping> entries = resolve(providerCode, wsKey, providerName, DIRECTION_REQUEST);
+        Map<String, String> result = new LinkedHashMap<>();
+        entries.stream()
+                .filter(entry -> SECTION_BODY.equals(entry.appSection()) && SECTION_BODY.equals(entry.externalSection()))
+                .forEach(entry -> result.put(entry.externalAttribute(), entry.dataType()));
         return Collections.unmodifiableMap(result);
     }
 
@@ -173,6 +190,7 @@ public class ServiceMappingConfigService {
                     String appAttribute = trimToEmpty(rs.getString("ATRIBUTO_APP"));
                     String externalSection = trimToEmpty(rs.getString("SECCION_EXT")).toUpperCase(Locale.ROOT);
                     String externalAttribute = trimToEmpty(rs.getString("ATRIBUTO_EXT"));
+                    String dataType = trimToEmpty(rs.getString("TIPO_DATO")).toUpperCase(Locale.ROOT);
                     int order = rs.getInt("ORDEN_APLICACION");
                     long id = rs.getLong("ID_MAPEO_SERVICIO");
 
@@ -186,7 +204,8 @@ public class ServiceMappingConfigService {
                             appSection,
                             appAttribute,
                             externalSection,
-                            externalAttribute);
+                            externalAttribute,
+                            dataType);
 
                     temp.computeIfAbsent(providerCode, value -> new LinkedHashMap<>())
                             .computeIfAbsent(wsKey, value -> new LinkedHashMap<>())
@@ -256,6 +275,7 @@ public class ServiceMappingConfigService {
      * @param appAttribute atributo app
      * @param externalSection seccion del campo externo
      * @param externalAttribute atributo externo
+     * @param dataType tipo de dato configurado
      */
     public record ServiceMapping(
             long id,
@@ -263,6 +283,7 @@ public class ServiceMappingConfigService {
             String appSection,
             String appAttribute,
             String externalSection,
-            String externalAttribute) {
+            String externalAttribute,
+            String dataType) {
     }
 }

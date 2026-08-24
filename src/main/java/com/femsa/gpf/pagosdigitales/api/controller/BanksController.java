@@ -21,6 +21,7 @@ import com.femsa.gpf.pagosdigitales.api.dto.BankItem;
 import com.femsa.gpf.pagosdigitales.api.dto.BanksRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.BanksResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.ErrorInfo;
+import com.femsa.gpf.pagosdigitales.api.dto.PaymentProviderResponse;
 import com.femsa.gpf.pagosdigitales.api.dto.ProviderItem;
 import com.femsa.gpf.pagosdigitales.application.mapper.BanksMap;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
@@ -29,6 +30,7 @@ import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.BanksCatalogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ErrorMappingCatalogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceConfigService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.LocalBanksCatalogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.ApiErrorUtils;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.AppUtils;
@@ -57,6 +59,7 @@ public class BanksController {
     private final IntegrationLogService integrationLogService;
     private final BanksCatalogService banksCatalogService;
     private final GatewayWebServiceConfigService gatewayWebServiceConfigService;
+    private final LocalBanksCatalogService localBanksCatalogService;
 
     /**
      * Crea el controlador de bancos con sus dependencias.
@@ -70,13 +73,15 @@ public class BanksController {
      * @param integrationLogService servicio de auditoria de logs
      * @param banksCatalogService servicio de catalogo de bancos por cadena
      * @param gatewayWebServiceConfigService servicio de configuracion de endpoints por BD
+     * @param localBanksCatalogService servicio de bancos locales para proveedores internos
      */
     public BanksController(ProducerTemplate camel,
             ProvidersPayService providersPayService, BanksMap banksMap, ObjectMapper objectMapper,
             ServiceMappingConfigService serviceMappingConfigService, IntegrationLogService integrationLogService,
             ErrorMappingCatalogService errorMappingCatalogService,
             BanksCatalogService banksCatalogService,
-            GatewayWebServiceConfigService gatewayWebServiceConfigService) {
+            GatewayWebServiceConfigService gatewayWebServiceConfigService,
+            LocalBanksCatalogService localBanksCatalogService) {
         this.camel = camel;
         this.providersPayService = providersPayService;
         this.banksMap = banksMap;
@@ -86,6 +91,7 @@ public class BanksController {
         this.integrationLogService = integrationLogService;
         this.banksCatalogService = banksCatalogService;
         this.gatewayWebServiceConfigService = gatewayWebServiceConfigService;
+        this.localBanksCatalogService = localBanksCatalogService;
     }
 
     /**
@@ -118,6 +124,15 @@ public class BanksController {
                 if (proveedor.equals("without-provider")
                         || !gatewayWebServiceConfigService.isActive(req.getPayment_provider_code(), WS_KEY)) {
                     throw new IllegalArgumentException("Proveedor no configurado");
+                }
+
+                // Proveedor INTERNO: resolver bancos desde BD local sin llamada externa
+                if (providersPayService.isInternalProvider(req.getPayment_provider_code())) {
+                    BanksResponse response = buildLocalBanksResponse(req, proveedor);
+                    applyBanksFilter(response, req.getChain(), req.getChannel_POS());
+                    log.info("Response enviado al cliente banks (local): {}", response);
+                    logInternal(req, response, 200, "OK_LOCAL");
+                    return ResponseEntity.ok(response);
                 }
 
                 Map<String, Object> camelHeaders = buildCamelHeaders(req, proveedor, req.getPayment_provider_code());
@@ -170,6 +185,7 @@ public class BanksController {
 
                 Map<String, Integer> listProveedores = providersPayService.getAllProviders();
                 List<ProviderItem> listProvidersData = new ArrayList<>();
+                List<PaymentProviderResponse> localProviders = new ArrayList<>();
                 boolean attemptedProvider = false;
                 boolean timeoutDetected = false;
 
@@ -189,6 +205,16 @@ public class BanksController {
 
                         log.info("Proveedor configurado: {} - Codigo: {}", proveedor, codProveedor);
 
+                        // Proveedor INTERNO: resolver bancos desde BD local
+                        if (providersPayService.isInternalProvider(codProveedor)) {
+                            PaymentProviderResponse localProvider = buildLocalPaymentProviderResponse(
+                                    proveedor, codProveedor);
+                            if (localProvider != null) {
+                                localProviders.add(localProvider);
+                            }
+                            continue;
+                        }
+
                         ProviderFetchResult providerFetchResult = fetchProviderBanks(req, entryProveedor);
                         if (providerFetchResult.timeout()) {
                             timeoutDetected = true;
@@ -199,7 +225,7 @@ public class BanksController {
                     }
                 }
 
-                if (listProvidersData.isEmpty() && attemptedProvider) {
+                if (listProvidersData.isEmpty() && localProviders.isEmpty() && attemptedProvider) {
                     if (timeoutDetected) {
                         ErrorInfo error = ApiErrorUtils.gatewayTimeout(null);
                         Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(),
@@ -217,7 +243,25 @@ public class BanksController {
                     return ResponseEntity.status(500).body(errorBody);
                 }
 
-                BanksResponse response = banksMap.mapAllBanksResponse(req, listProvidersData);
+                BanksResponse response;
+                if (listProvidersData.isEmpty()) {
+                    // Solo hay proveedores internos
+                    response = new BanksResponse();
+                    response.setChain(req.getChain());
+                    response.setStore(req.getStore());
+                    response.setPos(req.getPos());
+                    response.setChannel_POS(req.getChannel_POS());
+                    response.setResponse_datetime(LocalDateTime.now().toString());
+                    response.setPayment_providers(new ArrayList<>(localProviders));
+                } else {
+                    response = banksMap.mapAllBanksResponse(req, listProvidersData);
+                    // Agregar proveedores internos a la respuesta
+                    if (!localProviders.isEmpty()) {
+                        List<PaymentProviderResponse> allProviders = new ArrayList<>(response.getPayment_providers());
+                        allProviders.addAll(localProviders);
+                        response.setPayment_providers(allProviders);
+                    }
+                }
                 applyBanksFilter(response, req.getChain(), req.getChannel_POS());
                 log.info("Response enviado al cliente banks: {}", response);
                 logInternal(req, response, 200, "OK_MULTI_PROVIDER");
@@ -389,5 +433,48 @@ public class BanksController {
     }
 
     private record ProviderFetchResult(ProviderItem providerItem, boolean timeout) {
+    }
+
+    /**
+     * Construye la respuesta de bancos para un proveedor local (INTERNO).
+     *
+     * @param req solicitud original
+     * @param providerName nombre del proveedor
+     * @return respuesta con bancos locales del proveedor
+     */
+    private BanksResponse buildLocalBanksResponse(BanksRequest req, String providerName) {
+        BanksResponse response = new BanksResponse();
+        response.setChain(req.getChain());
+        response.setStore(req.getStore());
+        response.setPos(req.getPos());
+        response.setChannel_POS(req.getChannel_POS());
+        response.setResponse_datetime(LocalDateTime.now().toString());
+
+        PaymentProviderResponse provider = new PaymentProviderResponse();
+        provider.setPayment_provider_name(providerName.toUpperCase());
+        provider.setPayment_provider_code(req.getPayment_provider_code());
+        provider.setBanks(localBanksCatalogService.getBanksByProviderCode(req.getPayment_provider_code()));
+
+        response.setPayment_providers(List.of(provider));
+        return response;
+    }
+
+    /**
+     * Construye un ProviderItem local para el flujo multi-proveedor.
+     *
+     * @param providerName nombre del proveedor
+     * @param providerCode codigo del proveedor
+     * @return PaymentProviderResponse con bancos locales o null si no hay bancos
+     */
+    private PaymentProviderResponse buildLocalPaymentProviderResponse(String providerName, Integer providerCode) {
+        List<BankItem> localBanks = localBanksCatalogService.getBanksByProviderCode(providerCode);
+        if (localBanks.isEmpty()) {
+            return null;
+        }
+        PaymentProviderResponse provider = new PaymentProviderResponse();
+        provider.setPayment_provider_name(providerName.toUpperCase());
+        provider.setPayment_provider_code(providerCode);
+        provider.setBanks(localBanks);
+        return provider;
     }
 }

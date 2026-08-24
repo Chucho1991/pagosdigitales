@@ -184,5 +184,14 @@ public class GatewayWebServiceConfigService {
             String method,
             String requestType,
             String uri) {
+
+        /**
+         * Indica si el servicio se resuelve dentro de la aplicacion sin invocar una URL externa.
+         *
+         * @return {@code true} cuando la URI configurada es INTERNO
+         */
+        public boolean internal() {
+            return "INTERNO".equalsIgnoreCase(uri);
+        }
     }
 }

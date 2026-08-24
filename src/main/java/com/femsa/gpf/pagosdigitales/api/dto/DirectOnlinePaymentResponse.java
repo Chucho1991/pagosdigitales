@@ -25,6 +25,7 @@ public class DirectOnlinePaymentResponse {
     private String payment_expiration_datetime_utc;
     private String transaction_id;
 
+    
     private List<Map<String, Object>> payable_amounts;
     private List<Map<String, Object>> payment_locations;
 }

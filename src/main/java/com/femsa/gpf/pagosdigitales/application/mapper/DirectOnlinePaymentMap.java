@@ -1,7 +1,12 @@
 package com.femsa.gpf.pagosdigitales.application.mapper;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentResponse;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceDefinitionService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.PointOfSaleConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.JsonPayloadUtils;
 
@@ -22,35 +28,45 @@ import com.femsa.gpf.pagosdigitales.infrastructure.util.JsonPayloadUtils;
 @Component
 public class DirectOnlinePaymentMap {
 
-    private static final DateTimeFormatter REQUEST_DATETIME_FORMAT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
-    private static final TypeReference<List<Map<String, Object>>> LIST_MAP_TYPE = new TypeReference<>() {};
+    private static final DateTimeFormatter REQUEST_DATETIME_FORMAT = DateTimeFormatter
+            .ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    private static final ZoneId LOCAL_TIME_ZONE = ZoneId.of("America/Guayaquil");
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
+    };
+    private static final TypeReference<List<Map<String, Object>>> LIST_MAP_TYPE = new TypeReference<>() {
+    };
     private static final String WS_KEY = "direct-online-payment-requests";
+    private static final String EXPIRED_TIME_PATH = "expiredTime";
+    private static final String BANK_DEUNA = "deuna";
+    private static final String BANK_JEPFASTER = "jepfaster";
 
     private final ObjectMapper mapper;
     private final GatewayWebServiceDefinitionService gatewayWebServiceDefinitionService;
     private final ServiceMappingConfigService serviceMappingConfigService;
+    private final PointOfSaleConfigService pointOfSaleConfigService;
 
     /**
      * Crea el mapper con dependencias de mapeo y configuracion.
      *
-     * @param mapper serializador de JSON
+     * @param mapper                             serializador de JSON
      * @param gatewayWebServiceDefinitionService servicio de definiciones por BD
-     * @param serviceMappingConfigService servicio de mapeo por BD
+     * @param serviceMappingConfigService        servicio de mapeo por BD
+     * @param pointOfSaleConfigService            servicio de puntos de venta externos
      */
     public DirectOnlinePaymentMap(ObjectMapper mapper,
             GatewayWebServiceDefinitionService gatewayWebServiceDefinitionService,
-            ServiceMappingConfigService serviceMappingConfigService) {
+            ServiceMappingConfigService serviceMappingConfigService,
+            PointOfSaleConfigService pointOfSaleConfigService) {
         this.mapper = mapper;
         this.gatewayWebServiceDefinitionService = gatewayWebServiceDefinitionService;
         this.serviceMappingConfigService = serviceMappingConfigService;
+        this.pointOfSaleConfigService = pointOfSaleConfigService;
     }
 
     /**
      * Construye el request para el proveedor usando los mapeos configurados.
      *
-     * @param req solicitud de pago entrante
+     * @param req          solicitud de pago entrante
      * @param providerName nombre del proveedor
      * @return cuerpo de la solicitud para el proveedor
      */
@@ -62,11 +78,16 @@ public class DirectOnlinePaymentMap {
                 req.getPayment_provider_code(),
                 WS_KEY,
                 providerName);
+        var dataTypes = serviceMappingConfigService.getRequestBodyDataTypes(
+                req.getPayment_provider_code(),
+                WS_KEY,
+                providerName);
         if (mapping != null) {
             mapping.forEach((targetPath, sourcePath) -> {
                 Object value = getValueByPath(reqMap, sourcePath);
                 if (value != null) {
-                    JsonPayloadUtils.setValueByPath(body, targetPath, value);
+                    Object typedValue = convertConfiguredType(value, dataTypes.get(targetPath));
+                    JsonPayloadUtils.setValueByPath(body, targetPath, typedValue);
                 }
             });
         }
@@ -78,25 +99,53 @@ public class DirectOnlinePaymentMap {
         if (!defaults.isEmpty()) {
             defaults.forEach((targetPath, value) -> {
                 if (value != null) {
-                    JsonPayloadUtils.setValueByPath(body, targetPath, value);
+                    Object defaultValue = EXPIRED_TIME_PATH.equals(targetPath)
+                            ? new BigDecimal(value.toString())
+                            : value;
+                    JsonPayloadUtils.setValueByPath(body, targetPath, defaultValue);
                 }
             });
         }
 
-        body.put("request_datetime", LocalDateTime.now().format(REQUEST_DATETIME_FORMAT));
+        if (BANK_DEUNA.equalsIgnoreCase(providerName)) {
+            String pointOfSale = pointOfSaleConfigService.findPointOfSale(
+                    req.getPayment_provider_code(), req.getChain(), req.getStore(), req.getPos())
+                    .orElseThrow(() -> new IllegalArgumentException(buildMissingPointOfSaleMessage(req)));
+            body.put("pointOfSale", pointOfSale);
+        }
+
+        if (!"jepfaster".equalsIgnoreCase(providerName) && !"deuna".equalsIgnoreCase(providerName)) {
+            body.put("request_datetime", LocalDateTime.now().format(REQUEST_DATETIME_FORMAT));
+        }
 
         return body;
+    }
+
+    private Object convertConfiguredType(Object value, String dataType) {
+        if (value == null || dataType == null || dataType.isBlank()) {
+            return value;
+        }
+
+        return switch (dataType.toUpperCase()) {
+            case "STRING", "DATETIME", "DATE" -> value.toString();
+            case "NUMBER" -> new BigDecimal(value.toString());
+            case "BOOLEAN" -> mapper.convertValue(value, Boolean.class);
+            case "ARRAY" -> mapper.convertValue(value, List.class);
+            case "OBJECT" -> mapper.convertValue(value, Map.class);
+            default -> value;
+        };
     }
 
     /**
      * Normaliza la respuesta del proveedor al DTO interno.
      *
-     * @param req solicitud original
-     * @param raw respuesta cruda del proveedor
+     * @param req          solicitud original
+     * @param raw          respuesta cruda del proveedor
      * @param providerName nombre del proveedor
      * @return respuesta de pago en linea normalizada
      */
-    public DirectOnlinePaymentResponse mapProviderResponse(DirectOnlinePaymentRequest req, Object raw, String providerName) {
+    public DirectOnlinePaymentResponse mapProviderResponse(DirectOnlinePaymentRequest req, Object raw,
+            String providerName) {
         Map<String, Object> map = JsonPayloadUtils.toMap(raw, mapper, "Error parseando respuesta de proveedor");
         Map<String, String> responseMapping = serviceMappingConfigService.getResponseBodyMappings(
                 req.getPayment_provider_code(),
@@ -113,8 +162,27 @@ public class DirectOnlinePaymentMap {
         resp.setResponse_datetime(getValue(map, responseMapping.get("responseDatetime"), String.class));
         resp.setOperation_id(getValue(map, responseMapping.get("operationId"), String.class));
         resp.setBank_redirect_url(getValue(map, responseMapping.get("bankRedirectUrl"), String.class));
-        resp.setPayment_expiration_datetime(getValue(map, responseMapping.get("paymentExpirationDatetime"), String.class));
-        resp.setPayment_expiration_datetime_utc(getValue(map, responseMapping.get("paymentExpirationDatetimeUtc"), String.class));
+        String expirationDatetime = getValue(
+                map, responseMapping.get("paymentExpirationDatetime"), String.class);
+        String expirationDatetimeUtc = getValue(
+                map, responseMapping.get("paymentExpirationDatetimeUtc"), String.class);
+        if (expirationDatetime == null || expirationDatetimeUtc == null) {
+            Map<String, Object> defaults = gatewayWebServiceDefinitionService.getDefaults(
+                    req.getPayment_provider_code(), WS_KEY, Map.of());
+            Object expiredTime = getValueByPath(defaults, EXPIRED_TIME_PATH);
+            if (expiredTime != null) {
+                long expirationMinutes = new BigDecimal(expiredTime.toString()).longValueExact();
+                Instant expirationInstant = Instant.now().plusSeconds(expirationMinutes * 60L);
+                if (expirationDatetime == null) {
+                    expirationDatetime = LocalDateTime.ofInstant(expirationInstant, LOCAL_TIME_ZONE)
+                            .format(REQUEST_DATETIME_FORMAT);
+                }
+                if (expirationDatetimeUtc == null) {
+                    expirationDatetimeUtc = LocalDateTime.ofInstant(expirationInstant, ZoneOffset.UTC)
+                            .format(REQUEST_DATETIME_FORMAT);
+                }
+            }
+        }
         resp.setTransaction_id(getValue(map, responseMapping.get("transactionId"), String.class));
 
         List<Map<String, Object>> payableAmounts = getValue(map, responseMapping.get("payableAmounts"), LIST_MAP_TYPE);
@@ -122,22 +190,127 @@ public class DirectOnlinePaymentMap {
         if (payableAmounts != null && !payableAmountsItem.isEmpty()) {
             payableAmounts = mapItemList(payableAmounts, payableAmountsItem);
         }
-        resp.setPayable_amounts(payableAmounts);
 
-        List<Map<String, Object>> paymentLocations = getValue(map, responseMapping.get("paymentLocations"), LIST_MAP_TYPE);
+        List<Map<String, Object>> paymentLocations = getValue(map, responseMapping.get("paymentLocations"),
+                LIST_MAP_TYPE);
         Map<String, String> paymentLocationsItem = extractPrefixedMappings(responseMapping, "paymentLocationsItem.");
         if (paymentLocations != null && !paymentLocationsItem.isEmpty()) {
             paymentLocations = mapItemList(paymentLocations, paymentLocationsItem);
         }
-        Map<String, String> paymentInstructionsItem = extractPrefixedMappings(responseMapping, "paymentInstructionsItem.");
+        Map<String, String> paymentInstructionsItem = extractPrefixedMappings(responseMapping,
+                "paymentInstructionsItem.");
         Map<String, String> howtoPayStepsItem = extractPrefixedMappings(responseMapping, "howtoPayStepsItem.");
         if (paymentLocations != null
                 && (!paymentInstructionsItem.isEmpty() || !howtoPayStepsItem.isEmpty())) {
             paymentLocations = mapPaymentLocationsNested(paymentLocations, paymentInstructionsItem, howtoPayStepsItem);
         }
+
+        if (BANK_DEUNA.equalsIgnoreCase(providerName)) {
+            String deunaTransactionId = getValue(map, "transactionId", String.class);
+            String deunaDeeplink = getValue(map, "deeplink", String.class);
+            String deunaQr = getValue(map, "qr", String.class);
+            String deunaStatus = getValue(map, "status", String.class);
+
+            // Conserva el mapeo configurable y usa los campos nativos de DEUNA
+            // solamente como respaldo cuando el perfil no resolvio alguna clave.
+            if (resp.getOperation_id() == null) {
+                resp.setOperation_id(deunaTransactionId);
+            }
+            if (resp.getTransaction_id() == null) {
+                resp.setTransaction_id(deunaTransactionId);
+            }
+            if (resp.getBank_redirect_url() == null) {
+                resp.setBank_redirect_url(deunaDeeplink);
+            }
+
+            if (payableAmounts == null) {
+                payableAmounts = buildPayableAmounts(req);
+            }
+            if (paymentLocations == null) {
+                paymentLocations = buildPaymentLocations(
+                        req, "DeUna", resp.getTransaction_id(), resp.getBank_redirect_url(), deunaQr,
+                        expirationDatetimeUtc, deunaStatus);
+            }
+        }
+
+        if (BANK_JEPFASTER.equalsIgnoreCase(providerName)) {
+            if (payableAmounts == null) {
+                payableAmounts = buildPayableAmounts(req);
+            }
+            if (paymentLocations == null) {
+                paymentLocations = buildPaymentLocations(
+                        req, "JEPFaster", resp.getTransaction_id(), null, resp.getBank_redirect_url(),
+                        expirationDatetimeUtc, null);
+            }
+        }
+
+        resp.setPayable_amounts(payableAmounts);
         resp.setPayment_locations(paymentLocations);
+        resp.setPayment_expiration_datetime(expirationDatetime);
+        resp.setPayment_expiration_datetime_utc(expirationDatetimeUtc);
 
         return resp;
+    }
+
+    private List<Map<String, Object>> buildPayableAmounts(DirectOnlinePaymentRequest req) {
+        if (req.getSales_amount() == null) {
+            return null;
+        }
+
+        Map<String, Object> amount = new LinkedHashMap<>();
+        if (req.getSales_amount().getValue() != null) {
+            amount.put("value", req.getSales_amount().getValue().toPlainString());
+        }
+        if (req.getSales_amount().getCurrency_code() != null) {
+            amount.put("currency_code", req.getSales_amount().getCurrency_code());
+        }
+
+        Map<String, Object> payableAmount = new LinkedHashMap<>();
+        payableAmount.put("amount", amount);
+        return List.of(payableAmount);
+    }
+
+    private List<Map<String, Object>> buildPaymentLocations(DirectOnlinePaymentRequest req,
+            String locationName, String transactionId, String deeplink, String qr,
+            String expirationDatetimeUtc, String status) {
+        List<Map<String, Object>> paymentInstructions = new ArrayList<>();
+        addPaymentInstruction(paymentInstructions, "TransactionID", transactionId);
+        addPaymentInstruction(paymentInstructions, "QRCodeImageBase64", qr);
+        addPaymentInstruction(paymentInstructions, "QRCodeUrl", deeplink);
+        addPaymentInstruction(paymentInstructions, "QRCodeExpirationTime", expirationDatetimeUtc);
+
+        String locationId = req.getBank_id();
+        if (locationId == null || locationId.isBlank()) {
+            locationId = String.valueOf(req.getPayment_provider_code());
+        }
+
+        Map<String, Object> paymentLocation = new LinkedHashMap<>();
+        paymentLocation.put("location_id", locationId);
+        paymentLocation.put("location_name", locationName);
+        paymentLocation.put("payment_instructions", paymentInstructions);
+        paymentLocation.put("howto_pay_steps", List.of());
+        if (status != null) {
+            paymentLocation.put("status", mapper.convertValue(status, Integer.class));
+        }
+        return List.of(paymentLocation);
+    }
+
+    private void addPaymentInstruction(List<Map<String, Object>> instructions, String name, Object value) {
+        if (value == null) {
+            return;
+        }
+        Map<String, Object> instruction = new LinkedHashMap<>();
+        instruction.put("name", name);
+        instruction.put("value", value);
+        instruction.put("display_label", "");
+        instructions.add(instruction);
+    }
+
+    private String buildMissingPointOfSaleMessage(DirectOnlinePaymentRequest req) {
+        return "No se ha configurado punto de venta para el local solicitado"
+                + " (chain=" + req.getChain()
+                + ", store=" + req.getStore()
+                + ", pos=" + req.getPos() + ")";
     }
 
     private <T> T getValue(Map<String, Object> map, String path, Class<T> type) {

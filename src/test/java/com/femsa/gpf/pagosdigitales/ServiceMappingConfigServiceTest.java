@@ -26,7 +26,7 @@ class ServiceMappingConfigServiceTest {
 
         when(connection.prepareStatement("SELECT ID_MAPEO_SERVICIO, CODIGO_BILLETERA, "
                 + "APP_SERVICE_KEY, APP_OPERATION, DIRECCION, SECCION_APP, ATRIBUTO_APP, "
-                + "SECCION_EXT, ATRIBUTO_EXT, ORDEN_APLICACION, ACTIVO "
+                + "SECCION_EXT, ATRIBUTO_EXT, TIPO_DATO, ORDEN_APLICACION, ACTIVO "
                 + "FROM TUKUNAFUNC.AD_MAPEO_SERVICIOS")).thenReturn(statement);
         when(statement.executeQuery()).thenReturn(resultSet);
         when(resultSet.next()).thenReturn(true, true, true, true, false);
@@ -40,6 +40,7 @@ class ServiceMappingConfigServiceTest {
         when(resultSet.getString("ATRIBUTO_APP")).thenReturn("requestId", "responseDatetime", "requestId", "error");
         when(resultSet.getString("SECCION_EXT")).thenReturn("BODY", "BODY", "BODY", "BODY");
         when(resultSet.getString("ATRIBUTO_EXT")).thenReturn("request_id", "response_datetime", "request_id_paysafe", "error.payload");
+        when(resultSet.getString("TIPO_DATO")).thenReturn("STRING", "DATETIME", "STRING", "OBJECT");
         when(resultSet.getInt("ORDEN_APLICACION")).thenReturn(1, 2, 1, 1);
         when(resultSet.getLong("ID_MAPEO_SERVICIO")).thenReturn(1L, 2L, 3L, 4L);
 

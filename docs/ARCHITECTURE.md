@@ -40,6 +40,7 @@
 | POST | `/api/v1/direct-online-payment-requests` | Solicitud de pago en línea | JSON | JSON |
 | POST | `/api/v1/payments/notifications/merchant-events` | Notificaciones de eventos del comercio | JSON | JSON |
 | POST | `/api/v1/safetypay/confirmation` | Webhook SafetyPay (CSV firmado) | `application/x-www-form-urlencoded` | `text/plain` |
+| POST | `/api/v1/jep/notifyPayment` | Webhook JEPFaster (pago QR) | JSON | `{"status":"OK"}` |
 | GET | `/api/v1/pagos/test` | Health check | — | text/plain |
 
 ## 4. Flujo de datos
@@ -51,7 +52,10 @@
 4. Mapper normaliza la respuesta.
 
 ### 4.2 Payments/Banks/Merchant Events
-- **Payments**: controller → Camel Route con query params → respuesta normalizada.
+- **Payments externo**: controller → Camel Route; usa query params para `PARAMETROS` o body para
+  `JSON`, y normaliza respuestas con arreglos o respuestas planas de una sola operacion.
+- **Payments interno**: cuando `IN_PASARELA_WS.URL = 'INTERNO'`, el controller consulta
+  `IN_REGISTRO_PAGOS` por proveedor y `ID_OPERACION_EXTERNO`, sin realizar una llamada HTTP.
 - **Banks**: controller → Camel Route → agregación por proveedor (si no se indica uno).
 - **Merchant Events**: controller → mapper → Camel Route.
 
@@ -60,6 +64,18 @@
 2. Service valida API Key, firma, IP y secretos.
 3. Idempotencia con store en memoria.
 4. Respuesta CSV firmada.
+
+### 4.4 JEPFaster Confirmation
+1. Controller recibe JSON con `idtransaccion`, `estado`, `mensaje`, `nummensaje`, `error`.
+2. Valida que `estado` sea `"PAGADO"` y `error` sea `"0"`.
+3. Actualiza `IN_REGISTRO_PAGOS` buscando por `ID_OPERACION_EXTERNO = idtransaccion`.
+4. Responde HTTP 200 con `{"status":"OK"}` cuando la actualizacion es exitosa.
+
+### 4.5 JEPFaster Direct Online Payment (Generación de QR)
+1. Controller (`/api/v1/direct-online-payment-requests`) recibe solicitud con `payment_provider_code = 300001`.
+2. Mapper construye payload JEP usando mapeos de `AD_MAPEO_SERVICIOS` y defaults de `IN_PASARELA_WS_DEFS` (credenciales).
+3. Camel Route envía POST a `http://.../integracioncomercial/qr-generation-process`.
+4. Respuesta contiene QR en base64 (`data.qr`) mapeado a `bankRedirectUrl`.
 
 ## 5. Configuración
 
@@ -91,6 +107,13 @@ La conexion `database.primary-name` se expone como `dataSource` primario para lo
 ### 5.5 SafetyPay
 - Fuente unica en BD:
 - `IN_SAFETYPAY_CFG` (`CODIGO_BILLETERA`, `ENABLED`, `API_KEY`, `SECRET`, `SIGNATURE_MODE`, `ALLOWED_IPS`, `ACTIVO`)
+
+### 5.6 JEPFaster (Cooperativa JEP)
+- Proveedor registrado en `AD_BILLETERAS_DIGITALES` con `CODIGO = 300001`, nombre `JEPFaster`.
+- Endpoint de generacion QR configurado en `IN_PASARELA_WS` (`WS_KEY = 'direct-online-payment-requests'`).
+- Credenciales (`nombreUsuario`, `contrasena`, `codigoInstitucion`) en `IN_PASARELA_WS_DEFS` como `TIPO_DEF = 'DEFAULTS'`.
+- Mapeo request/response en `AD_MAPEO_SERVICIOS`.
+- Webhook de confirmacion recibido en `/api/v1/jep/notifyPayment` (JSON, POST).
 
 ## 6. Despliegue con Docker
 

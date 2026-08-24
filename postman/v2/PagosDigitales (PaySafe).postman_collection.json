@@ -1,0 +1,855 @@
+{
+  "info": {
+    "_postman_id": "5f02267d-0685-4006-b74f-5faccde7aef0",
+    "name": "PagosDigitales (PaySafe)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "57000014",
+    "_collection_link": "https://go.postman.co/collection/57000014-5f02267d-0685-4006-b74f-5faccde7aef0?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "JEPFASTER",
+      "item": [
+        {
+          "name": "Payment By ID",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"chain\": 60,\r\n    \"store\": 130,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 1,\r\n    \"payment_provider_code\": 300001,\r\n    \"operation_id\": \"10\",\r\n    \"request_datetime\": \"2026-01-08T16:25:55.357\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/payments",
+              "protocol": "{{PROTOCOLO}}",
+              "host": [
+                "{{IP}}"
+              ],
+              "port": "{{PUERTO}}",
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Notificacion de PAGADO",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"idtransaccion\": \"10\",\r\n    \"estado\": \"PAGADO\",\r\n    \"mensaje\": \"Transaccion exitosa\",\r\n    \"nummensaje\": \"10\",\r\n    \"error\": \"0\"\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/jep/notifyPayment",
+              "protocol": "{{PROTOCOLO}}",
+              "host": [
+                "{{IP}}"
+              ],
+              "port": "{{PUERTO}}",
+              "path": [
+                "api",
+                "v1",
+                "jep",
+                "notifyPayment"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Direct-online-payment-requests",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"bank_id\": \"1\",\r\n    \"chain\": 60,\r\n    \"country_code\": \"ECU\",\r\n    \"expiration_time_minutes\": 5,\r\n    \"language_code\": \"ES\",\r\n    \"merchant_sales_id\": \"10\",\r\n    \"merchant_set_pay_amount\": false,\r\n    \"payment_provider_code\": 300001,\r\n    \"pos\": 1,\r\n    \"requested_payment_type\": \"1\",\r\n    \"sales_amount\": {\r\n        \"currency_code\": \"USD\",\r\n        \"value\": 57.38\r\n    },\r\n    \"send_email_shopper\": true,\r\n    \"store\": 130,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"session_id\": \"LSFIGUEREDO@GMAIL.COM\",\r\n    \"city\": \"QUITO\",\r\n    \"store_address\":\"Avenida Republica\"\r\n    //\"member_id\":\"Avenida Republica\",\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/direct-online-payment-requests",
+              "protocol": "{{PROTOCOLO}}",
+              "host": [
+                "{{IP}}"
+              ],
+              "port": "{{PUERTO}}",
+              "path": [
+                "api",
+                "v1",
+                "direct-online-payment-requests"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Direct-online-payment-requests",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"bank_id\": \"1069\",\r\n    \"chain\": 60,\r\n    \"country_code\": \"ECU\",\r\n    \"expiration_time_minutes\": 0,\r\n    \"language_code\": \"ES\",\r\n    \"merchant_sales_id\": \"d6a10d8b-c234-40c9-b764-5ed4f1f758bd\",\r\n    \"merchant_set_pay_amount\": false,\r\n    \"payment_provider_code\": 235689,\r\n    \"pos\": 1,\r\n    \"requested_payment_type\": \"1\",\r\n    \"sales_amount\": {\r\n        \"currency_code\": \"USD\",\r\n        \"value\": 10000.69\r\n    },\r\n    \"send_email_shopper\": false,\r\n    \"store\": 130,\r\n    \"storeName\": \"FYBECA AMAZONAS\",\r\n    \"transaction_email\": \"MAIL@MAIL.COM\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/direct-online-payment-requests",
+                  "protocol": "{{PROTOCOLO}}",
+                  "host": [
+                    "{{IP}}"
+                  ],
+                  "port": "{{PUERTO}}",
+                  "path": [
+                    "api",
+                    "v1",
+                    "direct-online-payment-requests"
+                  ]
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "_postman_previewlanguage": "Text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Thu, 12 Mar 2026 16:59:28 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"chain\": 60,\n    \"store\": 130,\n    \"store_name\": null,\n    \"pos\": 1,\n    \"channel_POS\": \"POS\",\n    \"payment_provider_code\": 235689,\n    \"error\": {\n        \"http_code\": 422,\n        \"code\": \"1005\",\n        \"category\": \"VALIDATION_ERROR\",\n        \"message\": \"El API no puede completar la solicitud o fallaron las validaciones de las reglas comerciales.\",\n        \"information_link\": null,\n        \"inner_details\": [\n            {\n                \"inner_code\": \"1005\",\n                \"field\": null,\n                \"field_value\": null,\n                \"field_message\": \"El monto de la transaccion excedio el maximo permitido en todos los metodos de pago.\"\n            }\n        ]\n    }\n}"
+            }
+          ]
+        },
+        {
+          "name": "GET QR DIRECT",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"nombreUsuario\":\"FYBECA\",\r\n    \"contrasena\":\"123456.a\",\r\n    \"monto\":\"11\",\r\n    \"codigoTransaccion\":\"4\",\r\n    \"codigoInstitucion\":\"8561524\",\r\n    \"ciudad\":\"Quito\",\r\n    \"direccionSucursal\":\"AMAZONAS\",\r\n    \"nombreSucursal\":\"FYBECA AMAZONAS\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://157.100.17.30:8685/serviciosenlineaBaseETH/integracioncomercial/qr-generation-process",
+              "protocol": "http",
+              "host": [
+                "157",
+                "100",
+                "17",
+                "30"
+              ],
+              "port": "8685",
+              "path": [
+                "serviciosenlineaBaseETH",
+                "integracioncomercial",
+                "qr-generation-process"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET NOTIFICATION JEP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"idtransaccion\": \"3\",\r\n    \"estado\": \"PAGADO\",\r\n    \"mensaje\": \"Transaccion exitosa\",\r\n    \"nummensaje\": \"3\",\r\n    \"error\": \"0\"\r\n}\r\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://157.100.17.30:8685/servicios/notificacioncomercio/notifyPayment",
+              "protocol": "http",
+              "host": [
+                "157",
+                "100",
+                "17",
+                "30"
+              ],
+              "port": "8685",
+              "path": [
+                "servicios",
+                "notificacioncomercio",
+                "notifyPayment"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register Event Pago",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"chain\": 60,\r\n    \"store\": 130,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 1,\r\n    \"channel_POS\": \"POS\",\r\n    \"payment_provider_code\": 300001,\r\n    \"merchant_events\": [\r\n        {\r\n            \"event_code\": \"merchant.received.transaction.notification\",\r\n            \"creation_datetime\": \"2026-02-19T09:52:03.654244639\",\r\n            \"operation_id\": \"10\",\r\n            \"merchant_sales_id\": \"10\",\r\n            \"operation_status\": \"102\"\r\n        }\r\n    ],\r\n    \"request_datetime\": \"2026-02-19T09:52:03.654250279\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/payments/notifications/merchant-events",
+              "protocol": "{{PROTOCOLO}}",
+              "host": [
+                "{{IP}}"
+              ],
+              "port": "{{PUERTO}}",
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "notifications",
+                "merchant-events"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "DEUNA",
+      "item": [
+        {
+          "name": "Request Pago Direct",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "8ed628949cc44cdbb56db947a389a87b",
+                "type": "text"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "3f47638aa86e4165b6b85c06db2c5884",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"pointOfSale\":\"4202373\",\r\n    \"qrType\":\"static\",\r\n    \"amount\":5.99,\r\n    \"detail\":\"test detail\",\r\n    \"internalTransactionReference\":\"COD-001\",\r\n    \"format\":\"2\",\r\n    \"expiredTime\": 15\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://apis-merchant.qa.deunalab.com/merchant/v1/payment/request",
+              "protocol": "https",
+              "host": [
+                "apis-merchant",
+                "qa",
+                "deunalab",
+                "com"
+              ],
+              "path": [
+                "merchant",
+                "v1",
+                "payment",
+                "request"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Pagos Direct",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "8ed628949cc44cdbb56db947a389a87b",
+                "type": "text"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "3f47638aa86e4165b6b85c06db2c5884",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"idType\":\"0\",\r\n    \"idTransacionReference\":\"454d11d8-baa5-4484-ae0a-6aa34ba0e6be\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://apis-merchant.qa.deunalab.com/merchant/v1/payment/info",
+              "protocol": "https",
+              "host": [
+                "apis-merchant",
+                "qa",
+                "deunalab",
+                "com"
+              ],
+              "path": [
+                "merchant",
+                "v1",
+                "payment",
+                "info"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Payment By ID",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"chain\": 60,\r\n    \"store\": 148,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 1,\r\n    \"payment_provider_code\": 300002,\r\n    \"operation_id\": \"454d11d8-baa5-4484-ae0a-6aa34ba0e6be\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/payments",
+              "protocol": "{{PROTOCOLO}}",
+              "host": [
+                "{{IP}}"
+              ],
+              "port": "{{PUERTO}}",
+              "path": [
+                "api",
+                "v1",
+                "payments"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Direct-online-payment-requests",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"bank_id\": \"2\",\r\n    \"chain\": 60,\r\n    \"store\": 148,\r\n    \"pointOfSale\": 4202373,\r\n    \"payment_provider_code\": 300002,\r\n    \"custom_merchant_name\": \"Test\",\r\n    \"pos\": 1,\r\n    \"sales_amount\": {\r\n        \"currency_code\": \"USD\",\r\n        \"value\": 57.38\r\n    },\r\n    \"merchant_sales_id\": \"COD-040\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/direct-online-payment-requests",
+              "protocol": "{{PROTOCOLO}}",
+              "host": [
+                "{{IP}}"
+              ],
+              "port": "{{PUERTO}}",
+              "path": [
+                "api",
+                "v1",
+                "direct-online-payment-requests"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Direct-online-payment-requests",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\r\n    \"bank_id\": \"1069\",\r\n    \"chain\": 60,\r\n    \"country_code\": \"ECU\",\r\n    \"expiration_time_minutes\": 0,\r\n    \"language_code\": \"ES\",\r\n    \"merchant_sales_id\": \"d6a10d8b-c234-40c9-b764-5ed4f1f758bd\",\r\n    \"merchant_set_pay_amount\": false,\r\n    \"payment_provider_code\": 235689,\r\n    \"pos\": 1,\r\n    \"requested_payment_type\": \"1\",\r\n    \"sales_amount\": {\r\n        \"currency_code\": \"USD\",\r\n        \"value\": 10000.69\r\n    },\r\n    \"send_email_shopper\": false,\r\n    \"store\": 130,\r\n    \"storeName\": \"FYBECA AMAZONAS\",\r\n    \"transaction_email\": \"MAIL@MAIL.COM\"\r\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/direct-online-payment-requests",
+                  "protocol": "{{PROTOCOLO}}",
+                  "host": [
+                    "{{IP}}"
+                  ],
+                  "port": "{{PUERTO}}",
+                  "path": [
+                    "api",
+                    "v1",
+                    "direct-online-payment-requests"
+                  ]
+                }
+              },
+              "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+              "code": 422,
+              "_postman_previewlanguage": "Text",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Transfer-Encoding",
+                  "value": "chunked"
+                },
+                {
+                  "key": "Date",
+                  "value": "Thu, 12 Mar 2026 16:59:28 GMT"
+                },
+                {
+                  "key": "Keep-Alive",
+                  "value": "timeout=60"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"chain\": 60,\n    \"store\": 130,\n    \"store_name\": null,\n    \"pos\": 1,\n    \"channel_POS\": \"POS\",\n    \"payment_provider_code\": 235689,\n    \"error\": {\n        \"http_code\": 422,\n        \"code\": \"1005\",\n        \"category\": \"VALIDATION_ERROR\",\n        \"message\": \"El API no puede completar la solicitud o fallaron las validaciones de las reglas comerciales.\",\n        \"information_link\": null,\n        \"inner_details\": [\n            {\n                \"inner_code\": \"1005\",\n                \"field\": null,\n                \"field_value\": null,\n                \"field_message\": \"El monto de la transaccion excedio el maximo permitido en todos los metodos de pago.\"\n            }\n        ]\n    }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Register Event Pago",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"chain\": 60,\r\n    \"store\": 148,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 1,\r\n    \"channel_POS\": \"POS\",\r\n    \"payment_provider_code\": 300002,\r\n    \"merchant_events\": [\r\n        {\r\n            \"event_code\": \"merchant.received.transaction.notification\",\r\n            \"creation_datetime\": \"2026-02-20T09:52:03.654244639\",\r\n            \"operation_id\": \"454d11d8-baa5-4484-ae0a-6aa34ba0e6be\",\r\n            \"merchant_sales_id\": \"COD-050\",\r\n            \"operation_status\": \"102\"\r\n        }\r\n    ],\r\n    \"request_datetime\": \"2026-02-20T09:52:03.654250279\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/payments/notifications/merchant-events",
+              "protocol": "{{PROTOCOLO}}",
+              "host": [
+                "{{IP}}"
+              ],
+              "port": "{{PUERTO}}",
+              "path": [
+                "api",
+                "v1",
+                "payments",
+                "notifications",
+                "merchant-events"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Banks_get",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"chain\": 60,\r\n    \"store\": 148,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 90,\r\n    \"channel_POS\": \"POS\",\r\n    \"payment_provider_code\": 300002,\r\n    \"country_code\": \"ECU\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/banks",
+          "protocol": "{{PROTOCOLO}}",
+          "host": [
+            "{{IP}}"
+          ],
+          "port": "{{PUERTO}}",
+          "path": [
+            "api",
+            "v1",
+            "banks"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Banks_get_all",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"chain\": 60,\r\n    \"store\": 148,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 90,\r\n    \"channel_POS\": \"POS\",\r\n   // \"payment_provider_code\": 235689,\r\n    \"country_code\": \"ECU\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/banks",
+          "protocol": "{{PROTOCOLO}}",
+          "host": [
+            "{{IP}}"
+          ],
+          "port": "{{PUERTO}}",
+          "path": [
+            "api",
+            "v1",
+            "banks"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Direct-online-payment-requests",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"bank_id\": \"1069\",\r\n    \"chain\": 60,\r\n    \"country_code\": \"ECU\",\r\n    \"expiration_time_minutes\": 5,\r\n    \"language_code\": \"ES\",\r\n    \"merchant_sales_id\": \"aacda110-cde4-4af2-bcd5-8427311e54ae\",\r\n    \"merchant_set_pay_amount\": false,\r\n    \"payment_provider_code\": 235689,\r\n    \"pos\": 1,\r\n    \"requested_payment_type\": \"1\",\r\n    \"sales_amount\": {\r\n        \"currency_code\": \"USD\",\r\n        \"value\": 57.38\r\n    },\r\n    \"send_email_shopper\": true,\r\n    \"store\": 130,\r\n    \"storeName\": \"FYBECA AMAZONAS\",\r\n    \"transaction_email\": \"LSFIGUEREDO@GMAIL.COM\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/direct-online-payment-requests",
+          "protocol": "{{PROTOCOLO}}",
+          "host": [
+            "{{IP}}"
+          ],
+          "port": "{{PUERTO}}",
+          "path": [
+            "api",
+            "v1",
+            "direct-online-payment-requests"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Direct-online-payment-requests",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"bank_id\": \"1069\",\r\n    \"chain\": 60,\r\n    \"country_code\": \"ECU\",\r\n    \"expiration_time_minutes\": 0,\r\n    \"language_code\": \"ES\",\r\n    \"merchant_sales_id\": \"d6a10d8b-c234-40c9-b764-5ed4f1f758bd\",\r\n    \"merchant_set_pay_amount\": false,\r\n    \"payment_provider_code\": 235689,\r\n    \"pos\": 1,\r\n    \"requested_payment_type\": \"1\",\r\n    \"sales_amount\": {\r\n        \"currency_code\": \"USD\",\r\n        \"value\": 10000.69\r\n    },\r\n    \"send_email_shopper\": false,\r\n    \"store\": 130,\r\n    \"storeName\": \"FYBECA AMAZONAS\",\r\n    \"transaction_email\": \"MAIL@MAIL.COM\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/direct-online-payment-requests",
+              "protocol": "{{PROTOCOLO}}",
+              "host": [
+                "{{IP}}"
+              ],
+              "port": "{{PUERTO}}",
+              "path": [
+                "api",
+                "v1",
+                "direct-online-payment-requests"
+              ]
+            }
+          },
+          "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+          "code": 422,
+          "_postman_previewlanguage": "Text",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "key": "Transfer-Encoding",
+              "value": "chunked"
+            },
+            {
+              "key": "Date",
+              "value": "Thu, 12 Mar 2026 16:59:28 GMT"
+            },
+            {
+              "key": "Keep-Alive",
+              "value": "timeout=60"
+            },
+            {
+              "key": "Connection",
+              "value": "keep-alive"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"chain\": 60,\n    \"store\": 130,\n    \"store_name\": null,\n    \"pos\": 1,\n    \"channel_POS\": \"POS\",\n    \"payment_provider_code\": 235689,\n    \"error\": {\n        \"http_code\": 422,\n        \"code\": \"1005\",\n        \"category\": \"VALIDATION_ERROR\",\n        \"message\": \"El API no puede completar la solicitud o fallaron las validaciones de las reglas comerciales.\",\n        \"information_link\": null,\n        \"inner_details\": [\n            {\n                \"inner_code\": \"1005\",\n                \"field\": null,\n                \"field_value\": null,\n                \"field_message\": \"El monto de la transaccion excedio el maximo permitido en todos los metodos de pago.\"\n            }\n        ]\n    }\n}"
+        }
+      ]
+    },
+    {
+      "name": "PaymentsNotificationsMerchantEvents",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"chain\": 60,\r\n    \"store\": 130,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 1,\r\n    \"channel_POS\": \"POS\",\r\n    \"payment_provider_code\": 235689,\r\n    \"merchant_events\": [\r\n        {\r\n            \"event_code\": \"merchant.received.transaction.notification\",\r\n            \"creation_datetime\": \"2026-02-19T09:52:03.654244639\",\r\n            \"operation_id\": \"0126050806010710111\",\r\n            \"merchant_sales_id\": \"ce3ab105-adfc-4105-ba71-ede28d98de0dvdgdgavd\",\r\n            \"operation_status\": \"102\"\r\n        }\r\n    ],\r\n    \"request_datetime\": \"2026-02-19T09:52:03.654250279\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/payments/notifications/merchant-events",
+          "protocol": "{{PROTOCOLO}}",
+          "host": [
+            "{{IP}}"
+          ],
+          "port": "{{PUERTO}}",
+          "path": [
+            "api",
+            "v1",
+            "payments",
+            "notifications",
+            "merchant-events"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PaymentsById_GET",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"chain\": 1,\r\n    \"store\": 149,\r\n    \"store_name\": \"FYBECA AMAZONAS\",\r\n    \"pos\": 90,\r\n    \"payment_provider_code\": 235689,\r\n    \"operation_id\": \"3da60fe2-e455-4bc7-b4c0-66cc224d4b38\",\r\n    \"request_datetime\": \"2026-01-08T16:25:55.357\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/payments",
+          "protocol": "{{PROTOCOLO}}",
+          "host": [
+            "{{IP}}"
+          ],
+          "port": "{{PUERTO}}",
+          "path": [
+            "api",
+            "v1",
+            "payments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Confirmacion",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "type": "text",
+              "key": "payment_provider_code",
+              "value": "235689"
+            },
+            {
+              "type": "text",
+              "key": "ApiKey",
+              "value": "c14e0ba4e1845e09ba08a4be0fba95e5"
+            },
+            {
+              "type": "text",
+              "key": "RequestDateTime",
+              "value": "2026-02-19T18:50:56"
+            },
+            {
+              "type": "text",
+              "key": "MerchantSalesID",
+              "value": "0cacd543-7ec5-4d2d-9268-fbf4f0d7f94c"
+            },
+            {
+              "type": "text",
+              "key": "ReferenceNo",
+              "value": "0126050806394294"
+            },
+            {
+              "type": "text",
+              "key": "CreationDateTime",
+              "value": "2026-02-19T18:50:02"
+            },
+            {
+              "type": "text",
+              "key": "Amount",
+              "value": "6.53"
+            },
+            {
+              "type": "text",
+              "key": "CurrencyID",
+              "value": "USD"
+            },
+            {
+              "type": "text",
+              "key": "PaymentReferenceNo",
+              "value": "403807"
+            },
+            {
+              "type": "text",
+              "key": "Status",
+              "value": "102"
+            },
+            {
+              "type": "text",
+              "key": "Signature",
+              "value": "B7DFEB681EB306A67B21E76E4B708861B339173FA59F760F733D1EE3DB26ABAE"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/safetypay/confirmation",
+          "protocol": "{{PROTOCOLO}}",
+          "host": [
+            "{{IP}}"
+          ],
+          "port": "{{PUERTO}}",
+          "path": [
+            "api",
+            "v1",
+            "safetypay",
+            "confirmation"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/pagos/test",
+          "protocol": "{{PROTOCOLO}}",
+          "host": [
+            "{{IP}}"
+          ],
+          "port": "{{PUERTO}}",
+          "path": [
+            "api",
+            "v1",
+            "pagos",
+            "test"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Issuer-Commissions",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/issuer-commissions",
+          "protocol": "{{PROTOCOLO}}",
+          "host": [
+            "{{IP}}"
+          ],
+          "port": "{{PUERTO}}",
+          "path": [
+            "api",
+            "v1",
+            "issuer-commissions"
+          ],
+          "query": [
+            {
+              "key": "codigo_establecimiento",
+              "value": "1069",
+              "disabled": true
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

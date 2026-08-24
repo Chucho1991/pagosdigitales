@@ -22,13 +22,18 @@ import lombok.extern.log4j.Log4j2;
 @Service
 public class ProvidersPayService {
 
-    private static final String SELECT_ACTIVE_WALLETS = "SELECT CODIGO, NOMBRE_BILLETERA_DIGITAL "
+    private static final String SELECT_ACTIVE_WALLETS = "SELECT CODIGO, NOMBRE_BILLETERA_DIGITAL, "
+            + "NVL(TIPO_BANCO, 'EXTERNO') AS TIPO_BANCO "
             + "FROM TUKUNAFUNC.AD_BILLETERAS_DIGITALES "
             + "WHERE ACTIVA = 'S'";
+
+    private static final String BANK_TYPE_INTERNAL = "INTERNO";
+    private static final String BANK_TYPE_EXTERNAL = "EXTERNO";
 
     private final DatabaseExecutor databaseExecutor;
     private volatile Map<String, Integer> providersByName = Map.of();
     private volatile Map<Integer, String> providersByCode = Map.of();
+    private volatile Map<Integer, String> bankTypeByCode = Map.of();
 
     /**
      * Crea el servicio con configuracion de conexion.
@@ -53,11 +58,20 @@ public class ProvidersPayService {
     @Scheduled(cron = "0 0 */6 * * *")
     public void refreshCache() {
         try {
-            Map<String, Integer> refreshedByName = loadActiveProvidersFromDb();
+            Map<Integer, String[]> loaded = loadActiveProvidersFromDb();
+            Map<String, Integer> refreshedByName = new LinkedHashMap<>();
             Map<Integer, String> refreshedByCode = new LinkedHashMap<>();
-            refreshedByName.forEach((name, code) -> refreshedByCode.put(code, name));
+            Map<Integer, String> refreshedBankType = new LinkedHashMap<>();
+            loaded.forEach((code, values) -> {
+                String name = values[0];
+                String tipo = values[1];
+                refreshedByName.put(name, code);
+                refreshedByCode.put(code, name);
+                refreshedBankType.put(code, tipo);
+            });
             this.providersByName = Map.copyOf(refreshedByName);
             this.providersByCode = Map.copyOf(refreshedByCode);
+            this.bankTypeByCode = Map.copyOf(refreshedBankType);
             log.info("Cache de proveedores actualizada. Total activos: {}", refreshedByName.size());
         } catch (Exception e) {
             log.error("No fue posible refrescar cache AD_BILLETERAS_DIGITALES. Se conserva cache anterior.", e);
@@ -100,16 +114,43 @@ public class ProvidersPayService {
         return providersByName;
     }
 
-    private Map<String, Integer> loadActiveProvidersFromDb() throws Exception {
-        Map<String, Integer> providers = new LinkedHashMap<>();
+    /**
+     * Obtiene el tipo de banco del proveedor (INTERNO o EXTERNO).
+     *
+     * @param code codigo del proveedor
+     * @return tipo de banco; por defecto "EXTERNO"
+     */
+    public String getBankTypeByCode(Integer code) {
+        if (code == null) {
+            return BANK_TYPE_EXTERNAL;
+        }
+        return bankTypeByCode.getOrDefault(code, BANK_TYPE_EXTERNAL);
+    }
+
+    /**
+     * Indica si el proveedor resuelve bancos de forma local (sin llamada externa).
+     *
+     * @param code codigo del proveedor
+     * @return true si TIPO_BANCO es INTERNO
+     */
+    public boolean isInternalProvider(Integer code) {
+        return BANK_TYPE_INTERNAL.equalsIgnoreCase(getBankTypeByCode(code));
+    }
+
+    private Map<Integer, String[]> loadActiveProvidersFromDb() throws Exception {
+        Map<Integer, String[]> providers = new LinkedHashMap<>();
         databaseExecutor.withConnection((DatabaseExecutor.ConnectionConsumer) connection -> {
             try (PreparedStatement ps = connection.prepareStatement(SELECT_ACTIVE_WALLETS);
                     ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     String providerName = normalizeProviderKey(rs.getString("NOMBRE_BILLETERA_DIGITAL"));
                     Integer providerCode = rs.getInt("CODIGO");
+                    String tipoBanco = rs.getString("TIPO_BANCO");
+                    if (tipoBanco == null || tipoBanco.isBlank()) {
+                        tipoBanco = BANK_TYPE_EXTERNAL;
+                    }
                     if (!providerName.isBlank()) {
-                        providers.put(providerName, providerCode);
+                        providers.put(providerCode, new String[]{providerName, tipoBanco.trim().toUpperCase(Locale.ROOT)});
                     }
                 }
             }
@@ -131,6 +172,12 @@ public class ProvidersPayService {
         }
         if (normalized.contains("pichincha")) {
             return "pichincha";
+        }
+        if (normalized.contains("jep") || normalized.contains("jepfaster")) {
+            return "jepfaster";
+        }
+        if (normalized.contains("deuna")) {
+            return "deuna";
         }
         return normalized;
     }
