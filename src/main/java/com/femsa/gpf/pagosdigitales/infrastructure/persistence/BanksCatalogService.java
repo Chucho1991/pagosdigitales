@@ -83,9 +83,11 @@ public class BanksCatalogService {
 
     /**
      * Refresca la cache de AD_TIPO_PAGO cada 6 horas.
+     *
+     * @return true si la cache fue actualizada
      */
     @Scheduled(cron = "0 0 */6 * * *")
-    public void refreshCache() {
+    public boolean refreshCache() {
         try {
             this.allowedBanksByProviderAndChain = Map.copyOf(loadAllowedBanksByChainFromDb());
             this.allowedBanksByProviderAndChannel = Map.copyOf(loadAllowedBanksByChannelFromDb());
@@ -93,10 +95,12 @@ public class BanksCatalogService {
             this.maximumsByProviderAndBank = Map.copyOf(loadMaximumsFromDb());
             log.info("Cache AD_CANAL/AD_CANAL_TIPO_PAGO/AD_TIPO_PAGO actualizada. Combinaciones provider-canal: {}",
                     allowedBanksByProviderAndChannel.size());
+            return true;
         } catch (Exception e) {
             log.error(
                     "No fue posible refrescar cache AD_CANAL/AD_CANAL_TIPO_PAGO/AD_TIPO_PAGO. Se conserva cache anterior.",
                     e);
+            return false;
         }
     }
 

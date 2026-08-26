@@ -85,6 +85,21 @@ Notas:
 - El catalogo `AD_MAPEO_ERRORES` se carga en cache en memoria para uso exclusivo de control de errores.
 - El refresco de cache se ejecuta al arranque y luego cada 6 horas (`00:00`, `06:00`, `12:00`, `18:00` del servidor).
 
+### Refresco administrativo de caches
+
+- Metodo: `POST`
+- Ruta: `/api/v1/cache/refresh`
+- Autenticacion: HTTP Basic con rol `CACHE_ADMIN`.
+- Credenciales: `CACHE_ADMIN_USERNAME` (por defecto `cache-admin`) y `CACHE_ADMIN_PASSWORD` (obligatoria en cada ambiente desplegado).
+- Respuestas: `200` si todas se actualizan, `207` si existe un resultado parcial y `503` si todas fallan. Ante un fallo se conserva el valor anterior de esa cache.
+- El endpoint procesa las caches de `AD_BILLETERAS_DIGITALES`, `AD_CANAL`, `AD_CANAL_TIPO_PAGO`, `AD_TIPO_PAGO`, `AD_MAPEO_ERRORES`, `AD_MAPEO_SERVICIOS`, `IN_PASARELA_WS`, `IN_PASARELA_WS_DEFS`, `IN_PASARELA_HEADERS`, `IN_PASARELA_PUNTO_VENTA`, `IN_SAFETYPAY_CFG` y `AD_COMISION_TIPOPAGO`.
+
+Ejemplo:
+
+```bash
+curl -u "${CACHE_ADMIN_USERNAME}:${CACHE_ADMIN_PASSWORD}" -X POST http://localhost:8080/api/v1/cache/refresh
+```
+
 ## Despliegue con Docker (puerto 8080)
 
 1. Construye la imagen:

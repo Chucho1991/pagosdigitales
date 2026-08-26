@@ -47,15 +47,19 @@ public class PointOfSaleConfigService {
 
     /**
      * Refresca la cache de puntos de venta cada seis horas.
+     *
+     * @return true si la cache fue actualizada
      */
     @Scheduled(cron = "0 0 */6 * * *")
-    public void refreshCache() {
+    public boolean refreshCache() {
         try {
             Map<PointOfSaleKey, String> loaded = loadPointOfSalesFromDb();
             this.pointOfSales = Map.copyOf(loaded);
             log.info("Cache IN_PASARELA_PUNTO_VENTA actualizada. Puntos de venta cargados: {}", loaded.size());
+            return true;
         } catch (Exception e) {
             log.error("No fue posible refrescar cache IN_PASARELA_PUNTO_VENTA. Se conserva cache anterior.", e);
+            return false;
         }
     }
 

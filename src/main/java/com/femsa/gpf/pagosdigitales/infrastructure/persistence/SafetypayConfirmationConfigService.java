@@ -50,14 +50,18 @@ public class SafetypayConfirmationConfigService {
 
     /**
      * Refresca la cache cada 6 horas.
+     *
+     * @return true si la cache fue actualizada
      */
     @Scheduled(cron = "0 0 */6 * * *")
-    public void refreshCache() {
+    public boolean refreshCache() {
         try {
             this.providers = Map.copyOf(loadFromDb());
             log.info("Cache de confirmation SafetyPay actualizada. Proveedores: {}", providers.size());
+            return true;
         } catch (Exception e) {
             log.error("No fue posible refrescar cache de confirmation SafetyPay. Se conserva cache anterior.", e);
+            return false;
         }
     }
 

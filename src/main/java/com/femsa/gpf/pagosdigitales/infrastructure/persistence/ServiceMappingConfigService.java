@@ -56,15 +56,19 @@ public class ServiceMappingConfigService {
 
     /**
      * Refresca la cache de mapeos cada 6 horas.
+     *
+     * @return true si la cache fue actualizada
      */
     @Scheduled(cron = "0 0 */6 * * *")
-    public void refreshCache() {
+    public boolean refreshCache() {
         try {
             var loaded = loadMappingsFromDb();
             this.mappingsByProvider = toImmutable(loaded);
             log.info("Cache de AD_MAPEO_SERVICIOS actualizada. Proveedores con mapeos: {}", loaded.size());
+            return true;
         } catch (Exception e) {
             log.error("No fue posible refrescar cache AD_MAPEO_SERVICIOS. Se conserva cache anterior.", e);
+            return false;
         }
     }
 

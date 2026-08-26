@@ -63,15 +63,19 @@ public class LocalBanksCatalogService {
 
     /**
      * Refresca la cache de bancos locales cada 6 horas.
+     *
+     * @return true si la cache fue actualizada
      */
     @Scheduled(cron = "0 0 */6 * * *")
-    public void refreshCache() {
+    public boolean refreshCache() {
         try {
             Map<Integer, List<BankItem>> loaded = loadLocalBanksFromDb();
             this.banksByProviderCode = Map.copyOf(loaded);
             log.info("Cache de bancos locales actualizada. Proveedores con bancos locales: {}", loaded.size());
+            return true;
         } catch (Exception e) {
             log.error("No fue posible refrescar cache de bancos locales. Se conserva cache anterior.", e);
+            return false;
         }
     }
 

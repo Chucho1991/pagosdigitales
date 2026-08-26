@@ -52,15 +52,19 @@ public class ErrorMappingCatalogService {
 
     /**
      * Refresca la cache del catalogo cada 6 horas.
+     *
+     * @return true si la cache fue actualizada
      */
     @Scheduled(cron = "0 0 */6 * * *")
-    public void refreshCache() {
+    public boolean refreshCache() {
         try {
             List<ErrorMappingEntry> loaded = loadMappingsFromDb();
             this.catalog = ErrorCatalog.of(loaded);
             log.info("Cache de AD_MAPEO_ERRORES actualizada. Registros cargados: {}", loaded.size());
+            return true;
         } catch (Exception e) {
             log.error("No fue posible refrescar cache AD_MAPEO_ERRORES. Se conserva cache anterior.", e);
+            return false;
         }
     }
 

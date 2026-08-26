@@ -350,6 +350,99 @@
         }
       },
       "response": []
+    },
+    {
+      "name": "Cache Refresh",
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{CACHE_ADMIN_USERNAME}}",
+              "type": "string"
+            },
+            {
+              "key": "password",
+              "value": "{{CACHE_ADMIN_PASSWORD}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/cache/refresh",
+          "protocol": "{{PROTOCOLO}}",
+          "host": [
+            "{{IP}}"
+          ],
+          "port": "{{PUERTO}}",
+          "path": [
+            "api",
+            "v1",
+            "cache",
+            "refresh"
+          ]
+        },
+        "description": "Refresca las 11 caches respaldadas por base de datos. Requiere el rol CACHE_ADMIN."
+      },
+      "response": [
+        {
+          "name": "Todas las caches actualizadas",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{PROTOCOLO}}://{{IP}}:{{PUERTO}}/api/v1/cache/refresh",
+              "protocol": "{{PROTOCOLO}}",
+              "host": [
+                "{{IP}}"
+              ],
+              "port": "{{PUERTO}}",
+              "path": [
+                "api",
+                "v1",
+                "cache",
+                "refresh"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"refreshedAt\": \"2026-08-26T19:00:00Z\",\n  \"total\": 11,\n  \"successful\": 11,\n  \"failed\": 0,\n  \"caches\": [\n    { \"cacheName\": \"payment-providers\", \"tables\": [\"AD_BILLETERAS_DIGITALES\"], \"status\": \"UPDATED\" },\n    { \"cacheName\": \"banks\", \"tables\": [\"AD_CANAL\", \"AD_CANAL_TIPO_PAGO\", \"AD_TIPO_PAGO\"], \"status\": \"UPDATED\" },\n    { \"cacheName\": \"local-banks\", \"tables\": [\"AD_TIPO_PAGO\"], \"status\": \"UPDATED\" },\n    { \"cacheName\": \"error-mappings\", \"tables\": [\"AD_MAPEO_ERRORES\"], \"status\": \"UPDATED\" },\n    { \"cacheName\": \"gateway-web-services\", \"tables\": [\"IN_PASARELA_WS\"], \"status\": \"UPDATED\" },\n    { \"cacheName\": \"gateway-web-service-definitions\", \"tables\": [\"IN_PASARELA_WS_DEFS\"], \"status\": \"UPDATED\" },\n    { \"cacheName\": \"provider-headers\", \"tables\": [\"IN_PASARELA_HEADERS\"], \"status\": \"UPDATED\" },\n    { \"cacheName\": \"service-mappings\", \"tables\": [\"AD_MAPEO_SERVICIOS\"], \"status\": \"UPDATED\" },\n    { \"cacheName\": \"point-of-sales\", \"tables\": [\"IN_PASARELA_PUNTO_VENTA\"], \"status\": \"UPDATED\" },\n    { \"cacheName\": \"safetypay-confirmation\", \"tables\": [\"IN_SAFETYPAY_CFG\"], \"status\": \"UPDATED\" },\n    { \"cacheName\": \"issuer-commissions\", \"tables\": [\"AD_TIPO_PAGO\", \"AD_COMISION_TIPOPAGO\"], \"status\": \"UPDATED\" }\n  ]\n}"
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "CACHE_ADMIN_USERNAME",
+      "value": "cache-admin",
+      "type": "string"
+    },
+    {
+      "key": "CACHE_ADMIN_PASSWORD",
+      "value": "",
+      "type": "string"
     }
   ]
 }

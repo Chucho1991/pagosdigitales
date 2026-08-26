@@ -6,6 +6,35 @@ info:
 servers:
   - url: http://localhost:8080
 paths:
+  /api/v1/cache/refresh:
+    post:
+      summary: Refresca todas las caches respaldadas por base de datos.
+      description: Requiere autenticacion HTTP Basic con el rol CACHE_ADMIN. Las caches que fallen conservan su valor anterior.
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Todas las caches fueron actualizadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheRefreshResponse'
+        '207':
+          description: Algunas caches no pudieron actualizarse.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheRefreshResponse'
+        '401':
+          description: Credenciales no informadas o invalidas.
+        '403':
+          description: El usuario no tiene el rol CACHE_ADMIN.
+        '503':
+          description: Ninguna cache pudo actualizarse.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheRefreshResponse'
   /api/v1/banks:
     post:
       summary: Consulta bancos por proveedor o todos los proveedores configurados.
@@ -211,7 +240,46 @@ paths:
               schema:
                 type: string
 components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
   schemas:
+    CacheRefreshResponse:
+      type: object
+      required: [refreshedAt, total, successful, failed, caches]
+      properties:
+        refreshedAt:
+          type: string
+          format: date-time
+        total:
+          type: integer
+          example: 11
+        successful:
+          type: integer
+          format: int64
+          example: 11
+        failed:
+          type: integer
+          format: int64
+          example: 0
+        caches:
+          type: array
+          items:
+            $ref: '#/components/schemas/CacheRefreshItemResponse'
+    CacheRefreshItemResponse:
+      type: object
+      required: [cacheName, tables, status]
+      properties:
+        cacheName:
+          type: string
+        tables:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [UPDATED, FAILED]
     BanksRequest:
       type: object
       properties:

@@ -56,15 +56,19 @@ public class GatewayWebServiceDefinitionService {
 
     /**
      * Refresca la cache de definiciones cada 6 horas.
+     *
+     * @return true si la cache fue actualizada
      */
     @Scheduled(cron = "0 0 */6 * * *")
-    public void refreshCache() {
+    public boolean refreshCache() {
         try {
             Map<Integer, Map<String, Map<String, WsDefinition>>> loaded = loadDefinitionsFromDb();
             this.definitionsByProvider = toUnmodifiableMap(loaded);
             log.info("Cache de IN_PASARELA_WS_DEFS actualizada. Proveedores con defs: {}", loaded.size());
+            return true;
         } catch (Exception e) {
             log.error("No fue posible refrescar cache IN_PASARELA_WS_DEFS. Se conserva cache anterior.", e);
+            return false;
         }
     }
 

@@ -44,15 +44,19 @@ public class ProviderHeaderService {
 
     /**
      * Refresca la cache de headers cada 6 horas.
+     *
+     * @return true si la cache fue actualizada
      */
     @Scheduled(cron = "0 0 */6 * * *")
-    public void refreshCache() {
+    public boolean refreshCache() {
         try {
             Map<Integer, Map<String, String>> loaded = loadHeadersFromDb();
             this.headersByProviderCode = Map.copyOf(loaded);
             log.info("Cache de IN_PASARELA_HEADERS actualizada. Proveedores con headers: {}", loaded.size());
+            return true;
         } catch (Exception e) {
             log.error("No fue posible refrescar cache IN_PASARELA_HEADERS. Se conserva cache anterior.", e);
+            return false;
         }
     }
 

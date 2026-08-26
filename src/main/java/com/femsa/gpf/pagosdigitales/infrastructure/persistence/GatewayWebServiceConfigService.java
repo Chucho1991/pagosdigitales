@@ -51,15 +51,19 @@ public class GatewayWebServiceConfigService {
 
     /**
      * Refresca la cache de configuracion cada 6 horas.
+     *
+     * @return true si la cache fue actualizada
      */
     @Scheduled(cron = "0 0 */6 * * *")
-    public void refreshCache() {
+    public boolean refreshCache() {
         try {
             Map<Integer, Map<String, WebServiceConfig>> loaded = loadConfigFromDb();
             this.configByProvider = Map.copyOf(loaded);
             log.info("Cache de IN_PASARELA_WS actualizada. Proveedores con servicios: {}", loaded.size());
+            return true;
         } catch (Exception e) {
             log.error("No fue posible refrescar cache IN_PASARELA_WS. Se conserva cache anterior.", e);
+            return false;
         }
     }
 

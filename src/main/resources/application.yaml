@@ -11,6 +11,11 @@ spring:
     import: "optional:file:.env[.properties]"
   application:
     name: pagosDigitales
+  security:
+    user:
+      name: ${CACHE_ADMIN_USERNAME:cache-admin}
+      password: ${CACHE_ADMIN_PASSWORD:${random.uuid}}
+      roles: CACHE_ADMIN
   #PROVISIONAL DEV
   devtools:
     restart:

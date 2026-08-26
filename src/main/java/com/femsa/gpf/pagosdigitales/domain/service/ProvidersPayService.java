@@ -54,9 +54,11 @@ public class ProvidersPayService {
 
     /**
      * Refresca la cache de proveedores cada 6 horas.
+     *
+     * @return true si la cache fue actualizada
      */
     @Scheduled(cron = "0 0 */6 * * *")
-    public void refreshCache() {
+    public boolean refreshCache() {
         try {
             Map<Integer, String[]> loaded = loadActiveProvidersFromDb();
             Map<String, Integer> refreshedByName = new LinkedHashMap<>();
@@ -73,8 +75,10 @@ public class ProvidersPayService {
             this.providersByCode = Map.copyOf(refreshedByCode);
             this.bankTypeByCode = Map.copyOf(refreshedBankType);
             log.info("Cache de proveedores actualizada. Total activos: {}", refreshedByName.size());
+            return true;
         } catch (Exception e) {
             log.error("No fue posible refrescar cache AD_BILLETERAS_DIGITALES. Se conserva cache anterior.", e);
+            return false;
         }
     }
 

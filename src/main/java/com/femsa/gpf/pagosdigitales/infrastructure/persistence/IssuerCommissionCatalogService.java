@@ -81,16 +81,20 @@ public class IssuerCommissionCatalogService {
 
     /**
      * Refresca la cache de comisiones y sincroniza FEMSA_EMISOR_COMISION cada 6 horas.
+     *
+     * @return true si la cache y la tabla destino fueron actualizadas
      */
     @Scheduled(cron = "0 0 */6 * * *")
-    public void refreshCache() {
+    public boolean refreshCache() {
         try {
             Map<String, IssuerCommission> loaded = Map.copyOf(loadFromDb());
             syncToAppdfm(loaded);
             this.commissionsByEstablishment = loaded;
             log.info("Cache AD_COMISION_TIPOPAGO actualizada. Comisiones cargadas: {}", loaded.size());
+            return true;
         } catch (Exception e) {
             log.error("No fue posible refrescar cache AD_COMISION_TIPOPAGO. Se conserva cache anterior.", e);
+            return false;
         }
     }
 
