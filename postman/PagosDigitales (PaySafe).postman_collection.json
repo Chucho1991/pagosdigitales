@@ -355,19 +355,7 @@
       "name": "Cache Refresh",
       "request": {
         "auth": {
-          "type": "basic",
-          "basic": [
-            {
-              "key": "username",
-              "value": "{{CACHE_ADMIN_USERNAME}}",
-              "type": "string"
-            },
-            {
-              "key": "password",
-              "value": "{{CACHE_ADMIN_PASSWORD}}",
-              "type": "string"
-            }
-          ]
+          "type": "noauth"
         },
         "method": "POST",
         "header": [
@@ -390,7 +378,7 @@
             "refresh"
           ]
         },
-        "description": "Refresca las 11 caches respaldadas por base de datos. Requiere el rol CACHE_ADMIN."
+        "description": "Refresca las 11 caches respaldadas por base de datos. No requiere autenticacion."
       },
       "response": [
         {
@@ -433,16 +421,5 @@
       ]
     }
   ],
-  "variable": [
-    {
-      "key": "CACHE_ADMIN_USERNAME",
-      "value": "cache-admin",
-      "type": "string"
-    },
-    {
-      "key": "CACHE_ADMIN_PASSWORD",
-      "value": "",
-      "type": "string"
-    }
-  ]
+  "variable": []
 }

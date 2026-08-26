@@ -9,9 +9,7 @@ paths:
   /api/v1/cache/refresh:
     post:
       summary: Refresca todas las caches respaldadas por base de datos.
-      description: Requiere autenticacion HTTP Basic con el rol CACHE_ADMIN. Las caches que fallen conservan su valor anterior.
-      security:
-        - basicAuth: []
+      description: No requiere autenticacion. Las caches que fallen conservan su valor anterior.
       responses:
         '200':
           description: Todas las caches fueron actualizadas.
@@ -25,10 +23,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CacheRefreshResponse'
-        '401':
-          description: Credenciales no informadas o invalidas.
-        '403':
-          description: El usuario no tiene el rol CACHE_ADMIN.
         '503':
           description: Ninguna cache pudo actualizarse.
           content:
@@ -240,10 +234,6 @@ paths:
               schema:
                 type: string
 components:
-  securitySchemes:
-    basicAuth:
-      type: http
-      scheme: basic
   schemas:
     CacheRefreshResponse:
       type: object

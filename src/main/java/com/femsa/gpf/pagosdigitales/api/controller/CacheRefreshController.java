@@ -13,7 +13,6 @@ import com.femsa.gpf.pagosdigitales.domain.model.CacheRefreshSummary;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 /**
  * Adaptador REST para operaciones administrativas sobre caches.
@@ -38,13 +37,9 @@ public class CacheRefreshController {
      *
      * @return detalle de caches actualizadas y fallidas
      */
-    @Operation(
-            summary = "Refresca todas las caches respaldadas por base de datos",
-            security = @SecurityRequirement(name = "basicAuth"))
+    @Operation(summary = "Refresca todas las caches respaldadas por base de datos")
     @ApiResponse(responseCode = "200", description = "Todas las caches fueron actualizadas")
     @ApiResponse(responseCode = "207", description = "Algunas caches no pudieron actualizarse")
-    @ApiResponse(responseCode = "401", description = "Credenciales no informadas o invalidas")
-    @ApiResponse(responseCode = "403", description = "El usuario no tiene el rol CACHE_ADMIN")
     @ApiResponse(responseCode = "503", description = "Ninguna cache pudo actualizarse")
     @PostMapping(value = "/refresh", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<CacheRefreshResponse> refreshAll() {
