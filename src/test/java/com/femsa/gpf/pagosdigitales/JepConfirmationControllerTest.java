@@ -1,6 +1,7 @@
 package com.femsa.gpf.pagosdigitales;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -17,17 +18,19 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.femsa.gpf.pagosdigitales.api.controller.JepConfirmationController;
 import com.femsa.gpf.pagosdigitales.api.dto.JepConfirmationRequest;
+import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.PaymentRegistryService;
 
 class JepConfirmationControllerTest {
 
     private PaymentRegistryService paymentRegistryService;
+    private IntegrationLogService integrationLogService;
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
+        integrationLogService = mock(IntegrationLogService.class);
         paymentRegistryService = mock(PaymentRegistryService.class);
         JepConfirmationController controller = new JepConfirmationController(
                 integrationLogService,
@@ -46,6 +49,11 @@ class JepConfirmationControllerTest {
                 .andExpect(content().json("{\"status\":\"OK\"}", true));
 
         verify(paymentRegistryService).updateFromJepConfirmation(any(JepConfirmationRequest.class));
+        verify(integrationLogService).logInternal(argThat((IntegrationLogRecord record) ->
+                "300001".equals(record.getCodigoProvPago())
+                        && "OK".equals(record.getMensaje())
+                        && record.getResponsePayload() instanceof java.util.Map<?, ?> response
+                        && "OK".equals(response.get("status"))));
     }
 
     @Test

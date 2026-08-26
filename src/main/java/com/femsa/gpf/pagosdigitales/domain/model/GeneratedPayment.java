@@ -1,5 +1,6 @@
 package com.femsa.gpf.pagosdigitales.domain.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -15,6 +16,8 @@ import java.time.LocalDateTime;
  * @param folio folio de la venta del comercio
  * @param externalOperationId identificador generado por el proveedor
  * @param internalSaleId identificador interno de la venta
+ * @param amount monto del pago
+ * @param currency moneda del pago
  */
 public record GeneratedPayment(
         Integer chain,
@@ -26,5 +29,7 @@ public record GeneratedPayment(
         Integer paymentProviderCode,
         String folio,
         String externalOperationId,
-        String internalSaleId) {
+        String internalSaleId,
+        BigDecimal amount,
+        String currency) {
 }

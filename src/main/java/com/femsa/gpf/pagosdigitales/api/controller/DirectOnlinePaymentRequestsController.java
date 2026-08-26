@@ -46,6 +46,8 @@ import lombok.extern.log4j.Log4j2;
 public class DirectOnlinePaymentRequestsController {
 
     private static final String WS_KEY = "direct-online-payment-requests";
+    private static final String BANK_DEUNA = "deuna";
+    private static final String BANK_JEPFASTER = "jepfaster";
 
     private static final long MINIMUM_NOT_MET_ERROR_CODE = 1004L;
     private static final long MAXIMUM_EXCEEDED_ERROR_CODE = 1005L;
@@ -113,6 +115,7 @@ public class DirectOnlinePaymentRequestsController {
         Map<String, Object> outboundBody = null;
         Integer externalElapsedMs = null;
         Object externalResponse = null;
+        boolean externalCallAttempted = false;
         try {
             proveedor = providersPayService.getProviderNameByCode(req.getPayment_provider_code());
             log.info("Nombre Proveedor: {}", proveedor);
@@ -141,6 +144,7 @@ public class DirectOnlinePaymentRequestsController {
                     "payment_provider_code", req.getPayment_provider_code()
             );
             final Map<String, Object> outboundBodyForProvider = outboundBody;
+            externalCallAttempted = true;
             ExternalCallTimer.TimedExecution<Object> timedExecution = ExternalCallTimer.execute(
                     () -> camel.requestBodyAndHeaders(
                             "direct:direct-online-payment-requests",
@@ -183,6 +187,10 @@ public class DirectOnlinePaymentRequestsController {
             ErrorInfo error = ApiErrorUtils.invalidRequest(e.getMessage(), null, null, null);
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
+            if (externalCallAttempted) {
+                logExternal(req, outboundBody, externalResponse == null ? errorBody : externalResponse,
+                        req.getPayment_provider_code(), proveedor, 400, "ERROR_TECNICO", externalElapsedMs);
+            }
             logInternal(req, errorBody, 400, e.getMessage());
             return ResponseEntity.status(400).body(errorBody);
         } catch (Exception e) {
@@ -197,7 +205,7 @@ public class DirectOnlinePaymentRequestsController {
             ErrorInfo error = timeout ? ApiErrorUtils.gatewayTimeout(message) : ApiErrorUtils.genericError(500, message);
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
-            if (proveedor != null) {
+            if (externalCallAttempted) {
                 logExternal(req, outboundBody, externalResponse == null ? errorBody : externalResponse,
                         req.getPayment_provider_code(), proveedor, httpCode,
                         logMessage, externalElapsedMs);
@@ -297,7 +305,9 @@ public class DirectOnlinePaymentRequestsController {
                 req.getPayment_provider_code(),
                 req.getMerchant_sales_id(),
                 response.getOperation_id(),
-                req.getMerchant_sales_id()));
+                req.getMerchant_sales_id(),
+                req.getSales_amount() == null ? null : req.getSales_amount().getValue(),
+                req.getSales_amount() == null ? null : req.getSales_amount().getCurrency_code()));
     }
 
     private void logInternal(DirectOnlinePaymentRequest req, Object response, int status, String message) {
@@ -347,7 +357,34 @@ public class DirectOnlinePaymentRequestsController {
                 .cpVar3(providerName)
                 .cpNumber1(status)
                 .cpNumber2(externalElapsedMs)
+                .cpNumber3(extractProviderSequence(outboundBody, providerName))
                 .build());
+    }
+
+    private BigDecimal extractProviderSequence(Object outboundBody, String providerName) {
+        if (!(outboundBody instanceof Map<?, ?> requestMap)) {
+            return null;
+        }
+
+        String providerField;
+        if (BANK_JEPFASTER.equalsIgnoreCase(providerName)) {
+            providerField = "codigoTransaccion";
+        } else if (BANK_DEUNA.equalsIgnoreCase(providerName)) {
+            providerField = "internalTransactionReference";
+        } else {
+            return null;
+        }
+
+        Object value = requestMap.get(providerField);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return new BigDecimal(value.toString());
+        } catch (NumberFormatException e) {
+            log.warn("No se pudo guardar {}={} en CP_NUMBER3 para {}", providerField, value, providerName);
+            return null;
+        }
     }
 
     /**

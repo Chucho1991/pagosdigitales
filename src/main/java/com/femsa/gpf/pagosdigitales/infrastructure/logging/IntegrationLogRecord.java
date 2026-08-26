@@ -1,5 +1,6 @@
 package com.femsa.gpf.pagosdigitales.infrastructure.logging;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import lombok.Builder;
@@ -32,7 +33,7 @@ public class IntegrationLogRecord {
     private String cpVar3;
     private Integer cpNumber1;
     private Integer cpNumber2;
-    private Integer cpNumber3;
+    private BigDecimal cpNumber3;
     private LocalDateTime cpDate1;
     private LocalDateTime cpDate2;
     private LocalDateTime cpDate3;

@@ -267,8 +267,9 @@ INSERT INTO TUKUNAFUNC.IN_PASARELA_WS (
 COMMIT;
 
 -- ==========================================================================
--- PASO 7. AGREGAR LOS DEFAULTS DE LOS REQUESTS DEUNA
--- Estos valores se agregan automaticamente al body enviado al proveedor.
+-- PASO 7. AGREGAR DEFAULTS Y TEXTOS CONFIGURABLES DEUNA
+-- Los defaults del request se agregan al body enviado al proveedor.
+-- howtoPayStepInstruction se usa solo para completar la respuesta interna.
 -- ==========================================================================
 
 -- format=2 devuelve QR base64 y enlace de cobro.
@@ -328,6 +329,49 @@ SELECT
     ID_WS,
     'expiredTime',
     15,
+    'DEFAULTS',
+    NULL
+FROM TUKUNAFUNC.IN_PASARELA_WS
+WHERE CODIGO_BILLETERA = 300002
+  AND WS_KEY = 'direct-online-payment-requests';
+
+-- detail usa custom_merchant_name; si no llega o esta vacio usa el texto configurado.
+INSERT INTO TUKUNAFUNC.IN_PASARELA_WS_DEFS (
+    ID_DEFAULT,
+    ID_WS,
+    DEFAULT_CLAVE,
+    DEFAULT_VALOR_TEXTO,
+    TIPO_DEF,
+    DEFAULT_VALOR_SISTEMA
+)
+SELECT
+    (SELECT NVL(MAX(ID_DEFAULT), 0) + 1
+       FROM TUKUNAFUNC.IN_PASARELA_WS_DEFS),
+    ID_WS,
+    'detail',
+    'VENTA PAGOS DIGITALES',
+    'DEFAULTS',
+    'custom_merchant_name'
+FROM TUKUNAFUNC.IN_PASARELA_WS
+WHERE CODIGO_BILLETERA = 300002
+  AND WS_KEY = 'direct-online-payment-requests';
+
+-- Instruccion generica cuando DEUNA no devuelve howto_pay_steps.
+-- Esta clave no se envia en el request externo.
+INSERT INTO TUKUNAFUNC.IN_PASARELA_WS_DEFS (
+    ID_DEFAULT,
+    ID_WS,
+    DEFAULT_CLAVE,
+    DEFAULT_VALOR_TEXTO,
+    TIPO_DEF,
+    DEFAULT_VALOR_SISTEMA
+)
+SELECT
+    (SELECT NVL(MAX(ID_DEFAULT), 0) + 1
+       FROM TUKUNAFUNC.IN_PASARELA_WS_DEFS),
+    ID_WS,
+    'howtoPayStepInstruction',
+    'Pagar desde plataforma DEUNA',
     'DEFAULTS',
     NULL
 FROM TUKUNAFUNC.IN_PASARELA_WS

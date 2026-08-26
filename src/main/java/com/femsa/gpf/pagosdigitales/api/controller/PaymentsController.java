@@ -2,6 +2,7 @@ package com.femsa.gpf.pagosdigitales.api.controller;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +24,7 @@ import com.femsa.gpf.pagosdigitales.api.dto.PaymentOperationActivity;
 import com.femsa.gpf.pagosdigitales.api.dto.PaymentsRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.PaymentsResponse;
 import com.femsa.gpf.pagosdigitales.application.mapper.PaymentsMap;
+import com.femsa.gpf.pagosdigitales.domain.model.PaymentStatus;
 import com.femsa.gpf.pagosdigitales.domain.service.ProvidersPayService;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogRecord;
 import com.femsa.gpf.pagosdigitales.infrastructure.logging.IntegrationLogService;
@@ -112,6 +114,7 @@ public class PaymentsController {
         Integer externalElapsedMs = null;
         Object externalResponse = null;
         boolean internalProvider = false;
+        boolean externalCallAttempted = false;
         try {
             proveedor = providersPayService.getProviderNameByCode(req.getPayment_provider_code());
             log.info("Nombre Proveedor: {}", proveedor);
@@ -153,6 +156,7 @@ public class PaymentsController {
             final Map<String, Object> headersForProvider = camelHeaders;
             final Map<String, Object> bodyForProvider = outboundBody;
 
+            externalCallAttempted = true;
             ExternalCallTimer.TimedExecution<Object> timedExecution = ExternalCallTimer.execute(
                     () -> camel.requestBodyAndHeaders(
                             "direct:payments",
@@ -186,6 +190,9 @@ public class PaymentsController {
             }
 
             PaymentsResponse response = paymentsMap.mapProviderResponse(req, rawResp, proveedor);
+            if ("deuna".equalsIgnoreCase(proveedor)) {
+                synchronizeAndEnrichDeunaResponse(req, response);
+            }
             log.info("Response enviado al cliente payments: {}", response);
             logExternal(req, outboundBody == null ? camelHeaders : outboundBody,
                     rawResp, req.getPayment_provider_code(), proveedor, 200, "OK",
@@ -196,6 +203,11 @@ public class PaymentsController {
             ErrorInfo error = ApiErrorUtils.invalidRequest(e.getMessage(), null, null, null);
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
+            if (externalCallAttempted) {
+                logExternal(req, outboundBody == null ? camelHeaders : outboundBody,
+                        externalResponse == null ? errorBody : externalResponse,
+                        req.getPayment_provider_code(), proveedor, 400, "ERROR_TECNICO", externalElapsedMs);
+            }
             logInternal(req, errorBody, 400, e.getMessage());
             return ResponseEntity.status(400).body(errorBody);
         } catch (Exception e) {
@@ -209,7 +221,7 @@ public class PaymentsController {
             ErrorInfo error = timeout ? ApiErrorUtils.gatewayTimeout(message) : ApiErrorUtils.genericError(500, message);
             Object errorBody = ApiErrorUtils.buildResponse(req.getChain(), req.getStore(), req.getStore_name(),
                     req.getPos(), req.getChannel_POS(), req.getPayment_provider_code(), error);
-            if (proveedor != null && !internalProvider) {
+            if (externalCallAttempted && !internalProvider) {
                 logExternal(req, outboundBody == null ? camelHeaders : outboundBody,
                         externalResponse == null ? errorBody : externalResponse,
                         req.getPayment_provider_code(), proveedor, httpCode,
@@ -245,16 +257,6 @@ public class PaymentsController {
     }
 
     private PaymentsResponse buildInternalPaymentResponse(PaymentsRequest req, RegisteredPayment payment) {
-        PaymentOperationActivity activity = new PaymentOperationActivity();
-        LocalDateTime statusDatetime = payment.authorizationDatetime() == null
-                ? payment.registrationDatetime()
-                : payment.authorizationDatetime();
-        activity.setCreation_datetime(formatDateTime(statusDatetime));
-        activity.setStatus_code(payment.paymentStatus());
-        activity.setStatus_description(isBlank(payment.statusDetail())
-                ? payment.paymentStatus()
-                : payment.statusDetail());
-
         PaymentOperation operation = new PaymentOperation();
         operation.setRefunds_related(List.of());
         operation.setCreation_datetime(formatDateTime(payment.registrationDatetime()));
@@ -263,7 +265,7 @@ public class PaymentsController {
         operation.setMerchant_order_id(payment.internalSaleId());
         operation.setPayment_amount(buildPaymentAmount(payment));
         operation.setShopper_amount(buildPaymentAmount(payment));
-        operation.setOperation_activities(List.of(activity));
+        operation.setOperation_activities(buildPaymentActivities(payment));
         operation.setPayment_reference_number(payment.referenceNumber());
 
         PaymentsResponse response = new PaymentsResponse();
@@ -276,6 +278,71 @@ public class PaymentsController {
         response.setResponse_datetime(LocalDateTime.now().format(REQUEST_DATETIME_FORMAT));
         response.setPayment_operations(List.of(operation));
         return response;
+    }
+
+    private void synchronizeAndEnrichDeunaResponse(PaymentsRequest req, PaymentsResponse response) {
+        if (response == null || response.getPayment_operations() == null) {
+            return;
+        }
+
+        for (PaymentOperation operation : response.getPayment_operations()) {
+            if (operation == null) {
+                continue;
+            }
+            paymentRegistryService.synchronizeDeunaPaymentStatus(operation, req.getPayment_provider_code());
+            String operationId = isBlank(operation.getOperation_id())
+                    ? req.getOperation_id()
+                    : operation.getOperation_id();
+            paymentRegistryService.findPaymentStatus(operationId, req.getPayment_provider_code())
+                    .ifPresent(payment -> enrichOperationFromRegistry(operation, payment));
+        }
+
+        if (isBlank(response.getRequest_id())) {
+            response.setRequest_id(req.getOperation_id());
+        }
+        if (isBlank(response.getResponse_datetime())) {
+            response.setResponse_datetime(LocalDateTime.now().format(REQUEST_DATETIME_FORMAT));
+        }
+    }
+
+    private void enrichOperationFromRegistry(PaymentOperation operation, RegisteredPayment payment) {
+        operation.setCreation_datetime(formatDateTime(payment.registrationDatetime()));
+        operation.setOperation_id(payment.operationId());
+        operation.setMerchant_sales_id(payment.folio());
+        operation.setMerchant_order_id(payment.internalSaleId());
+        PaymentAmount registeredAmount = buildPaymentAmount(payment);
+        if (registeredAmount != null) {
+            operation.setPayment_amount(registeredAmount);
+            PaymentAmount shopperAmount = new PaymentAmount();
+            shopperAmount.setValue(registeredAmount.getValue());
+            shopperAmount.setCurrency_code(registeredAmount.getCurrency_code());
+            operation.setShopper_amount(shopperAmount);
+        }
+        operation.setOperation_activities(buildPaymentActivities(payment));
+        operation.setPayment_reference_number(payment.referenceNumber());
+    }
+
+    private List<PaymentOperationActivity> buildPaymentActivities(RegisteredPayment payment) {
+        List<PaymentOperationActivity> activities = new ArrayList<>();
+        activities.add(buildActivity(PaymentStatus.PENDING, payment.registrationDatetime()));
+
+        PaymentStatus currentStatus = PaymentStatus.fromValue(payment.paymentStatus())
+                .orElse(PaymentStatus.PENDING);
+        if (currentStatus != PaymentStatus.PENDING) {
+            LocalDateTime statusDatetime = payment.authorizationDatetime() == null
+                    ? payment.registrationDatetime()
+                    : payment.authorizationDatetime();
+            activities.add(buildActivity(currentStatus, statusDatetime));
+        }
+        return activities;
+    }
+
+    private PaymentOperationActivity buildActivity(PaymentStatus status, LocalDateTime creationDatetime) {
+        PaymentOperationActivity activity = new PaymentOperationActivity();
+        activity.setCreation_datetime(formatDateTime(creationDatetime));
+        activity.setStatus_code(status.code());
+        activity.setStatus_description(status.description());
+        return activity;
     }
 
     private PaymentAmount buildPaymentAmount(RegisteredPayment payment) {

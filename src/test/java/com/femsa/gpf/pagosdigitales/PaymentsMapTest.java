@@ -91,8 +91,8 @@ class PaymentsMapTest {
         assertThat(operation.getPayment_amount().getValue()).isEqualByComparingTo("0.02");
         assertThat(operation.getPayment_amount().getCurrency_code()).isEqualTo("USD");
         assertThat(operation.getOperation_activities()).singleElement().satisfies(activity -> {
-            assertThat(activity.getStatus_code()).isEqualTo("APPROVED");
-            assertThat(activity.getStatus_description()).isEqualTo("APPROVED");
+            assertThat(activity.getStatus_code()).isEqualTo("102");
+            assertThat(activity.getStatus_description()).isEqualTo("Purchase Complete");
         });
     }
 

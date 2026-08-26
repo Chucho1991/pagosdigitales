@@ -1,5 +1,7 @@
 package com.femsa.gpf.pagosdigitales.api.controller;
 
+import java.util.Map;
+
 import jakarta.validation.Valid;
 
 import org.springframework.http.MediaType;
@@ -64,10 +66,11 @@ public class DeunaConfirmationController {
             // Validar que sea un pago exitoso
             if (!ESTADO_SUCCESS.equalsIgnoreCase(req.getStatus())) {
                 log.warn("Notificacion Deuna con status no esperado: {}", req.getStatus());
-                logInternal(req, "STATUS_NO_ESPERADO", 400);
-                return ResponseEntity.badRequest().body(buildResponse(
+                Map<String, String> response = buildResponse(
                         "RECHAZADO",
-                        "Status no esperado: " + req.getStatus()));
+                        "Status no esperado: " + req.getStatus());
+                logInternal(req, response, "STATUS_NO_ESPERADO", 400);
+                return ResponseEntity.badRequest().body(response);
             }
 
             // Actualizar registro de pago
@@ -75,38 +78,41 @@ public class DeunaConfirmationController {
 
             if (updated) {
                 log.info("Pago Deuna confirmado exitosamente. idTransaction={}", req.getIdTransaction());
-                logInternal(req, "OK", 200);
-                return ResponseEntity.ok(buildResponse("OK", "Pago confirmado exitosamente"));
+                Map<String, String> response = buildResponse("OK", "Pago confirmado exitosamente");
+                logInternal(req, response, "OK", 200);
+                return ResponseEntity.ok(response);
             } else {
                 log.warn("No se encontro registro para confirmar. idTransaction={}", req.getIdTransaction());
-                logInternal(req, "REGISTRO_NO_ENCONTRADO", 404);
-                return ResponseEntity.status(404).body(buildResponse(
+                Map<String, String> response = buildResponse(
                         "NO_ENCONTRADO",
-                        "No se encontro registro de pago para idTransaction: " + req.getIdTransaction()));
+                        "No se encontro registro de pago para idTransaction: " + req.getIdTransaction());
+                logInternal(req, response, "REGISTRO_NO_ENCONTRADO", 404);
+                return ResponseEntity.status(404).body(response);
             }
 
         } catch (Exception e) {
             log.error("Error procesando notificacion Deuna. idTransaction={}",
                     req.getIdTransaction(), e);
-            logInternal(req, "ERROR_INTERNO", 500);
-            return ResponseEntity.internalServerError().body(buildResponse(
+            Map<String, String> response = buildResponse(
                     "ERROR",
-                    "Error interno al procesar la notificacion"));
+                    "Error interno al procesar la notificacion");
+            logInternal(req, response, "ERROR_INTERNO", 500);
+            return ResponseEntity.internalServerError().body(response);
         }
     }
 
-    private java.util.Map<String, String> buildResponse(String estado, String mensaje) {
-        return java.util.Map.of("estado", estado, "mensaje", mensaje);
+    private Map<String, String> buildResponse(String estado, String mensaje) {
+        return Map.of("estado", estado, "mensaje", mensaje);
     }
 
-    private void logInternal(DeunaConfirmationRequest req, String message, int status) {
+    private void logInternal(DeunaConfirmationRequest req, Object response, String message, int status) {
         integrationLogService.logInternal(IntegrationLogRecord.builder()
                 .requestPayload(req)
-                .responsePayload(message)
+                .responsePayload(response)
                 .usuario("SYSTEM")
                 .mensaje(message)
                 .origen("WS_INTERNO")
-                .codigoProvPago("2")
+                .codigoProvPago("300002")
                 .folio(req.getIdTransaction())
                 .url("/api/v1/deuna/confirmation")
                 .metodo("POST")

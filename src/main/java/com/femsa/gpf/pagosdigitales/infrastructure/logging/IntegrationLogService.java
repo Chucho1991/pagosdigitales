@@ -1,5 +1,6 @@
 package com.femsa.gpf.pagosdigitales.infrastructure.logging;
 
+import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -110,7 +111,7 @@ public class IntegrationLogService {
                     ps.setString(18, trim(externalLog ? null : record.getCpVar3(), 1500, null));
                     setInteger(ps, 19, record.getCpNumber1());
                     setInteger(ps, 20, record.getCpNumber2());
-                    setInteger(ps, 21, record.getCpNumber3());
+                    setBigDecimal(ps, 21, record.getCpNumber3());
                     setDate(ps, 22, record.getCpDate1());
                     setDate(ps, 23, record.getCpDate2());
                     setDate(ps, 24, record.getCpDate3());
@@ -124,13 +125,18 @@ public class IntegrationLogService {
 
     private DerivedLogValues deriveLogValues(IntegrationLogRecord record) {
         String operationId = firstNonBlank(
-                findFirstValue(record.getRequestPayload(), "operation_id", "operationId", "operationid"),
-                findFirstValue(record.getResponsePayload(), "operation_id", "operationId", "operationid"));
-        String merchantSalesId = firstNonBlank(
+                firstNonBlank(
+                        findFirstValue(record.getRequestPayload(), "operation_id", "operationId", "operationid",
+                                "transactionId", "idTransaction", "idtransaccion", "codigoTransaccion"),
+                        findFirstValue(record.getResponsePayload(), "operation_id", "operationId", "operationid",
+                                "transactionId", "idTransaction", "idtransaccion", "codigoTransaccion")),
+                record.getCpVar2());
+        String merchantSalesId = firstNonBlank(firstNonBlank(
                 findFirstValue(record.getRequestPayload(), "merchant_sales_id", "merchantSalesId", "MerchantSalesID",
                         "merchantsalesid"),
                 findFirstValue(record.getResponsePayload(), "merchant_sales_id", "merchantSalesId", "MerchantSalesID",
-                        "merchantsalesid"));
+                        "merchantsalesid")),
+                record.getFolio());
         return new DerivedLogValues(operationId, merchantSalesId);
     }
 
@@ -256,6 +262,14 @@ public class IntegrationLogService {
             return;
         }
         ps.setInt(index, value);
+    }
+
+    private void setBigDecimal(PreparedStatement ps, int index, BigDecimal value) throws SQLException {
+        if (value == null) {
+            ps.setNull(index, java.sql.Types.NUMERIC);
+            return;
+        }
+        ps.setBigDecimal(index, value);
     }
 
     private void setDate(PreparedStatement ps, int index, LocalDateTime value) throws SQLException {

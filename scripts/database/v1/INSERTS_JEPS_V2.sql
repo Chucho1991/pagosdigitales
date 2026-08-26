@@ -220,8 +220,9 @@ INSERT INTO TUKUNAFUNC.IN_PASARELA_WS (
 COMMIT;
 
 -- ==========================================================================
--- PASO 6. AGREGAR LAS CREDENCIALES DEL REQUEST JEP
--- Se agregan automaticamente al body de generacion del QR.
+-- PASO 6. AGREGAR CREDENCIALES Y TEXTOS CONFIGURABLES JEP
+-- Las credenciales se agregan al body de generacion del QR.
+-- howtoPayStepInstruction se usa solo para completar la respuesta interna.
 -- ==========================================================================
 
 INSERT INTO TUKUNAFUNC.IN_PASARELA_WS_DEFS (
@@ -278,6 +279,28 @@ SELECT
     ID_WS,
     'codigoInstitucion',
     '<CODIGO_INSTITUCION_JEP_PROD>',
+    'DEFAULTS',
+    NULL
+FROM TUKUNAFUNC.IN_PASARELA_WS
+WHERE CODIGO_BILLETERA = 300001
+  AND WS_KEY = 'direct-online-payment-requests';
+
+-- Instruccion generica cuando JEP no devuelve howto_pay_steps.
+-- Esta clave no se envia en el request externo.
+INSERT INTO TUKUNAFUNC.IN_PASARELA_WS_DEFS (
+    ID_DEFAULT,
+    ID_WS,
+    DEFAULT_CLAVE,
+    DEFAULT_VALOR_TEXTO,
+    TIPO_DEF,
+    DEFAULT_VALOR_SISTEMA
+)
+SELECT
+    (SELECT NVL(MAX(ID_DEFAULT), 0) + 1
+       FROM TUKUNAFUNC.IN_PASARELA_WS_DEFS),
+    ID_WS,
+    'howtoPayStepInstruction',
+    'Pagar desde plataforma JEP',
     'DEFAULTS',
     NULL
 FROM TUKUNAFUNC.IN_PASARELA_WS

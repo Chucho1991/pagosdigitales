@@ -18,8 +18,11 @@ import com.femsa.gpf.pagosdigitales.api.dto.DeunaConfirmationRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.JepConfirmationRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEvent;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEventsRequest;
+import com.femsa.gpf.pagosdigitales.api.dto.PaymentOperation;
+import com.femsa.gpf.pagosdigitales.api.dto.PaymentOperationActivity;
 import com.femsa.gpf.pagosdigitales.api.dto.SafetypayConfirmationRequest;
 import com.femsa.gpf.pagosdigitales.domain.model.GeneratedPayment;
+import com.femsa.gpf.pagosdigitales.domain.model.PaymentStatus;
 
 import lombok.extern.log4j.Log4j2;
 
@@ -35,9 +38,10 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                 CADENA, FARMACIA, NOMBRE_FARMACIA, POS,
                 FECHA_REGISTRO, CANAL, CODIGO_PROV_PAGO,
                 FOLIO, ID_OPERACION_EXTERNO, ID_INTERNO_VENTA,
+                MONTO, MONEDA, COD_ESTADO_PAGO,
                 CP_VAR1, CP_NUMBER1
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             """;
 
@@ -46,9 +50,9 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                 CADENA, FARMACIA, NOMBRE_FARMACIA, POS,
                 FECHA_REGISTRO, CANAL, CODIGO_PROV_PAGO,
                 FOLIO, ID_OPERACION_EXTERNO, ID_INTERNO_VENTA,
-                CP_VAR1, CP_NUMBER1
+                COD_ESTADO_PAGO, CP_VAR1, CP_NUMBER1
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             """;
 
@@ -63,6 +67,7 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                 CODIGO_PROV_PAGO = ?,
                 FOLIO = ?,
                 ID_INTERNO_VENTA = ?,
+                COD_ESTADO_PAGO = ?,
                 CP_VAR1 = ?,
                 CP_NUMBER1 = ?
             WHERE ID_OPERACION_EXTERNO = ?
@@ -132,6 +137,7 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
             UPDATE TUKUNAFUNC.IN_REGISTRO_PAGOS
             SET FECHA_AUTORIZACION_PROV = ?,
                 NO_REFERENCIA = ?,
+                NO_REFERENCIA_PAGO = ?,
                 COD_ESTADO_PAGO = ?,
                 CP_VAR1 = ?,
                 CP_NUMBER1 = ?
@@ -142,12 +148,27 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
             UPDATE TUKUNAFUNC.IN_REGISTRO_PAGOS
             SET FECHA_AUTORIZACION_PROV = ?,
                 NO_REFERENCIA = ?,
+                NO_REFERENCIA_PAGO = ?,
                 MONTO = ?,
                 MONEDA = ?,
                 COD_ESTADO_PAGO = ?,
                 CP_VAR1 = ?,
                 CP_NUMBER1 = ?
             WHERE ID_OPERACION_EXTERNO = ?
+            """;
+
+    private static final String UPDATE_DEUNA_PAYMENT_STATUS = """
+            UPDATE TUKUNAFUNC.IN_REGISTRO_PAGOS
+            SET FECHA_AUTORIZACION_PROV = NVL(?, FECHA_AUTORIZACION_PROV),
+                NO_REFERENCIA = NVL(?, NO_REFERENCIA),
+                NO_REFERENCIA_PAGO = NVL(?, NO_REFERENCIA_PAGO),
+                MONTO = CASE WHEN ? IS NOT NULL AND ? > 0 THEN ? ELSE MONTO END,
+                MONEDA = NVL(?, MONEDA),
+                COD_ESTADO_PAGO = ?,
+                CP_VAR1 = ?,
+                CP_NUMBER1 = 0
+            WHERE ID_OPERACION_EXTERNO = ?
+              AND CODIGO_PROV_PAGO = ?
             """;
 
     private static final String SELECT_PAYMENT_STATUS = """
@@ -208,8 +229,11 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                     ps.setString(8, payment.folio());
                     ps.setString(9, payment.externalOperationId());
                     ps.setString(10, payment.internalSaleId());
-                    ps.setString(11, errorNumberDescription(0));
-                    ps.setObject(12, 0, java.sql.Types.NUMERIC);
+                    setBigDecimal(ps, 11, payment.amount());
+                    ps.setString(12, payment.currency());
+                    ps.setString(13, PaymentStatus.PENDING.code());
+                    ps.setString(14, errorNumberDescription(0));
+                    ps.setObject(15, 0, java.sql.Types.NUMERIC);
                     ps.executeUpdate();
                 }
             });
@@ -238,6 +262,8 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                 try (PreparedStatement update = connection.prepareStatement(UPDATE_MERCHANT_EVENT);
                         PreparedStatement insert = connection.prepareStatement(INSERT_MERCHANT_EVENT)) {
                     for (MerchantEvent event : events) {
+                        String paymentStatus = normalizedStatusCode(event.getOperation_status(),
+                                PaymentStatus.PENDING);
                         update.setObject(1, req.getChain());
                         update.setObject(2, req.getStore());
                         update.setString(3, req.getStore_name());
@@ -248,9 +274,10 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                                 req.getPayment_provider_code() == null ? null : req.getPayment_provider_code().toString());
                         update.setString(8, event.getMerchant_sales_id());
                         update.setString(9, event.getMerchant_sales_id());
-                        update.setString(10, cpVar1);
-                        update.setObject(11, errorNumber, java.sql.Types.NUMERIC);
-                        update.setString(12, event.getOperation_id());
+                        update.setString(10, paymentStatus);
+                        update.setString(11, cpVar1);
+                        update.setObject(12, errorNumber, java.sql.Types.NUMERIC);
+                        update.setString(13, event.getOperation_id());
 
                         if (update.executeUpdate() > 0) {
                             continue;
@@ -267,8 +294,9 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                         insert.setString(8, event.getMerchant_sales_id());
                         insert.setString(9, event.getOperation_id());
                         insert.setString(10, event.getMerchant_sales_id());
-                        insert.setString(11, cpVar1);
-                        insert.setObject(12, errorNumber, java.sql.Types.NUMERIC);
+                        insert.setString(11, paymentStatus);
+                        insert.setString(12, cpVar1);
+                        insert.setObject(13, errorNumber, java.sql.Types.NUMERIC);
                         insert.executeUpdate();
                     }
                 }
@@ -409,10 +437,11 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                 try (PreparedStatement ps = connection.prepareStatement(UPDATE_JEP_CONFIRMATION)) {
                     setDate(ps, 1, LocalDateTime.now());
                     ps.setString(2, req.getNummensaje());
-                    ps.setString(3, req.getEstado());
-                    ps.setString(4, "JEP_CONFIRMATION_OK");
-                    ps.setObject(5, 0, java.sql.Types.NUMERIC);
-                    ps.setString(6, req.getIdtransaccion());
+                    ps.setString(3, req.getNummensaje());
+                    ps.setString(4, PaymentStatus.PAID.code());
+                    ps.setString(5, "JEP_CONFIRMATION_OK");
+                    ps.setObject(6, 0, java.sql.Types.NUMERIC);
+                    ps.setString(7, req.getIdtransaccion());
                     return ps.executeUpdate() > 0;
                 }
             });
@@ -497,21 +526,77 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                 try (PreparedStatement ps = connection.prepareStatement(UPDATE_DEUNA_CONFIRMATION)) {
                     setDate(ps, 1, LocalDateTime.now());
                     ps.setString(2, req.getTransferNumber());
+                    ps.setString(3, req.getTransferNumber());
                     if (req.getAmount() != null) {
-                        ps.setBigDecimal(3, req.getAmount());
+                        ps.setBigDecimal(4, req.getAmount());
                     } else {
-                        ps.setNull(3, java.sql.Types.NUMERIC);
+                        ps.setNull(4, java.sql.Types.NUMERIC);
                     }
-                    ps.setString(4, req.getCurrency());
-                    ps.setString(5, req.getStatus());
-                    ps.setString(6, "DEUNA_CONFIRMATION_OK");
-                    ps.setObject(7, 0, java.sql.Types.NUMERIC);
-                    ps.setString(8, req.getIdTransaction());
+                    ps.setString(5, req.getCurrency());
+                    ps.setString(6, normalizedStatusCode(req.getStatus(), PaymentStatus.PAID));
+                    ps.setString(7, "DEUNA_CONFIRMATION_OK");
+                    ps.setObject(8, 0, java.sql.Types.NUMERIC);
+                    ps.setString(9, req.getIdTransaction());
                     return ps.executeUpdate() > 0;
                 }
             });
         } catch (Exception e) {
             log.error("No fue posible actualizar confirmacion Deuna en IN_REGISTRO_PAGOS: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Sincroniza en IN_REGISTRO_PAGOS el estado devuelto por payments de DEUNA.
+     *
+     * @param operation operacion normalizada desde la respuesta externa
+     * @param providerCode codigo del proveedor DEUNA
+     * @return true cuando el registro fue actualizado
+     */
+    public boolean synchronizeDeunaPaymentStatus(PaymentOperation operation, Integer providerCode) {
+        if (operation == null || providerCode == null || isBlank(operation.getOperation_id())) {
+            return false;
+        }
+
+        PaymentOperationActivity lastActivity = lastActivity(operation);
+        Optional<PaymentStatus> status = PaymentStatus.fromValue(
+                lastActivity == null ? null : lastActivity.getStatus_code());
+        if (status.isEmpty()) {
+            return false;
+        }
+
+        LocalDateTime authorizationDatetime = status.get() == PaymentStatus.PENDING
+                ? null
+                : firstNonNullDateTime(
+                        lastActivity == null ? null : lastActivity.getCreation_datetime(),
+                        operation.getCreation_datetime(),
+                        LocalDateTime.now());
+        BigDecimal amount = operation.getPayment_amount() == null
+                ? null
+                : operation.getPayment_amount().getValue();
+        String currency = operation.getPayment_amount() == null
+                ? null
+                : operation.getPayment_amount().getCurrency_code();
+
+        try {
+            return databaseExecutor.withConnection(connection -> {
+                try (PreparedStatement ps = connection.prepareStatement(UPDATE_DEUNA_PAYMENT_STATUS)) {
+                    setDate(ps, 1, authorizationDatetime);
+                    ps.setString(2, operation.getPayment_reference_number());
+                    ps.setString(3, operation.getPayment_reference_number());
+                    setBigDecimal(ps, 4, amount);
+                    setBigDecimal(ps, 5, amount);
+                    setBigDecimal(ps, 6, amount);
+                    ps.setString(7, currency);
+                    ps.setString(8, status.get().code());
+                    ps.setString(9, "DEUNA_PAYMENT_STATUS_" + status.get().code());
+                    ps.setString(10, operation.getOperation_id());
+                    ps.setString(11, providerCode.toString());
+                    return ps.executeUpdate() > 0;
+                }
+            });
+        } catch (Exception e) {
+            log.error("No fue posible sincronizar payments de DEUNA en IN_REGISTRO_PAGOS: {}", e.getMessage());
             return false;
         }
     }
@@ -615,6 +700,14 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
         ps.setBigDecimal(index, new BigDecimal(amount.trim()));
     }
 
+    private void setBigDecimal(PreparedStatement ps, int index, BigDecimal amount) throws Exception {
+        if (amount == null) {
+            ps.setNull(index, java.sql.Types.NUMERIC);
+            return;
+        }
+        ps.setBigDecimal(index, amount);
+    }
+
     private LocalDateTime parseDateTime(String value) {
         if (isBlank(value)) {
             return null;
@@ -632,6 +725,24 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    private PaymentOperationActivity lastActivity(PaymentOperation operation) {
+        List<PaymentOperationActivity> activities = operation.getOperation_activities();
+        return activities == null || activities.isEmpty() ? null : activities.get(activities.size() - 1);
+    }
+
+    private LocalDateTime firstNonNullDateTime(String activityDate, String operationDate, LocalDateTime fallback) {
+        LocalDateTime parsedActivityDate = parseDateTime(activityDate);
+        if (parsedActivityDate != null) {
+            return parsedActivityDate;
+        }
+        LocalDateTime parsedOperationDate = parseDateTime(operationDate);
+        return parsedOperationDate == null ? fallback : parsedOperationDate;
+    }
+
+    private String normalizedStatusCode(String value, PaymentStatus fallback) {
+        return PaymentStatus.fromValue(value).orElse(fallback).code();
     }
 
     private boolean isBlank(String value) {

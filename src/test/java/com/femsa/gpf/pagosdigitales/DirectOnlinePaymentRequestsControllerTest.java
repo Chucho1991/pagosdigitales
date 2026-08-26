@@ -239,6 +239,65 @@ class DirectOnlinePaymentRequestsControllerTest {
     }
 
     @Test
+    void directOnlinePaymentRequestsStoresDeunaSequenceInExternalLog() {
+        ProducerTemplate camel = mock(ProducerTemplate.class);
+        ProvidersPayService providersPayService = mock(ProvidersPayService.class);
+        DirectOnlinePaymentMap directOnlinePaymentMap = mock(DirectOnlinePaymentMap.class);
+        ServiceMappingConfigService serviceMappingConfigService = mock(ServiceMappingConfigService.class);
+        ErrorMappingCatalogService errorMappingCatalogService = mock(ErrorMappingCatalogService.class);
+        IntegrationLogService integrationLogService = mock(IntegrationLogService.class);
+        GatewayWebServiceConfigService gatewayWebServiceConfigService = mock(GatewayWebServiceConfigService.class);
+        BanksCatalogService banksCatalogService = mock(BanksCatalogService.class);
+        RegisterGeneratedPaymentUseCase registerGeneratedPaymentUseCase = mock(RegisterGeneratedPaymentUseCase.class);
+
+        Map<String, Object> providerRequest = Map.of("internalTransactionReference", "987654321012345678");
+        Map<String, Object> rawProviderResponse = Map.of("transactionId", "DEUNA-OP-1");
+        DirectOnlinePaymentResponse mappedResponse = new DirectOnlinePaymentResponse();
+        mappedResponse.setOperation_id("DEUNA-OP-1");
+
+        when(providersPayService.getProviderNameByCode(300002)).thenReturn("deuna");
+        when(gatewayWebServiceConfigService.isActive(300002, "direct-online-payment-requests")).thenReturn(true);
+        when(banksCatalogService.findMinimum(300002, "0123")).thenReturn(Optional.empty());
+        when(banksCatalogService.findMaximum(300002, "0123")).thenReturn(Optional.empty());
+        when(directOnlinePaymentMap.mapProviderRequest(any(), eq("deuna"))).thenReturn(providerRequest);
+        when(camel.requestBodyAndHeaders(
+                eq("direct:direct-online-payment-requests"), eq(providerRequest), anyMap()))
+                .thenReturn(rawProviderResponse);
+        when(serviceMappingConfigService.getErrorPath(
+                300002, "direct-online-payment-requests", "deuna"))
+                .thenReturn("error");
+        when(directOnlinePaymentMap.mapProviderResponse(
+                any(), eq(rawProviderResponse), eq("deuna")))
+                .thenReturn(mappedResponse);
+
+        DirectOnlinePaymentRequestsController controller = new DirectOnlinePaymentRequestsController(
+                camel,
+                providersPayService,
+                directOnlinePaymentMap,
+                new ObjectMapper(),
+                serviceMappingConfigService,
+                errorMappingCatalogService,
+                integrationLogService,
+                gatewayWebServiceConfigService,
+                banksCatalogService,
+                registerGeneratedPaymentUseCase);
+        DirectOnlinePaymentRequest request = buildRequest(new BigDecimal("25.00"));
+        request.setPayment_provider_code(300002);
+
+        ResponseEntity<?> response = controller.directOnlinePaymentRequests(request);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        verify(integrationLogService).logExternal(argThat((IntegrationLogRecord record) ->
+                "300002".equals(record.getCodigoProvPago())
+                        && Integer.valueOf(200).equals(record.getCpNumber1())
+                        && new BigDecimal("987654321012345678").compareTo(record.getCpNumber3()) == 0));
+        verify(integrationLogService).logInternal(argThat((IntegrationLogRecord record) ->
+                "300002".equals(record.getCodigoProvPago())
+                        && Integer.valueOf(200).equals(record.getCpNumber1())
+                        && mappedResponse.equals(record.getResponsePayload())));
+    }
+
+    @Test
     void directOnlinePaymentRequestsReturnsMappedErrorWhenAmountExceedsConfiguredMaximum() {
         ProducerTemplate camel = mock(ProducerTemplate.class);
         ProvidersPayService providersPayService = mock(ProvidersPayService.class);

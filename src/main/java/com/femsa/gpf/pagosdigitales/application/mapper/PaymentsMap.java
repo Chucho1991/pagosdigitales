@@ -13,6 +13,7 @@ import com.femsa.gpf.pagosdigitales.api.dto.PaymentOperation;
 import com.femsa.gpf.pagosdigitales.api.dto.PaymentOperationActivity;
 import com.femsa.gpf.pagosdigitales.api.dto.PaymentsRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.PaymentsResponse;
+import com.femsa.gpf.pagosdigitales.domain.model.PaymentStatus;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceDefinitionService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.util.JsonPayloadUtils;
@@ -112,6 +113,7 @@ public class PaymentsMap {
         if (operations == null) {
             operations = mapSinglePaymentOperation(map, responseMapping);
         }
+        normalizeOperationStatuses(operations);
         resp.setPayment_operations(operations);
 
         return resp;
@@ -150,6 +152,23 @@ public class PaymentsMap {
         }
 
         return List.of(operation);
+    }
+
+    private void normalizeOperationStatuses(List<PaymentOperation> operations) {
+        if (operations == null) {
+            return;
+        }
+        operations.forEach(operation -> {
+            if (operation == null || operation.getOperation_activities() == null) {
+                return;
+            }
+            operation.getOperation_activities().forEach(activity -> PaymentStatus
+                    .fromValue(activity.getStatus_code())
+                    .ifPresent(status -> {
+                        activity.setStatus_code(status.code());
+                        activity.setStatus_description(status.description());
+                    }));
+        });
     }
 
     private Map<String, String> extractPrefixedMappings(Map<String, String> mappings, String prefix) {

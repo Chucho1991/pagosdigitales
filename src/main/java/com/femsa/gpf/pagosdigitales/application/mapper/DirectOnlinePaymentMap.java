@@ -17,6 +17,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.DirectOnlinePaymentResponse;
+import com.femsa.gpf.pagosdigitales.application.ports.out.ProviderTransactionSequencePort;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.GatewayWebServiceDefinitionService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.PointOfSaleConfigService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.ServiceMappingConfigService;
@@ -37,6 +38,7 @@ public class DirectOnlinePaymentMap {
     };
     private static final String WS_KEY = "direct-online-payment-requests";
     private static final String EXPIRED_TIME_PATH = "expiredTime";
+    private static final String HOWTO_PAY_STEP_INSTRUCTION_PATH = "howtoPayStepInstruction";
     private static final String BANK_DEUNA = "deuna";
     private static final String BANK_JEPFASTER = "jepfaster";
 
@@ -44,6 +46,7 @@ public class DirectOnlinePaymentMap {
     private final GatewayWebServiceDefinitionService gatewayWebServiceDefinitionService;
     private final ServiceMappingConfigService serviceMappingConfigService;
     private final PointOfSaleConfigService pointOfSaleConfigService;
+    private final ProviderTransactionSequencePort providerTransactionSequencePort;
 
     /**
      * Crea el mapper con dependencias de mapeo y configuracion.
@@ -52,15 +55,18 @@ public class DirectOnlinePaymentMap {
      * @param gatewayWebServiceDefinitionService servicio de definiciones por BD
      * @param serviceMappingConfigService        servicio de mapeo por BD
      * @param pointOfSaleConfigService            servicio de puntos de venta externos
+     * @param providerTransactionSequencePort     generador de secuenciales por proveedor
      */
     public DirectOnlinePaymentMap(ObjectMapper mapper,
             GatewayWebServiceDefinitionService gatewayWebServiceDefinitionService,
             ServiceMappingConfigService serviceMappingConfigService,
-            PointOfSaleConfigService pointOfSaleConfigService) {
+            PointOfSaleConfigService pointOfSaleConfigService,
+            ProviderTransactionSequencePort providerTransactionSequencePort) {
         this.mapper = mapper;
         this.gatewayWebServiceDefinitionService = gatewayWebServiceDefinitionService;
         this.serviceMappingConfigService = serviceMappingConfigService;
         this.pointOfSaleConfigService = pointOfSaleConfigService;
+        this.providerTransactionSequencePort = providerTransactionSequencePort;
     }
 
     /**
@@ -73,6 +79,7 @@ public class DirectOnlinePaymentMap {
     public Map<String, Object> mapProviderRequest(DirectOnlinePaymentRequest req, String providerName) {
         Map<String, Object> body = new LinkedHashMap<>();
         Map<String, Object> reqMap = mapper.convertValue(req, MAP_TYPE);
+        applyJepStoreFallbacks(reqMap, req.getStore(), providerName);
 
         var mapping = serviceMappingConfigService.getRequestBodyMappings(
                 req.getPayment_provider_code(),
@@ -92,13 +99,14 @@ public class DirectOnlinePaymentMap {
             });
         }
 
+        Map<String, Object> defaultRuntimeValues = buildDefaultRuntimeValues(reqMap);
         var defaults = gatewayWebServiceDefinitionService.getDefaults(
                 req.getPayment_provider_code(),
                 WS_KEY,
-                Map.of("now", LocalDateTime.now().format(REQUEST_DATETIME_FORMAT)));
+                defaultRuntimeValues);
         if (!defaults.isEmpty()) {
             defaults.forEach((targetPath, value) -> {
-                if (value != null) {
+                if (value != null && !HOWTO_PAY_STEP_INSTRUCTION_PATH.equals(targetPath)) {
                     Object defaultValue = EXPIRED_TIME_PATH.equals(targetPath)
                             ? new BigDecimal(value.toString())
                             : value;
@@ -114,11 +122,52 @@ public class DirectOnlinePaymentMap {
             body.put("pointOfSale", pointOfSale);
         }
 
+        overrideMerchantSalesIdWithProviderSequence(body, providerName);
+
         if (!"jepfaster".equalsIgnoreCase(providerName) && !"deuna".equalsIgnoreCase(providerName)) {
             body.put("request_datetime", LocalDateTime.now().format(REQUEST_DATETIME_FORMAT));
         }
 
         return body;
+    }
+
+    private void applyJepStoreFallbacks(Map<String, Object> reqMap, Integer store, String providerName) {
+        if (!BANK_JEPFASTER.equalsIgnoreCase(providerName) || store == null) {
+            return;
+        }
+
+        String storeCode = store.toString();
+        putStringFallback(reqMap, "store_name", storeCode);
+        putStringFallback(reqMap, "city", storeCode);
+        putStringFallback(reqMap, "store_address", storeCode);
+    }
+
+    private void putStringFallback(Map<String, Object> values, String key, String fallback) {
+        Object currentValue = values.get(key);
+        if (currentValue == null || currentValue.toString().isBlank()) {
+            values.put(key, fallback);
+        }
+    }
+
+    private void overrideMerchantSalesIdWithProviderSequence(Map<String, Object> body, String providerName) {
+        if (BANK_JEPFASTER.equalsIgnoreCase(providerName)) {
+            BigDecimal sequence = providerTransactionSequencePort.nextJepTransactionId();
+            body.put("codigoTransaccion", sequence.toPlainString());
+        } else if (BANK_DEUNA.equalsIgnoreCase(providerName)) {
+            BigDecimal sequence = providerTransactionSequencePort.nextDeunaTransactionId();
+            body.put("internalTransactionReference", sequence.toPlainString());
+        }
+    }
+
+    private Map<String, Object> buildDefaultRuntimeValues(Map<String, Object> reqMap) {
+        Map<String, Object> runtimeValues = new LinkedHashMap<>();
+        reqMap.forEach((key, value) -> {
+            if (value != null && (!(value instanceof String text) || !text.isBlank())) {
+                runtimeValues.put(key, value);
+            }
+        });
+        runtimeValues.put("now", LocalDateTime.now().format(REQUEST_DATETIME_FORMAT));
+        return runtimeValues;
     }
 
     private Object convertConfiguredType(Object value, String dataType) {
@@ -166,10 +215,10 @@ public class DirectOnlinePaymentMap {
                 map, responseMapping.get("paymentExpirationDatetime"), String.class);
         String expirationDatetimeUtc = getValue(
                 map, responseMapping.get("paymentExpirationDatetimeUtc"), String.class);
+        Map<String, Object> configuredDefaults = gatewayWebServiceDefinitionService.getDefaults(
+                req.getPayment_provider_code(), WS_KEY, Map.of());
         if (expirationDatetime == null || expirationDatetimeUtc == null) {
-            Map<String, Object> defaults = gatewayWebServiceDefinitionService.getDefaults(
-                    req.getPayment_provider_code(), WS_KEY, Map.of());
-            Object expiredTime = getValueByPath(defaults, EXPIRED_TIME_PATH);
+            Object expiredTime = getValueByPath(configuredDefaults, EXPIRED_TIME_PATH);
             if (expiredTime != null) {
                 long expirationMinutes = new BigDecimal(expiredTime.toString()).longValueExact();
                 Instant expirationInstant = Instant.now().plusSeconds(expirationMinutes * 60L);
@@ -244,6 +293,12 @@ public class DirectOnlinePaymentMap {
             }
         }
 
+        if (BANK_DEUNA.equalsIgnoreCase(providerName) || BANK_JEPFASTER.equalsIgnoreCase(providerName)) {
+            String defaultStepInstruction = getValue(
+                    configuredDefaults, HOWTO_PAY_STEP_INSTRUCTION_PATH, String.class);
+            paymentLocations = applyHowToPayStepsFallback(paymentLocations, defaultStepInstruction);
+        }
+
         resp.setPayable_amounts(payableAmounts);
         resp.setPayment_locations(paymentLocations);
         resp.setPayment_expiration_datetime(expirationDatetime);
@@ -304,6 +359,28 @@ public class DirectOnlinePaymentMap {
         instruction.put("value", value);
         instruction.put("display_label", "");
         instructions.add(instruction);
+    }
+
+    private List<Map<String, Object>> applyHowToPayStepsFallback(List<Map<String, Object>> paymentLocations,
+            String stepInstruction) {
+        if (paymentLocations == null || stepInstruction == null || stepInstruction.isBlank()) {
+            return paymentLocations;
+        }
+
+        return paymentLocations.stream().map(location -> {
+            Object configuredSteps = location.get("howto_pay_steps");
+            if (configuredSteps instanceof List<?> steps && !steps.isEmpty()) {
+                return location;
+            }
+
+            Map<String, Object> step = new LinkedHashMap<>();
+            step.put("step_number", 1);
+            step.put("step_instruction", stepInstruction);
+
+            Map<String, Object> target = new LinkedHashMap<>(location);
+            target.put("howto_pay_steps", List.of(step));
+            return target;
+        }).toList();
     }
 
     private String buildMissingPointOfSaleMessage(DirectOnlinePaymentRequest req) {

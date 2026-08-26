@@ -32,21 +32,27 @@ class GatewayWebServiceDefinitionServiceTest {
                 + "JOIN TUKUNAFUNC.IN_PASARELA_WS WS ON WS.ID_WS = D.ID_WS "
                 + "ORDER BY WS.CODIGO_BILLETERA, WS.WS_KEY, D.ID_DEFAULT")).thenReturn(statement);
         when(statement.executeQuery()).thenReturn(resultSet);
-        when(resultSet.next()).thenReturn(true, true, true, true, true, false);
-        when(resultSet.getInt("CODIGO_BILLETERA")).thenReturn(235689, 235689, 235689, 235689, 235689);
-        when(resultSet.wasNull()).thenReturn(false, false, false, false, false);
+        when(resultSet.next()).thenReturn(true, true, true, true, true, true, false);
+        when(resultSet.getInt("CODIGO_BILLETERA"))
+                .thenReturn(235689, 235689, 235689, 235689, 235689, 300002);
+        when(resultSet.wasNull()).thenReturn(false, false, false, false, false, false);
         when(resultSet.getString("WS_KEY"))
                 .thenReturn("payments", "payments", "payments", "direct-online-payment-requests",
-                        "direct-online-payment-requests");
+                        "direct-online-payment-requests", "direct-online-payment-requests");
         when(resultSet.getString("DEFAULT_CLAVE"))
-                .thenReturn("operation_id", "request_datetime", "limit", "application_id", "payment_ok_url");
-        when(resultSet.getString("TIPO_DEF")).thenReturn("QUERY", "QUERY", "QUERY", "DEFAULTS", "DEFAULTS");
-        when(resultSet.getString("DEFAULT_VALOR_SISTEMA")).thenReturn("operation_id", "now", null, null, null);
+                .thenReturn("operation_id", "request_datetime", "limit", "application_id", "payment_ok_url",
+                        "detail");
+        when(resultSet.getString("TIPO_DEF"))
+                .thenReturn("QUERY", "QUERY", "QUERY", "DEFAULTS", "DEFAULTS", "DEFAULTS");
+        when(resultSet.getString("DEFAULT_VALOR_SISTEMA"))
+                .thenReturn("operation_id", "now", null, null, null, "custom_merchant_name");
         when(resultSet.getString("DEFAULT_VALOR_TEXTO"))
-                .thenReturn(null, null, null, null, "https://www.safetypay.com/success.com");
+                .thenReturn(null, null, null, null, "https://www.safetypay.com/success.com",
+                        "VENTA PAGOS DIGITALES");
         when(resultSet.getBigDecimal("DEFAULT_VALOR_NUM"))
-                .thenReturn(null, null, new BigDecimal("100"), new BigDecimal("7"), null);
-        when(resultSet.getTimestamp("DEFAULT_VALOR_FECHA")).thenReturn(null, null, null, null, null);
+                .thenReturn(null, null, new BigDecimal("100"), new BigDecimal("7"), null, null);
+        when(resultSet.getTimestamp("DEFAULT_VALOR_FECHA"))
+                .thenReturn(null, null, null, null, null, null);
 
         doAnswer(invocation -> {
             DatabaseExecutor.ConnectionConsumer callback = invocation.getArgument(0);
@@ -71,5 +77,17 @@ class GatewayWebServiceDefinitionServiceTest {
                 Map.of());
         assertThat(defaults).containsEntry("application_id", "7");
         assertThat(defaults).containsEntry("payment_ok_url", "https://www.safetypay.com/success.com");
+
+        Map<String, Object> configuredDetail = service.getDefaults(
+                300002,
+                "direct-online-payment-requests",
+                Map.of("custom_merchant_name", "MI COMERCIO"));
+        assertThat(configuredDetail).containsEntry("detail", "MI COMERCIO");
+
+        Map<String, Object> defaultDetail = service.getDefaults(
+                300002,
+                "direct-online-payment-requests",
+                Map.of());
+        assertThat(defaultDetail).containsEntry("detail", "VENTA PAGOS DIGITALES");
     }
 }

@@ -72,7 +72,11 @@ Notas:
 - Los headers de consumo externo se leen desde `TUKUNAFUNC.IN_PASARELA_HEADERS` por `CODIGO_BILLETERA`.
 - Los parametros de request y defaults de payload se leen desde `TUKUNAFUNC.IN_PASARELA_WS_DEFS` por `ID_WS` y `TIPO_DEF` (`QUERY`/`DEFAULTS`).
 - Los mapeos request/response por proveedor/servicio se leen desde `TUKUNAFUNC.AD_MAPEO_SERVICIOS` por `CODIGO_BILLETERA`, `APP_SERVICE_KEY`, `APP_OPERATION` y `DIRECCION`.
-- Para DEUNA, `pointOfSale` se consulta en `TUKUNAFUNC.IN_PASARELA_PUNTO_VENTA` usando `payment_provider_code + chain + store + pos`; si la combinacion no existe o esta inactiva, no se invoca al proveedor y el endpoint responde `400`.
+- Para DEUNA, `pointOfSale` se resuelve desde la cache de `TUKUNAFUNC.IN_PASARELA_PUNTO_VENTA` usando `payment_provider_code + chain + store + pos`; la cache se carga al arranque y se refresca cada seis horas. Si la combinacion no existe o esta inactiva, no se invoca al proveedor y el endpoint responde `400`.
+- En `direct-online-payment-requests`, JEPFaster y DEUNA reemplazan el `merchant_sales_id` recibido por secuencias Oracle independientes. JEPFaster envia el valor como `codigoTransaccion` y DEUNA como `internalTransactionReference`.
+- Para JEPFaster, si `store_name`, `city` o `store_address` no llegan o estan vacios, cada campo faltante usa el codigo `store` convertido a texto.
+- Para DEUNA, `custom_merchant_name` se envia como `detail`; el respaldo `VENTA PAGOS DIGITALES` se configura en `IN_PASARELA_WS_DEFS`.
+- Para JEPFaster y DEUNA, si `howto_pay_steps` no existe o esta vacio, se agrega un paso con el texto configurado en `IN_PASARELA_WS_DEFS` bajo la clave `howtoPayStepInstruction`; esta clave no se envia al proveedor.
 - El catalogo de control de errores se lee desde `TUKUNAFUNC.AD_MAPEO_ERRORES` (mensaje principal y `inner_details.field_message`).
 - Para `IN_PASARELA_WS` se consideran activos los registros con `ENABLED='S'`, `TIPO_CONEXION='REST'` y con `METODO_HTTP` + `URI` informados.
 - La validacion principal de bancos usa `AD_TIPO_PAGO` por cadena (`CADENA_FYB`, `CADENA_SANA`, `CADENA_OKI`, `CADENA_FR`).
@@ -147,6 +151,7 @@ Campos principales poblados por flujo:
 - `folio`: se deriva de `merchant_sales_id` (request/response) cuando exista; si no, `NULL`.
 - `cp_var2`: se deriva de `operation_id` (request/response) cuando exista; si no, `NULL`.
 - En `IN_LOGS_WS_EXT`, `cp_var3` se registra siempre en `NULL`.
+- En `IN_LOGS_WS_EXT`, `cp_number3` guarda el secuencial enviado a JEPFaster o DEUNA; para los demas proveedores permanece `NULL`.
 
 ## Registro de pagos en IN_REGISTRO_PAGOS
 
@@ -164,7 +169,12 @@ Se incorporo persistencia de datos operativos en `TUKUNAFUNC.IN_REGISTRO_PAGOS`:
 `FECHA_REGISTRO <- merchant_events[].creation_datetime`,
 `FOLIO <- merchant_events[].merchant_sales_id`,
 `ID_OPERACION_EXTERNO <- merchant_events[].operation_id`,
-`ID_INTERNO_VENTA <- merchant_events[].merchant_sales_id`.
+`ID_INTERNO_VENTA <- merchant_events[].merchant_sales_id`,
+`COD_ESTADO_PAGO <- merchant_events[].operation_status`.
+
+La generacion inicial registra ademas `MONTO`, `MONEDA` y el estado pendiente `101`.
+`POST /api/v1/jep/notifyPayment` completa el mismo registro con
+`FECHA_AUTORIZACION_PROV`, `NO_REFERENCIA`, `NO_REFERENCIA_PAGO` y estado `102`.
 
 En una generacion o notificacion exitosa, `CP_VAR1` se registra como `No error` y
 `CP_NUMBER1` como `0`; los endpoints de confirmacion pueden actualizar estos campos.
@@ -593,6 +603,11 @@ Configuracion del servicio en BD:
 - Cuando `URI`/`URL = 'INTERNO'`, no se invoca Camel ni una URL externa. El estado se consulta en
   `TUKUNAFUNC.IN_REGISTRO_PAGOS` por `ID_OPERACION_EXTERNO` y `CODIGO_PROV_PAGO`.
 - Para servicios con URL externa se conserva el flujo HTTP existente.
+- En DEUNA, la respuesta externa de `payments` sincroniza el estado en
+  `IN_REGISTRO_PAGOS` antes de armar la respuesta normalizada.
+- Estados normalizados: `100` Transaction Expired, `101` Purchase Pending,
+  `102` Purchase Complete y `104` Notification Confirmed. Una operacion pagada
+  devuelve las actividades `101` y `102`, con sus fechas de registro y autorizacion.
 - Con `TIPO_REQUEST='PARAMETROS'`, las definiciones `QUERY` se envian en la URL.
 - Con `TIPO_REQUEST='JSON'`, el body se construye con los mapeos `REQUEST` de
   `AD_MAPEO_SERVICIOS` y los `DEFAULTS` de `IN_PASARELA_WS_DEFS`.
@@ -706,3 +721,4 @@ Despues de levantar el servicio, puedes acceder a:
 
 - Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 - OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+s

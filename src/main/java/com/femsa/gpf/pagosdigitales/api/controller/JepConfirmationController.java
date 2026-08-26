@@ -67,18 +67,20 @@ public class JepConfirmationController {
             // Validar que sea un pago exitoso
             if (!ESTADO_PAGADO.equalsIgnoreCase(req.getEstado())) {
                 log.warn("Notificacion JEP con estado no esperado: {}", req.getEstado());
-                logInternal(req, "ESTADO_NO_ESPERADO", 400);
-                return ResponseEntity.badRequest().body(buildResponse(
+                Map<String, String> response = buildResponse(
                         "ERROR",
-                        "Estado no esperado: " + req.getEstado()));
+                        "Estado no esperado: " + req.getEstado());
+                logInternal(req, response, "ESTADO_NO_ESPERADO", 400);
+                return ResponseEntity.badRequest().body(response);
             }
 
             if (req.getError() != null && !ERROR_CERO.equals(req.getError().trim())) {
                 log.warn("Notificacion JEP con error != 0: {}", req.getError());
-                logInternal(req, "ERROR_REPORTADO_POR_JEP", 400);
-                return ResponseEntity.badRequest().body(buildResponse(
+                Map<String, String> response = buildResponse(
                         "ERROR",
-                        "Campo error con valor: " + req.getError()));
+                        "Campo error con valor: " + req.getError());
+                logInternal(req, response, "ERROR_REPORTADO_POR_JEP", 400);
+                return ResponseEntity.badRequest().body(response);
             }
 
             // Actualizar registro de pago
@@ -86,23 +88,26 @@ public class JepConfirmationController {
 
             if (updated) {
                 log.info("Pago JEP confirmado exitosamente. idtransaccion={}", req.getIdtransaccion());
-                logInternal(req, "OK", 200);
-                return ResponseEntity.ok(buildResponse("OK", null));
+                Map<String, String> response = buildResponse("OK", null);
+                logInternal(req, response, "OK", 200);
+                return ResponseEntity.ok(response);
             } else {
                 log.warn("No se encontro registro para confirmar. idtransaccion={}", req.getIdtransaccion());
-                logInternal(req, "REGISTRO_NO_ENCONTRADO", 404);
-                return ResponseEntity.status(404).body(buildResponse(
+                Map<String, String> response = buildResponse(
                         "ERROR",
-                        "No se encontro registro de pago para idtransaccion: " + req.getIdtransaccion()));
+                        "No se encontro registro de pago para idtransaccion: " + req.getIdtransaccion());
+                logInternal(req, response, "REGISTRO_NO_ENCONTRADO", 404);
+                return ResponseEntity.status(404).body(response);
             }
 
         } catch (Exception e) {
             log.error("Error procesando notificacion JEPFaster. idtransaccion={}",
                     req.getIdtransaccion(), e);
-            logInternal(req, "ERROR_INTERNO", 500);
-            return ResponseEntity.internalServerError().body(buildResponse(
+            Map<String, String> response = buildResponse(
                     "ERROR",
-                    "Error interno al procesar la notificacion"));
+                    "Error interno al procesar la notificacion");
+            logInternal(req, response, "ERROR_INTERNO", 500);
+            return ResponseEntity.internalServerError().body(response);
         }
     }
 
@@ -115,10 +120,10 @@ public class JepConfirmationController {
         return response;
     }
 
-    private void logInternal(JepConfirmationRequest req, String message, int status) {
+    private void logInternal(JepConfirmationRequest req, Object response, String message, int status) {
         integrationLogService.logInternal(IntegrationLogRecord.builder()
                 .requestPayload(req)
-                .responsePayload(message)
+                .responsePayload(response)
                 .usuario("SYSTEM")
                 .mensaje(message)
                 .origen("WS_INTERNO")
