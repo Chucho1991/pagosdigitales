@@ -331,7 +331,45 @@ class DirectOnlinePaymentMapTest {
                 .extracting(item -> item.get("name"), item -> item.get("value"))
                 .containsExactly(
                         org.assertj.core.groups.Tuple.tuple("TransactionID", "4"),
-                        org.assertj.core.groups.Tuple.tuple("QRCodeImageBase64", "iVBORw0KGgoAAA"));
+                        org.assertj.core.groups.Tuple.tuple("QRCodeImageBase64", "iVBORw0KGgoAAA"),
+                        org.assertj.core.groups.Tuple.tuple("AgreementCode", "JEPFaster"));
+        assertThat(response.getResponse_datetime())
+                .matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}");
+    }
+
+    @Test
+    void mapProviderResponseAddsMandatoryFieldsForAnyExternalProvider() {
+        GatewayWebServiceDefinitionService definitionsService = mock(GatewayWebServiceDefinitionService.class);
+        ServiceMappingConfigService mappingService = mock(ServiceMappingConfigService.class);
+        when(mappingService.getResponseBodyMappings(
+                235689, "direct-online-payment-requests", "paysafe"))
+                .thenReturn(Map.of("responseDatetime", "providerDate"));
+        when(definitionsService.getDefaults(eq(235689), eq("direct-online-payment-requests"), anyMap()))
+                .thenReturn(Map.of());
+
+        DirectOnlinePaymentMap paymentMap = new DirectOnlinePaymentMap(
+                new ObjectMapper(), definitionsService, mappingService,
+                mock(PointOfSaleConfigService.class),
+                mock(ProviderTransactionSequencePort.class));
+        DirectOnlinePaymentRequest req = new DirectOnlinePaymentRequest();
+        req.setPayment_provider_code(235689);
+        req.setBank_id("0123");
+
+        var response = paymentMap.mapProviderResponse(
+                req, Map.of("providerDate", "fecha-no-normalizada"), "paysafe");
+
+        assertThat(response.getResponse_datetime())
+                .matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}");
+        assertThat(response.getPayment_locations()).singleElement().satisfies(location -> {
+            assertThat(location)
+                    .containsEntry("location_id", "0123")
+                    .containsEntry("location_name", "paysafe");
+            assertThat((List<Map<String, Object>>) location.get("payment_instructions"))
+                    .containsExactly(Map.of(
+                            "name", "AgreementCode",
+                            "value", "paysafe",
+                            "display_label", "Recaudacion al servicio"));
+        });
     }
 
     @Test

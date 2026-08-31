@@ -431,9 +431,26 @@ curl -X POST http://localhost:8080/api/v1/direct-online-payment-requests \
   "payment_expiration_datetime_utc": "2025-08-28T04:52:14",
   "transaction_id": "T-001",
   "payable_amounts": [],
-  "payment_locations": []
+  "payment_locations": [
+    {
+      "location_id": "0123",
+      "location_name": "SafetyPay",
+      "payment_instructions": [
+        {
+          "name": "AgreementCode",
+          "value": "SafetyPay",
+          "display_label": "Recaudacion al servicio"
+        }
+      ]
+    }
+  ]
 }
 ```
+
+Todas las respuestas exitosas de este endpoint generan `response_datetime` con formato
+`yyyy-MM-ddTHH:mm:ss`. Cada elemento de `payment_locations` incluye obligatoriamente la
+instruccion `AgreementCode`; su valor corresponde a `location_name` o, cuando el proveedor
+no entrega ubicaciones, al nombre de la integracion externa.
 
 ## Configuracion
 

@@ -39,6 +39,8 @@ public class DirectOnlinePaymentMap {
     private static final String WS_KEY = "direct-online-payment-requests";
     private static final String EXPIRED_TIME_PATH = "expiredTime";
     private static final String HOWTO_PAY_STEP_INSTRUCTION_PATH = "howtoPayStepInstruction";
+    private static final String AGREEMENT_CODE = "AgreementCode";
+    private static final String AGREEMENT_CODE_DISPLAY_LABEL = "Recaudacion al servicio";
     private static final String BANK_DEUNA = "deuna";
     private static final String BANK_JEPFASTER = "jepfaster";
 
@@ -208,7 +210,7 @@ public class DirectOnlinePaymentMap {
         resp.setChannel_POS(req.getChannel_POS());
         resp.setPayment_provider_code(req.getPayment_provider_code());
 
-        resp.setResponse_datetime(getValue(map, responseMapping.get("responseDatetime"), String.class));
+        resp.setResponse_datetime(LocalDateTime.now(LOCAL_TIME_ZONE).format(REQUEST_DATETIME_FORMAT));
         resp.setOperation_id(getValue(map, responseMapping.get("operationId"), String.class));
         resp.setBank_redirect_url(getValue(map, responseMapping.get("bankRedirectUrl"), String.class));
         String expirationDatetime = getValue(
@@ -299,12 +301,73 @@ public class DirectOnlinePaymentMap {
             paymentLocations = applyHowToPayStepsFallback(paymentLocations, defaultStepInstruction);
         }
 
+        paymentLocations = applyMandatoryAgreementCode(req, paymentLocations, providerName);
+
         resp.setPayable_amounts(payableAmounts);
         resp.setPayment_locations(paymentLocations);
         resp.setPayment_expiration_datetime(expirationDatetime);
         resp.setPayment_expiration_datetime_utc(expirationDatetimeUtc);
 
         return resp;
+    }
+
+    private List<Map<String, Object>> applyMandatoryAgreementCode(DirectOnlinePaymentRequest req,
+            List<Map<String, Object>> paymentLocations, String providerName) {
+        List<Map<String, Object>> locations = paymentLocations;
+        if (locations == null || locations.isEmpty()) {
+            Map<String, Object> location = new LinkedHashMap<>();
+            location.put("location_id", resolveLocationId(req));
+            location.put("location_name", resolveProviderDisplayName(providerName));
+            locations = List.of(location);
+        }
+
+        return locations.stream().map(location -> {
+            Map<String, Object> target = new LinkedHashMap<>(location);
+            String agreementValue = resolveAgreementValue(location, providerName);
+            List<Map<String, Object>> instructions = readPaymentInstructions(location);
+            instructions.removeIf(instruction -> AGREEMENT_CODE.equals(instruction.get("name")));
+
+            Map<String, Object> agreementInstruction = new LinkedHashMap<>();
+            agreementInstruction.put("name", AGREEMENT_CODE);
+            agreementInstruction.put("value", agreementValue);
+            agreementInstruction.put("display_label", AGREEMENT_CODE_DISPLAY_LABEL);
+            instructions.add(agreementInstruction);
+            target.put("payment_instructions", instructions);
+            return target;
+        }).toList();
+    }
+
+    private List<Map<String, Object>> readPaymentInstructions(Map<String, Object> location) {
+        Object rawInstructions = location.get("payment_instructions");
+        if (!(rawInstructions instanceof List<?>)) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(mapper.convertValue(rawInstructions, LIST_MAP_TYPE));
+    }
+
+    private String resolveAgreementValue(Map<String, Object> location, String providerName) {
+        Object locationName = location.get("location_name");
+        if (locationName != null && !locationName.toString().isBlank()) {
+            return locationName.toString();
+        }
+        return resolveProviderDisplayName(providerName);
+    }
+
+    private String resolveProviderDisplayName(String providerName) {
+        if (BANK_DEUNA.equalsIgnoreCase(providerName)) {
+            return "DeUna";
+        }
+        if (BANK_JEPFASTER.equalsIgnoreCase(providerName)) {
+            return "JEPFaster";
+        }
+        return providerName;
+    }
+
+    private String resolveLocationId(DirectOnlinePaymentRequest req) {
+        if (req.getBank_id() != null && !req.getBank_id().isBlank()) {
+            return req.getBank_id();
+        }
+        return String.valueOf(req.getPayment_provider_code());
     }
 
     private List<Map<String, Object>> buildPayableAmounts(DirectOnlinePaymentRequest req) {
@@ -334,13 +397,8 @@ public class DirectOnlinePaymentMap {
         addPaymentInstruction(paymentInstructions, "QRCodeUrl", deeplink);
         addPaymentInstruction(paymentInstructions, "QRCodeExpirationTime", expirationDatetimeUtc);
 
-        String locationId = req.getBank_id();
-        if (locationId == null || locationId.isBlank()) {
-            locationId = String.valueOf(req.getPayment_provider_code());
-        }
-
         Map<String, Object> paymentLocation = new LinkedHashMap<>();
-        paymentLocation.put("location_id", locationId);
+        paymentLocation.put("location_id", resolveLocationId(req));
         paymentLocation.put("location_name", locationName);
         paymentLocation.put("payment_instructions", paymentInstructions);
         paymentLocation.put("howto_pay_steps", List.of());
