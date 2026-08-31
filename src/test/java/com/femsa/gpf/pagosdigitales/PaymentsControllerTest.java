@@ -93,11 +93,11 @@ class PaymentsControllerTest {
         assertThat(response.getPayment_operations()).hasSize(1);
         assertThat(response.getPayment_operations().get(0).getOperation_id()).isEqualTo("8");
         assertThat(response.getPayment_operations().get(0).getOperation_activities())
-                .singleElement()
-                .satisfies(activity -> {
-                    assertThat(activity.getStatus_code()).isEqualTo("PAGADO");
-                    assertThat(activity.getStatus_description()).isEqualTo("JEP_CONFIRMATION_OK");
-                });
+                .extracting(activity -> activity.getStatus_code())
+                .containsExactly("101", "102");
+        assertThat(response.getPayment_operations().get(0).getOperation_activities())
+                .extracting(activity -> activity.getStatus_description())
+                .containsExactly("Purchase Pending", "Purchase Complete");
         verify(integrationLogService).logInternal(argThat((IntegrationLogRecord record) ->
                 "300001".equals(record.getCodigoProvPago())
                         && Integer.valueOf(200).equals(record.getCpNumber1())
@@ -152,6 +152,92 @@ class PaymentsControllerTest {
                 "300002".equals(record.getCodigoProvPago())
                         && mappedResponse.equals(record.getResponsePayload())
                         && Integer.valueOf(200).equals(record.getCpNumber1())));
+    }
+
+    @Test
+    void getPaymentsReturnsDeunaPaidHistoryFromRegistry() {
+        when(providersPayService.getProviderNameByCode(300002)).thenReturn("deuna");
+        when(configService.getActiveConfig(300002, "payments")).thenReturn(Optional.of(
+                new WebServiceConfig(300002, "payments", true, "REST", "GET", "JSON", "https://deuna/payments")));
+        java.util.Map<String, Object> providerRequest = java.util.Map.of("idType", "0");
+        java.util.Map<String, Object> providerResponse = java.util.Map.of(
+                "status", "PAID", "transactionId", "DEUNA-OP-1");
+
+        PaymentOperationActivity externalActivity = new PaymentOperationActivity();
+        externalActivity.setStatus_code("102");
+        PaymentOperation operation = new PaymentOperation();
+        operation.setOperation_id("DEUNA-OP-1");
+        operation.setOperation_activities(List.of(externalActivity));
+        PaymentsResponse mappedResponse = new PaymentsResponse();
+        mappedResponse.setPayment_provider_code(300002);
+        mappedResponse.setPayment_operations(List.of(operation));
+
+        when(paymentsMap.mapProviderRequest(any(), eq("deuna"))).thenReturn(providerRequest);
+        when(camel.requestBodyAndHeaders(eq("direct:payments"), eq(providerRequest), anyMap()))
+                .thenReturn(providerResponse);
+        when(mappingConfigService.getErrorPath(300002, "payments", "deuna")).thenReturn("error");
+        when(paymentsMap.mapProviderResponse(any(), eq(providerResponse), eq("deuna"))).thenReturn(mappedResponse);
+        when(paymentRegistryService.findPaymentStatus("DEUNA-OP-1", 300002)).thenReturn(Optional.of(
+                new RegisteredPayment(
+                        LocalDateTime.of(2026, 8, 26, 16, 40, 21),
+                        LocalDateTime.of(2026, 8, 26, 16, 40, 39),
+                        "SALE-1", "DEUNA-OP-1", "SALE-1", "REF-1",
+                        new java.math.BigDecimal("3.93"), "USD", "102", "DEUNA_PAYMENT_STATUS_102")));
+
+        PaymentsRequest request = request();
+        request.setPayment_provider_code(300002);
+        request.setOperation_id("DEUNA-OP-1");
+        ResponseEntity<?> result = controller.getPayments(request);
+
+        assertThat(result.getStatusCode().value()).isEqualTo(200);
+        PaymentsResponse response = (PaymentsResponse) result.getBody();
+        assertThat(response.getPayment_operations().get(0).getOperation_activities())
+                .extracting(PaymentOperationActivity::getStatus_code)
+                .containsExactly("101", "102");
+        verify(paymentRegistryService).synchronizeDeunaPaymentStatus(operation, 300002);
+    }
+
+    @Test
+    void getPaymentsPreservesDeunaStatusWithoutInternalHomologation() {
+        when(providersPayService.getProviderNameByCode(300002)).thenReturn("deuna");
+        when(configService.getActiveConfig(300002, "payments")).thenReturn(Optional.of(
+                new WebServiceConfig(300002, "payments", true, "REST", "POST", "JSON",
+                        "https://deuna/payments")));
+        java.util.Map<String, Object> providerRequest = java.util.Map.of(
+                "idTransacionReference", "DEUNA-OP-1", "idType", "0");
+        java.util.Map<String, Object> providerResponse = java.util.Map.of(
+                "status", "REVERSED", "transactionId", "DEUNA-OP-1");
+
+        PaymentOperationActivity externalActivity = new PaymentOperationActivity();
+        externalActivity.setStatus_code("REVERSED");
+        externalActivity.setStatus_description("REVERSED");
+        PaymentOperation operation = new PaymentOperation();
+        operation.setOperation_id("DEUNA-OP-1");
+        operation.setOperation_activities(List.of(externalActivity));
+        PaymentsResponse mappedResponse = new PaymentsResponse();
+        mappedResponse.setPayment_provider_code(300002);
+        mappedResponse.setPayment_operations(List.of(operation));
+
+        when(paymentsMap.mapProviderRequest(any(), eq("deuna"))).thenReturn(providerRequest);
+        when(camel.requestBodyAndHeaders(eq("direct:payments"), eq(providerRequest), anyMap()))
+                .thenReturn(providerResponse);
+        when(mappingConfigService.getErrorPath(300002, "payments", "deuna")).thenReturn("error");
+        when(paymentsMap.mapProviderResponse(any(), eq(providerResponse), eq("deuna")))
+                .thenReturn(mappedResponse);
+
+        PaymentsRequest request = request();
+        request.setPayment_provider_code(300002);
+        request.setOperation_id("DEUNA-OP-1");
+
+        ResponseEntity<?> result = controller.getPayments(request);
+
+        assertThat(result.getStatusCode().value()).isEqualTo(200);
+        PaymentsResponse response = (PaymentsResponse) result.getBody();
+        assertThat(response.getPayment_operations().get(0).getOperation_activities())
+                .extracting(PaymentOperationActivity::getStatus_code)
+                .containsExactly("REVERSED");
+        verify(paymentRegistryService, never()).synchronizeDeunaPaymentStatus(operation, 300002);
+        verify(paymentRegistryService, never()).findPaymentStatus("DEUNA-OP-1", 300002);
     }
 
     private PaymentsRequest request() {

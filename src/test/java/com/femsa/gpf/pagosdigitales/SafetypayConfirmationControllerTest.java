@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import com.femsa.gpf.pagosdigitales.domain.service.SignatureService;
+import com.femsa.gpf.pagosdigitales.infrastructure.persistence.PaymentRegistryService;
 import com.femsa.gpf.pagosdigitales.infrastructure.persistence.SafetypayConfirmationConfigService;
 
 @SpringBootTest
@@ -34,6 +35,9 @@ class SafetypayConfirmationControllerTest {
     @MockBean
     private SafetypayConfirmationConfigService configService;
 
+    @MockBean
+    private PaymentRegistryService paymentRegistryService;
+
     @BeforeEach
     void setup() {
         var provider = new SafetypayConfirmationConfigService.ProviderConfig(
@@ -46,6 +50,9 @@ class SafetypayConfirmationControllerTest {
                 java.util.List.of());
         when(configService.isEnabled()).thenReturn(true);
         when(configService.resolveProvider(org.mockito.ArgumentMatchers.anyString())).thenReturn(java.util.Optional.of(provider));
+        when(paymentRegistryService.existsConfirmationTarget(org.mockito.ArgumentMatchers.any())).thenReturn(true);
+        when(paymentRegistryService.updateFromSafetypayConfirmation(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyInt())).thenReturn(true);
     }
 
     @Test

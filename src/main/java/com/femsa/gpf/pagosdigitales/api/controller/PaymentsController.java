@@ -289,6 +289,14 @@ public class PaymentsController {
             if (operation == null) {
                 continue;
             }
+            PaymentOperationActivity externalActivity = lastActivity(operation);
+            if (PaymentStatus.fromValue(
+                    externalActivity == null ? null : externalActivity.getStatus_code()).isEmpty()) {
+                // DEUNA tambien puede devolver REVERSED, REVERSED_FAILED y NOT_FOUND.
+                // Se conserva el estado nativo hasta que exista una homologacion interna
+                // y no se reemplaza por el estado previo almacenado en base de datos.
+                continue;
+            }
             paymentRegistryService.synchronizeDeunaPaymentStatus(operation, req.getPayment_provider_code());
             String operationId = isBlank(operation.getOperation_id())
                     ? req.getOperation_id()
@@ -303,6 +311,11 @@ public class PaymentsController {
         if (isBlank(response.getResponse_datetime())) {
             response.setResponse_datetime(LocalDateTime.now().format(REQUEST_DATETIME_FORMAT));
         }
+    }
+
+    private PaymentOperationActivity lastActivity(PaymentOperation operation) {
+        List<PaymentOperationActivity> activities = operation.getOperation_activities();
+        return activities == null || activities.isEmpty() ? null : activities.get(activities.size() - 1);
     }
 
     private void enrichOperationFromRegistry(PaymentOperation operation, RegisteredPayment payment) {

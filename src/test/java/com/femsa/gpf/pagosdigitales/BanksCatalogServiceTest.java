@@ -34,7 +34,7 @@ class BanksCatalogServiceTest {
         when(connection.prepareStatement("SELECT "
                 + "A.DESCRIPCION AS CANAL, "
                 + "A.ACTIVO AS ESTADO, "
-                + "B.CODIGO_TIPOPAGO AS ID_BANCO, "
+                + "C.CODIGO_ESTABLECIMIENTO AS ID_BANCO, "
                 + "C.CODIGO_BILLETERA_DIGITAL AS ID_PROVEEDOR_PAGO "
                 + "FROM TUKUNAFUNC.AD_CANAL A, "
                 + "TUKUNAFUNC.AD_CANAL_TIPO_PAGO B, "
@@ -46,9 +46,14 @@ class BanksCatalogServiceTest {
         when(chainStatement.executeQuery()).thenReturn(chainResultSet);
         when(channelStatement.executeQuery()).thenReturn(channelResultSet);
 
-        when(chainResultSet.next()).thenReturn(true, true, false, true, true, false);
-        when(chainResultSet.getString("CODIGO")).thenReturn("0123", "0456", "0123", "0456");
-        when(chainResultSet.getInt("CODIGO_BILLETERA_DIGITAL")).thenReturn(235689, 235689, 235689, 235689);
+        when(chainResultSet.next()).thenReturn(
+                true, true, false,
+                true, true, false,
+                true, true, false);
+        when(chainResultSet.getString("CODIGO")).thenReturn(
+                "0123", "0456", "0123", "0456", "0123", "0456");
+        when(chainResultSet.getInt("CODIGO_BILLETERA_DIGITAL")).thenReturn(
+                235689, 235689, 235689, 235689, 235689, 235689);
         when(chainResultSet.getBigDecimal("MINIMO"))
                 .thenReturn(new BigDecimal("25.00"), (BigDecimal) null, new BigDecimal("25.00"), (BigDecimal) null);
         when(chainResultSet.getBigDecimal("MAXIMO"))

@@ -57,6 +57,7 @@ class DirectOnlinePaymentMapTest {
         assertThat(providerRequest.get("pointOfSale")).isNotEqualTo("148");
         assertThat(providerRequest).containsEntry("internalTransactionReference", "17");
         assertThat(providerRequest).containsEntry("detail", "VENTA PAGOS DIGITALES");
+        assertThat(providerRequest).containsEntry("qrFormat", "pngQr300x300_bw_onlyPOS");
         assertThat(providerRequest).doesNotContainKey("howtoPayStepInstruction");
     }
 
@@ -411,6 +412,7 @@ class DirectOnlinePaymentMapTest {
                             "detail", customMerchantName == null
                                     ? "VENTA PAGOS DIGITALES"
                                     : customMerchantName,
+                            "qrFormat", "pngQr300x300_bw_onlyPOS",
                             "howtoPayStepInstruction", "Pagar desde plataforma DEUNA");
                 });
     }

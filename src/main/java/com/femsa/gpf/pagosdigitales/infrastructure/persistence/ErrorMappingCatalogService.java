@@ -53,7 +53,7 @@ public class ErrorMappingCatalogService {
     /**
      * Refresca la cache del catalogo cada 6 horas.
      *
-     * @return true si la cache fue actualizada
+     * @return true si la cache fue actualizada; false si se conservo la anterior
      */
     @Scheduled(cron = "0 0 */6 * * *")
     public boolean refreshCache() {

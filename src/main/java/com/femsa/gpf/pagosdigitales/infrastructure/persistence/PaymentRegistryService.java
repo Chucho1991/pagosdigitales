@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -62,12 +63,16 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                 FARMACIA = ?,
                 NOMBRE_FARMACIA = ?,
                 POS = ?,
-                FECHA_REGISTRO = ?,
+                FECHA_REGISTRO = NVL(FECHA_REGISTRO, ?),
                 CANAL = ?,
                 CODIGO_PROV_PAGO = ?,
                 FOLIO = ?,
                 ID_INTERNO_VENTA = ?,
-                COD_ESTADO_PAGO = ?,
+                COD_ESTADO_PAGO = CASE
+                    WHEN COD_ESTADO_PAGO IN ('100', '102', '104') AND ? = '101'
+                    THEN COD_ESTADO_PAGO
+                    ELSE ?
+                END,
                 CP_VAR1 = ?,
                 CP_NUMBER1 = ?
             WHERE ID_OPERACION_EXTERNO = ?
@@ -155,6 +160,7 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                 CP_VAR1 = ?,
                 CP_NUMBER1 = ?
             WHERE ID_OPERACION_EXTERNO = ?
+              AND CODIGO_PROV_PAGO = ?
             """;
 
     private static final String UPDATE_DEUNA_PAYMENT_STATUS = """
@@ -169,6 +175,10 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                 CP_NUMBER1 = 0
             WHERE ID_OPERACION_EXTERNO = ?
               AND CODIGO_PROV_PAGO = ?
+              AND NOT (
+                    COD_ESTADO_PAGO IN ('100', '102', '104')
+                    AND ? = '101'
+              )
             """;
 
     private static final String SELECT_PAYMENT_STATUS = """
@@ -275,9 +285,10 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                         update.setString(8, event.getMerchant_sales_id());
                         update.setString(9, event.getMerchant_sales_id());
                         update.setString(10, paymentStatus);
-                        update.setString(11, cpVar1);
-                        update.setObject(12, errorNumber, java.sql.Types.NUMERIC);
-                        update.setString(13, event.getOperation_id());
+                        update.setString(11, paymentStatus);
+                        update.setString(12, cpVar1);
+                        update.setObject(13, errorNumber, java.sql.Types.NUMERIC);
+                        update.setString(14, event.getOperation_id());
 
                         if (update.executeUpdate() > 0) {
                             continue;
@@ -524,7 +535,7 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
         try {
             return databaseExecutor.withConnection(connection -> {
                 try (PreparedStatement ps = connection.prepareStatement(UPDATE_DEUNA_CONFIRMATION)) {
-                    setDate(ps, 1, LocalDateTime.now());
+                    setDate(ps, 1, firstNonNullDateTime(req.getDate(), null, LocalDateTime.now()));
                     ps.setString(2, req.getTransferNumber());
                     ps.setString(3, req.getTransferNumber());
                     if (req.getAmount() != null) {
@@ -537,6 +548,7 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                     ps.setString(7, "DEUNA_CONFIRMATION_OK");
                     ps.setObject(8, 0, java.sql.Types.NUMERIC);
                     ps.setString(9, req.getIdTransaction());
+                    ps.setString(10, "300002");
                     return ps.executeUpdate() > 0;
                 }
             });
@@ -592,6 +604,7 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
                     ps.setString(9, "DEUNA_PAYMENT_STATUS_" + status.get().code());
                     ps.setString(10, operation.getOperation_id());
                     ps.setString(11, providerCode.toString());
+                    ps.setString(12, status.get().code());
                     return ps.executeUpdate() > 0;
                 }
             });
@@ -722,6 +735,10 @@ public class PaymentRegistryService implements GeneratedPaymentRegistryPort {
         }
         try {
             return LocalDateTime.parse(value, DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
+        } catch (Exception ignored) {
+        }
+        try {
+            return LocalDateTime.parse(value, DateTimeFormatter.ofPattern("M/d/yyyy, h:mm:ss a", Locale.US));
         } catch (Exception ignored) {
         }
         return null;

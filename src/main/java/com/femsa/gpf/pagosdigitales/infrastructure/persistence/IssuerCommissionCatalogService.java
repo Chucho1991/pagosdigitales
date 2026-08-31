@@ -82,7 +82,7 @@ public class IssuerCommissionCatalogService {
     /**
      * Refresca la cache de comisiones y sincroniza FEMSA_EMISOR_COMISION cada 6 horas.
      *
-     * @return true si la cache y la tabla destino fueron actualizadas
+     * @return true si la cache fue actualizada; false si se conservo la anterior
      */
     @Scheduled(cron = "0 0 */6 * * *")
     public boolean refreshCache() {

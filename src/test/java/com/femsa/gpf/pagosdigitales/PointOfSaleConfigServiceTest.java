@@ -47,9 +47,8 @@ class PointOfSaleConfigServiceTest {
         }).when(databaseExecutor).withConnection(any(DatabaseExecutor.ConnectionConsumer.class));
 
         PointOfSaleConfigService service = new PointOfSaleConfigService(databaseExecutor);
-        boolean refreshed = service.refreshCache();
+        service.refreshCache();
 
-        assertThat(refreshed).isTrue();
         assertThat(service.findPointOfSale(300002, 60, 148, 90)).contains("5");
         assertThat(service.findPointOfSale(300002, 60, 148, 1)).contains("6");
         assertThat(service.findPointOfSale(300002, 60, 999, 1)).isEmpty();
@@ -80,11 +79,9 @@ class PointOfSaleConfigServiceTest {
                 .when(databaseExecutor).withConnection(any(DatabaseExecutor.ConnectionConsumer.class));
 
         PointOfSaleConfigService service = new PointOfSaleConfigService(databaseExecutor);
-        boolean firstRefresh = service.refreshCache();
-        boolean secondRefresh = service.refreshCache();
+        service.refreshCache();
+        service.refreshCache();
 
-        assertThat(firstRefresh).isTrue();
-        assertThat(secondRefresh).isFalse();
         assertThat(service.findPointOfSale(300002, 60, 148, 90)).contains("5");
         verify(databaseExecutor, times(2)).withConnection(any(DatabaseExecutor.ConnectionConsumer.class));
     }

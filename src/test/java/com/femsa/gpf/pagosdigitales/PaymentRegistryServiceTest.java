@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.femsa.gpf.pagosdigitales.api.dto.DeunaConfirmationRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEvent;
 import com.femsa.gpf.pagosdigitales.api.dto.MerchantEventsRequest;
 import com.femsa.gpf.pagosdigitales.api.dto.JepConfirmationRequest;
@@ -81,8 +82,38 @@ class PaymentRegistryServiceTest {
         service.registerMerchantEvents(merchantEventsRequest(), 0);
 
         verify(update).setString(10, "101");
-        verify(update).setString(13, "OP-1");
+        verify(update).setString(11, "101");
+        verify(update).setString(14, "OP-1");
         verify(update).executeUpdate();
+        verify(insert, never()).executeUpdate();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void registerMerchantEventsDoesNotRegressTerminalStatusToPending() throws Exception {
+        DatabaseExecutor databaseExecutor = mock(DatabaseExecutor.class);
+        Connection connection = mock(Connection.class);
+        PreparedStatement update = mock(PreparedStatement.class);
+        PreparedStatement insert = mock(PreparedStatement.class);
+
+        when(connection.prepareStatement(anyString())).thenAnswer(invocation ->
+                invocation.<String>getArgument(0).startsWith("UPDATE") ? update : insert);
+        when(update.executeUpdate()).thenReturn(1);
+        doAnswer(invocation -> {
+            DatabaseExecutor.ConnectionConsumer consumer = invocation.getArgument(0);
+            consumer.execute(connection);
+            return null;
+        }).when(databaseExecutor).withConnection(any(DatabaseExecutor.ConnectionConsumer.class));
+
+        new PaymentRegistryService(databaseExecutor).registerMerchantEvents(merchantEventsRequest(), 0);
+
+        verify(connection).prepareStatement(argThat(sql ->
+                sql.contains("COD_ESTADO_PAGO IN ('100', '102', '104')")
+                        && sql.contains("AND ? = '101'")
+                        && sql.contains("THEN COD_ESTADO_PAGO")));
+        verify(update).setString(10, "101");
+        verify(update).setString(11, "101");
+        verify(update).setString(14, "OP-1");
         verify(insert, never()).executeUpdate();
     }
 
@@ -173,6 +204,39 @@ class PaymentRegistryServiceTest {
         verify(statement).setString(8, "102");
         verify(statement).setString(10, "DEUNA-OP-1");
         verify(statement).setString(11, "300002");
+        verify(statement).setString(12, "102");
+        verify(connection).prepareStatement(argThat(sql ->
+                sql.contains("COD_ESTADO_PAGO IN ('100', '102', '104')")
+                        && sql.contains("AND ? = '101'")));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void updateFromDeunaConfirmationUsesProviderTransactionDate() throws Exception {
+        DatabaseExecutor databaseExecutor = mock(DatabaseExecutor.class);
+        Connection connection = mock(Connection.class);
+        PreparedStatement statement = mock(PreparedStatement.class);
+
+        when(connection.prepareStatement(anyString())).thenReturn(statement);
+        when(statement.executeUpdate()).thenReturn(1);
+        doAnswer(invocation -> {
+            DatabaseExecutor.ConnectionCallback<?> callback = invocation.getArgument(0);
+            return callback.execute(connection);
+        }).when(databaseExecutor).withConnection(any(DatabaseExecutor.ConnectionCallback.class));
+
+        DeunaConfirmationRequest request = new DeunaConfirmationRequest();
+        request.setStatus("SUCCESS");
+        request.setAmount(new BigDecimal("3.93"));
+        request.setIdTransaction("DEUNA-OP-1");
+        request.setDate("8/27/2026, 4:10:58 PM");
+
+        boolean updated = new PaymentRegistryService(databaseExecutor).updateFromDeunaConfirmation(request);
+
+        assertThat(updated).isTrue();
+        verify(statement).setTimestamp(1,
+                Timestamp.valueOf(LocalDateTime.of(2026, 8, 27, 16, 10, 58)));
+        verify(statement).setString(9, "DEUNA-OP-1");
+        verify(statement).setString(10, "300002");
     }
 
     @SuppressWarnings("unchecked")

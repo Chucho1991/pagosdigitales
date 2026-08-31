@@ -197,6 +197,7 @@ Regla de validacion para `merchant-events`:
 - La combinacion `ID_INTERNO_VENTA-farmacia` (`merchant_sales_id` + `store`) no puede estar asociada a otro `operation_id`.
 - Un `operation_id` existente solo puede actualizarse cuando pertenece al mismo `merchant_sales_id` y `store`; si pertenece a otra venta, se responde con conflicto.
 - Si el request llega con la misma combinacion `ID_INTERNO_VENTA + ID_OPERACION_EXTERNO + FARMACIA` ya registrada, el endpoint actualiza esa fila y responde `200 OK`, sin crear duplicados.
+- Un evento tardio con estado `101` no puede regresar a pendiente un pago que ya este en estado terminal `100`, `102` o `104`; tampoco reemplaza la fecha original de registro.
 - Si existe conflicto, el endpoint responde error `400` y no registra el evento como exitoso.
 - Si el endpoint retorna cualquier error (`400/500`), no se inserta registro en `IN_REGISTRO_PAGOS`.
 

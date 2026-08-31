@@ -335,6 +335,33 @@ FROM TUKUNAFUNC.IN_PASARELA_WS
 WHERE CODIGO_BILLETERA = 300002
   AND WS_KEY = 'direct-online-payment-requests';
 
+-- Formato PNG base64 de 300x300 en blanco y negro para el QR de caja.
+INSERT INTO TUKUNAFUNC.IN_PASARELA_WS_DEFS (
+    ID_DEFAULT,
+    ID_WS,
+    DEFAULT_CLAVE,
+    DEFAULT_VALOR_TEXTO,
+    TIPO_DEF,
+    DEFAULT_VALOR_SISTEMA
+)
+SELECT
+    (SELECT NVL(MAX(ID_DEFAULT), 0) + 1
+       FROM TUKUNAFUNC.IN_PASARELA_WS_DEFS),
+    WS.ID_WS,
+    'qrFormat',
+    'pngQr300x300_bw_onlyPOS',
+    'DEFAULTS',
+    NULL
+FROM TUKUNAFUNC.IN_PASARELA_WS WS
+WHERE WS.CODIGO_BILLETERA = 300002
+  AND WS.WS_KEY = 'direct-online-payment-requests'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM TUKUNAFUNC.IN_PASARELA_WS_DEFS D
+      WHERE D.ID_WS = WS.ID_WS
+        AND D.DEFAULT_CLAVE = 'qrFormat'
+  );
+
 -- detail usa custom_merchant_name; si no llega o esta vacio usa el texto configurado.
 INSERT INTO TUKUNAFUNC.IN_PASARELA_WS_DEFS (
     ID_DEFAULT,
@@ -616,20 +643,32 @@ FROM (
     SELECT 'paymentOperation.shopper_amount.currency_code',
            'currency', 'STRING', 10 FROM DUAL
     UNION ALL
-    SELECT 'paymentOperation.additional_info',
+    SELECT 'paymentOperation.additional_info.description',
            'description', 'STRING', 11 FROM DUAL
     UNION ALL
+    SELECT 'paymentOperation.additional_info.branch_id',
+           'branchId', 'STRING', 12 FROM DUAL
+    UNION ALL
+    SELECT 'paymentOperation.additional_info.pos_id',
+           'posId', 'STRING', 13 FROM DUAL
+    UNION ALL
+    SELECT 'paymentOperation.additional_info.orderer_name',
+           'ordererName', 'STRING', 14 FROM DUAL
+    UNION ALL
+    SELECT 'paymentOperation.additional_info.orderer_identification',
+           'ordererIdentification', 'STRING', 15 FROM DUAL
+    UNION ALL
     SELECT 'paymentOperation.payment_reference_number',
-           'transferNumber', 'STRING', 12 FROM DUAL
+           'transferNumber', 'STRING', 16 FROM DUAL
     UNION ALL
     SELECT 'paymentOperationActivity.creation_datetime',
-           'date', 'DATETIME', 13 FROM DUAL
+           'date', 'DATETIME', 17 FROM DUAL
     UNION ALL
     SELECT 'paymentOperationActivity.status_code',
-           'status', 'STRING', 14 FROM DUAL
+           'status', 'STRING', 18 FROM DUAL
     UNION ALL
     SELECT 'paymentOperationActivity.status_description',
-           'status', 'STRING', 15 FROM DUAL
+           'status', 'STRING', 19 FROM DUAL
 ) M
 CROSS JOIN TUKUNAFUNC.IN_PASARELA_WS WS
 WHERE WS.CODIGO_BILLETERA = 300002

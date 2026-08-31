@@ -61,7 +61,11 @@ class PaymentsMapTest {
         mappings.put("paymentOperation.payment_amount.currency_code", "currency");
         mappings.put("paymentOperation.shopper_amount.value", "amount");
         mappings.put("paymentOperation.shopper_amount.currency_code", "currency");
-        mappings.put("paymentOperation.additional_info", "description");
+        mappings.put("paymentOperation.additional_info.description", "description");
+        mappings.put("paymentOperation.additional_info.branch_id", "branchId");
+        mappings.put("paymentOperation.additional_info.pos_id", "posId");
+        mappings.put("paymentOperation.additional_info.orderer_name", "ordererName");
+        mappings.put("paymentOperation.additional_info.orderer_identification", "ordererIdentification");
         mappings.put("paymentOperation.payment_reference_number", "transferNumber");
         mappings.put("paymentOperationActivity.creation_datetime", "date");
         mappings.put("paymentOperationActivity.status_code", "status");
@@ -78,7 +82,11 @@ class PaymentsMapTest {
                   "transferNumber": "459637351026",
                   "date": "6/15/2024, 11:37:57 AM",
                   "currency": "USD",
-                  "description": "detail transaction"
+                  "description": "detail transaction",
+                  "branchId": "4073390",
+                  "posId": "4073391",
+                  "ordererName": "CLIENTE DEUNA",
+                  "ordererIdentification": "1600539421"
                 }
                 """;
 
@@ -90,6 +98,13 @@ class PaymentsMapTest {
         assertThat(operation.getOperation_id()).isEqualTo("b392c0c5-ee17-49ae-b9cb-e96de453ad5d");
         assertThat(operation.getPayment_amount().getValue()).isEqualByComparingTo("0.02");
         assertThat(operation.getPayment_amount().getCurrency_code()).isEqualTo("USD");
+        assertThat(operation.getAdditional_info()).isInstanceOf(Map.class);
+        Map<?, ?> additionalInfo = (Map<?, ?>) operation.getAdditional_info();
+        assertThat(additionalInfo.get("description")).isEqualTo("detail transaction");
+        assertThat(additionalInfo.get("branch_id")).isEqualTo("4073390");
+        assertThat(additionalInfo.get("pos_id")).isEqualTo("4073391");
+        assertThat(additionalInfo.get("orderer_name")).isEqualTo("CLIENTE DEUNA");
+        assertThat(additionalInfo.get("orderer_identification")).isEqualTo("1600539421");
         assertThat(operation.getOperation_activities()).singleElement().satisfies(activity -> {
             assertThat(activity.getStatus_code()).isEqualTo("102");
             assertThat(activity.getStatus_description()).isEqualTo("Purchase Complete");
